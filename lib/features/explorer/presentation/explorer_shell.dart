@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 import '../data/places_repository.dart';
 import '../domain/place.dart';
+import '../../home/presentation/widgets/home_drawer.dart';
+import 'redesigned_explorer_screen.dart';
+import 'widgets/explorer_footer.dart';
 
 const _brown = Color(0xFF713021);
 
@@ -12,25 +15,38 @@ class ExplorerShell extends StatefulWidget {
 }
 
 class _ExplorerShellState extends State<ExplorerShell> {
+  final scaffoldKey = GlobalKey<ScaffoldState>();
   final repository = PlacesRepository();
   int index = 0;
+
+  void openDrawer() => scaffoldKey.currentState?.openDrawer();
+
   @override
   Widget build(BuildContext context) => Scaffold(
+    key: scaffoldKey,
+    drawer: const HomeDrawer(),
     body: IndexedStack(
       index: index,
       children: [
-        ExplorerScreen(
-          repository: repository,
-          onShowMap: () => setState(() => index = 1),
+        RedesignedExplorerScreen(
+          onOpenDrawer: openDrawer,
         ),
-        MapScreen(repository: repository),
-        const _ComingSoon(label: 'Journeys'),
-        const _ComingSoon(label: 'Profile'),
+        MapScreen(repository: repository, onOpenDrawer: openDrawer),
+        _ComingSoon(label: 'Journeys', onOpenDrawer: openDrawer),
+        _ComingSoon(label: 'Profile', onOpenDrawer: openDrawer),
       ],
     ),
-    bottomNavigationBar: _ExplorerNav(
-      index: index,
-      onChanged: (value) => setState(() => index = value),
+    bottomNavigationBar: ExplorerFooter(
+      selectedIndex: index < 2 ? 1 : index,
+      onSelected: (value) {
+        if (value == 0) {
+          Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
+        } else if (value == 3) {
+          Navigator.pushNamed(context, '/province-map');
+        } else {
+          setState(() => index = value == 1 ? 0 : value);
+        }
+      },
     ),
   );
 }
@@ -40,9 +56,11 @@ class ExplorerScreen extends StatefulWidget {
     super.key,
     required this.repository,
     required this.onShowMap,
+    required this.onOpenDrawer,
   });
   final PlacesRepository repository;
   final VoidCallback onShowMap;
+  final VoidCallback onOpenDrawer;
   @override
   State<ExplorerScreen> createState() => _ExplorerScreenState();
 }
@@ -86,7 +104,10 @@ class _ExplorerScreenState extends State<ExplorerScreen> {
           backgroundColor: const Color(0xFFFFFBF8),
           foregroundColor: _brown,
           centerTitle: true,
-          leading: const Icon(Icons.menu, size: 20),
+          leading: IconButton(
+            onPressed: widget.onOpenDrawer,
+            icon: const Icon(Icons.menu, size: 20),
+          ),
           title: const Text(
             'Rootly',
             style: TextStyle(
@@ -228,8 +249,13 @@ class _ExplorerScreenState extends State<ExplorerScreen> {
 }
 
 class MapScreen extends StatefulWidget {
-  const MapScreen({super.key, required this.repository});
+  const MapScreen({
+    super.key,
+    required this.repository,
+    required this.onOpenDrawer,
+  });
   final PlacesRepository repository;
+  final VoidCallback onOpenDrawer;
   @override
   State<MapScreen> createState() => _MapScreenState();
 }
@@ -287,18 +313,34 @@ class _MapScreenState extends State<MapScreen> {
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(12),
-              child: Material(
-                elevation: 4,
-                borderRadius: BorderRadius.circular(22),
-                child: TextField(
-                  readOnly: true,
-                  decoration: const InputDecoration(
-                    hintText: 'Polonnaruwa',
-                    prefixIcon: Icon(Icons.map_outlined, color: _brown),
-                    suffixIcon: Icon(Icons.tune),
-                    border: InputBorder.none,
+              child: Row(
+                children: [
+                  Material(
+                    elevation: 4,
+                    color: Colors.white,
+                    shape: const CircleBorder(),
+                    child: IconButton(
+                      onPressed: widget.onOpenDrawer,
+                      icon: const Icon(Icons.menu, color: _brown),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Material(
+                      elevation: 4,
+                      borderRadius: BorderRadius.circular(22),
+                      child: const TextField(
+                        readOnly: true,
+                        decoration: InputDecoration(
+                          hintText: 'Polonnaruwa',
+                          prefixIcon: Icon(Icons.map_outlined, color: _brown),
+                          suffixIcon: Icon(Icons.tune),
+                          border: InputBorder.none,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -489,11 +531,41 @@ class _Heading extends StatelessWidget {
 }
 
 class _ComingSoon extends StatelessWidget {
-  const _ComingSoon({required this.label});
+  const _ComingSoon({required this.label, required this.onOpenDrawer});
   final String label;
+  final VoidCallback onOpenDrawer;
   @override
-  Widget build(BuildContext context) =>
-      Center(child: Text('$label coming soon'));
+  Widget build(BuildContext context) => SafeArea(
+    child: Column(
+      children: [
+        SizedBox(
+          height: 56,
+          child: Row(
+            children: [
+              IconButton(
+                onPressed: onOpenDrawer,
+                icon: const Icon(Icons.menu, color: _brown),
+              ),
+              Expanded(
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: _brown,
+                    fontFamily: 'serif',
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 48),
+            ],
+          ),
+        ),
+        Expanded(child: Center(child: Text('$label coming soon'))),
+      ],
+    ),
+  );
 }
 
 class _ExplorerNav extends StatelessWidget {
