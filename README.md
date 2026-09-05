@@ -1,5 +1,18 @@
 # uee_project
 
+## Google Maps setup
+
+Enable **Maps SDK for Android** and **Places API** in Google Cloud, then run with
+the same restricted API key available to the native map and Dart Places client:
+
+```powershell
+$env:ORG_GRADLE_PROJECT_GOOGLE_MAPS_API_KEY='YOUR_KEY'
+flutter run --dart-define=GOOGLE_MAPS_API_KEY=YOUR_KEY
+```
+
+For a normal Android Studio build, add `GOOGLE_MAPS_API_KEY=YOUR_KEY` to the
+user-level Gradle properties file and keep the Dart define in the run config.
+
 A new Flutter project.
 
 ## Getting Started
