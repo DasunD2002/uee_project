@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 
 class ExplorerFooter extends StatelessWidget {
-  const ExplorerFooter({super.key, required this.selectedIndex, required this.onSelected});
+  const ExplorerFooter({
+    super.key,
+    required this.selectedIndex,
+    required this.onSelected,
+  });
   final int selectedIndex;
   final ValueChanged<int> onSelected;
 
