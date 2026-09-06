@@ -1,6 +1,16 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/rootly_back_button.dart';
 import '../../home/presentation/widgets/home_drawer.dart';
+import 'widgets/explorer_footer.dart';
+
+void _navigateFromFooter(BuildContext context, int index) {
+  if (index == 0) {
+    Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
+  } else if (index == 1) {
+    Navigator.pushNamedAndRemoveUntil(context, '/explorer', (_) => false);
+  }
+}
 
 class JourneyPlannerScreen extends StatefulWidget {
   const JourneyPlannerScreen({
@@ -37,7 +47,8 @@ class _JourneyPlannerScreenState extends State<JourneyPlannerScreen> {
       sites.add(
         JourneySite(
           title: widget.selectedTitle!,
-          description: 'Renowned for its massive, sublime Buddha statues carved directly into a granite cliff.',
+          description:
+              'Renowned for its massive, sublime Buddha statues carved directly into a granite cliff.',
           duration: '1.0 hrs',
           imagePath: widget.selectedImagePath ?? 'assets/images/gal_vihara.png',
         ),
@@ -46,37 +57,42 @@ class _JourneyPlannerScreenState extends State<JourneyPlannerScreen> {
   }
 
   static List<JourneySite> defaultSites() => [
-      const JourneySite(
-        title: 'Royal Palace of King Parakramabahu',
-        description: 'The magnificent seven-storey palace ruins, showcasing the architectural grandeur.',
-        duration: '1.5 hrs',
-        imagePath: 'assets/images/login_image.jpg',
-      ),
-      const JourneySite(
-        title: 'The Quadrangle (Dalada Maluva)',
-        description: 'A compact group of fascinating ruins, including the circular Vatadage.',
-        duration: '2.5 hrs',
-        imagePath: 'assets/images/login_image.jpg',
-      ),
-      const JourneySite(
-        title: 'Polonnaruwa Vatadage',
-        description: 'An elegant circular relic house decorated with finely carved stone guardstones.',
-        duration: '45 mins',
-        imagePath: 'assets/images/gal_vihara.png',
-      ),
-      const JourneySite(
-        title: 'Rankoth Vehera',
-        description: 'The largest stupa in Polonnaruwa and an enduring landmark of the ancient city.',
-        duration: '40 mins',
-        imagePath: 'assets/images/login_image.jpg',
-      ),
-      const JourneySite(
-        title: 'Lankatilaka Image House',
-        description: 'A monumental brick shrine containing the remains of a towering Buddha image.',
-        duration: '50 mins',
-        imagePath: 'assets/images/gal_vihara.png',
-      ),
-    ];
+    const JourneySite(
+      title: 'Royal Palace of King Parakramabahu',
+      description:
+          'The magnificent seven-storey palace ruins, showcasing the architectural grandeur.',
+      duration: '1.5 hrs',
+      imagePath: 'assets/images/login_image.jpg',
+    ),
+    const JourneySite(
+      title: 'The Quadrangle (Dalada Maluva)',
+      description:
+          'A compact group of fascinating ruins, including the circular Vatadage.',
+      duration: '2.5 hrs',
+      imagePath: 'assets/images/login_image.jpg',
+    ),
+    const JourneySite(
+      title: 'Polonnaruwa Vatadage',
+      description:
+          'An elegant circular relic house decorated with finely carved stone guardstones.',
+      duration: '45 mins',
+      imagePath: 'assets/images/gal_vihara.png',
+    ),
+    const JourneySite(
+      title: 'Rankoth Vehera',
+      description:
+          'The largest stupa in Polonnaruwa and an enduring landmark of the ancient city.',
+      duration: '40 mins',
+      imagePath: 'assets/images/login_image.jpg',
+    ),
+    const JourneySite(
+      title: 'Lankatilaka Image House',
+      description:
+          'A monumental brick shrine containing the remains of a towering Buddha image.',
+      duration: '50 mins',
+      imagePath: 'assets/images/gal_vihara.png',
+    ),
+  ];
 
   void reorder(int oldIndex, int newIndex) {
     setState(() {
@@ -100,6 +116,7 @@ class _JourneyPlannerScreenState extends State<JourneyPlannerScreen> {
       backgroundColor: const Color(0xFFFFEAEA),
       foregroundColor: AppColors.brown,
       centerTitle: true,
+      leading: const RootlyBackButton(fallbackRoute: '/explorer'),
       title: const Text(
         'Rootly',
         style: TextStyle(
@@ -156,7 +173,10 @@ class _JourneyPlannerScreenState extends State<JourneyPlannerScreen> {
             const Wrap(
               spacing: 7,
               children: [
-                _InfoChip(icon: Icons.calendar_today_outlined, label: '1 Ancient City'),
+                _InfoChip(
+                  icon: Icons.calendar_today_outlined,
+                  label: '1 Ancient City',
+                ),
                 _InfoChip(icon: Icons.schedule, label: 'About 5 hours'),
               ],
             ),
@@ -174,7 +194,10 @@ class _JourneyPlannerScreenState extends State<JourneyPlannerScreen> {
                   ),
                 ),
                 const Spacer(),
-                Text('${sites.length} stops on route', style: const TextStyle(fontSize: 9)),
+                Text(
+                  '${sites.length} stops on route',
+                  style: const TextStyle(fontSize: 9),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -207,7 +230,9 @@ class _JourneyPlannerScreenState extends State<JourneyPlannerScreen> {
                 foregroundColor: AppColors.brown,
                 side: const BorderSide(color: Color(0xFFD6B5A8)),
                 minimumSize: const Size.fromHeight(40),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                ),
               ),
             ),
             const SizedBox(height: 8),
@@ -219,7 +244,9 @@ class _JourneyPlannerScreenState extends State<JourneyPlannerScreen> {
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.brown,
                 minimumSize: const Size.fromHeight(40),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                ),
               ),
               child: const Text('Save Draft'),
             ),
@@ -234,7 +261,9 @@ class _JourneyPlannerScreenState extends State<JourneyPlannerScreen> {
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.brown,
                 minimumSize: const Size.fromHeight(40),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                ),
               ),
             ),
             const SizedBox(height: 6),
@@ -245,12 +274,18 @@ class _JourneyPlannerScreenState extends State<JourneyPlannerScreen> {
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.brown,
                 minimumSize: const Size.fromHeight(40),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                ),
               ),
             ),
           ],
         ),
       ),
+    ),
+    bottomNavigationBar: ExplorerFooter(
+      selectedIndex: 3,
+      onSelected: (index) => _navigateFromFooter(context, index),
     ),
   );
 }
@@ -268,13 +303,35 @@ class _JourneyInfo extends StatelessWidget {
     child: const Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Starting Location', style: TextStyle(fontSize: 9, color: Colors.grey)),
+        Text(
+          'Starting Location',
+          style: TextStyle(fontSize: 9, color: Colors.grey),
+        ),
         SizedBox(height: 4),
-        Row(children: [Icon(Icons.my_location, size: 14, color: AppColors.brown), SizedBox(width: 5), Text('Polonnaruwa Roundabout Hotel', style: TextStyle(fontSize: 10))]),
+        Row(
+          children: [
+            Icon(Icons.my_location, size: 14, color: AppColors.brown),
+            SizedBox(width: 5),
+            Text(
+              'Polonnaruwa Roundabout Hotel',
+              style: TextStyle(fontSize: 10),
+            ),
+          ],
+        ),
         Divider(height: 18),
         Text('Journey Date', style: TextStyle(fontSize: 9, color: Colors.grey)),
         SizedBox(height: 4),
-        Row(children: [Icon(Icons.calendar_month_outlined, size: 14, color: AppColors.brown), SizedBox(width: 5), Text('Friday 24th May', style: TextStyle(fontSize: 10))]),
+        Row(
+          children: [
+            Icon(
+              Icons.calendar_month_outlined,
+              size: 14,
+              color: AppColors.brown,
+            ),
+            SizedBox(width: 5),
+            Text('Friday 24th May', style: TextStyle(fontSize: 10)),
+          ],
+        ),
       ],
     ),
   );
@@ -306,7 +363,11 @@ class _JourneySiteCard extends StatelessWidget {
               border: Border.all(color: AppColors.brown),
               borderRadius: BorderRadius.circular(6),
             ),
-            child: const Icon(Icons.drag_indicator, size: 18, color: AppColors.brown),
+            child: const Icon(
+              Icons.drag_indicator,
+              size: 18,
+              color: AppColors.brown,
+            ),
           ),
         ),
         const SizedBox(width: 8),
@@ -323,18 +384,42 @@ class _JourneySiteCard extends StatelessWidget {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(5),
-                  child: Image.asset(site.imagePath, width: 92, height: 66, fit: BoxFit.cover),
+                  child: Image.asset(
+                    site.imagePath,
+                    width: 92,
+                    height: 66,
+                    fit: BoxFit.cover,
+                  ),
                 ),
                 const SizedBox(width: 9),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(site.title, style: const TextStyle(fontFamily: 'serif', fontSize: 13, fontWeight: FontWeight.bold)),
+                      Text(
+                        site.title,
+                        style: const TextStyle(
+                          fontFamily: 'serif',
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       const SizedBox(height: 3),
-                      Text(site.description, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 9, color: Colors.black54, height: 1.3)),
+                      Text(
+                        site.description,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 9,
+                          color: Colors.black54,
+                          height: 1.3,
+                        ),
+                      ),
                       const SizedBox(height: 6),
-                      Text('◷ ${site.duration}', style: const TextStyle(fontSize: 8, color: Colors.grey)),
+                      Text(
+                        '◷ ${site.duration}',
+                        style: const TextStyle(fontSize: 8, color: Colors.grey),
+                      ),
                     ],
                   ),
                 ),
@@ -369,13 +454,28 @@ class _InfoChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-    decoration: BoxDecoration(color: const Color(0xFFEAF5E9), borderRadius: BorderRadius.circular(10)),
-    child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, size: 10, color: Colors.green), const SizedBox(width: 4), Text(label, style: const TextStyle(fontSize: 8))]),
+    decoration: BoxDecoration(
+      color: const Color(0xFFEAF5E9),
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 10, color: Colors.green),
+        const SizedBox(width: 4),
+        Text(label, style: const TextStyle(fontSize: 8)),
+      ],
+    ),
   );
 }
 
 class JourneySite {
-  const JourneySite({required this.title, required this.description, required this.duration, required this.imagePath});
+  const JourneySite({
+    required this.title,
+    required this.description,
+    required this.duration,
+    required this.imagePath,
+  });
   final String title, description, duration, imagePath;
 }
 
@@ -474,6 +574,7 @@ class _JourneyDraftsScreenState extends State<JourneyDraftsScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFFFFEAEA),
         foregroundColor: AppColors.brown,
+        leading: const RootlyBackButton(fallbackRoute: '/explorer'),
         title: const Text('Journey Drafts'),
       ),
       body: drafts.isEmpty
@@ -521,6 +622,10 @@ class _JourneyDraftsScreenState extends State<JourneyDraftsScreen> {
                 );
               },
             ),
+      bottomNavigationBar: ExplorerFooter(
+        selectedIndex: 3,
+        onSelected: (index) => _navigateFromFooter(context, index),
+      ),
     );
   }
 }

@@ -1,8 +1,9 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:model_viewer_plus/model_viewer_plus.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/rootly_back_button.dart';
 import '../../home/presentation/widgets/home_drawer.dart';
+import 'province_detail_screen.dart';
 import 'widgets/explorer_footer.dart';
 
 class SriLanka3DMapScreen extends StatefulWidget {
@@ -15,7 +16,25 @@ class _SriLanka3DMapScreenState extends State<SriLanka3DMapScreen> {
   bool is3D = true;
   double rotation = -.08;
   double tilt = .82;
+  Offset dragStart = Offset.zero;
+  double startRotation = 0;
+  double startTilt = 1;
   ProvinceData? selected;
+
+  void beginDrag(DragStartDetails details) {
+    dragStart = details.localPosition;
+    startRotation = rotation;
+    startTilt = tilt;
+  }
+
+  void updateDrag(DragUpdateDetails details) {
+    if (!is3D) return;
+    final delta = details.localPosition - dragStart;
+    setState(() {
+      rotation = (startRotation + delta.dx / 260).clamp(-.38, .38);
+      tilt = (startTilt + delta.dy / 380).clamp(.62, 1.0);
+    });
+  }
 
   void selectProvince(TapUpDetails details, Size size) {
     final point = _inverseTransform(details.localPosition, size);
@@ -49,6 +68,7 @@ class _SriLanka3DMapScreenState extends State<SriLanka3DMapScreen> {
       backgroundColor: const Color(0xFFFFEAEA),
       foregroundColor: AppColors.brown,
       centerTitle: true,
+      leading: const RootlyBackButton(fallbackRoute: '/explorer'),
       title: const Text(
         'Rootly',
         style: TextStyle(
@@ -86,87 +106,21 @@ class _SriLanka3DMapScreenState extends State<SriLanka3DMapScreen> {
                   );
                   return Stack(
                     children: [
-                      if (is3D)
-                        const Positioned.fill(
-                          child: ModelViewer(
-                            src: 'assets/models/srilanka_provinces.glb',
-                            alt:
-                                'Interactive 3D map of the provinces of Sri Lanka',
-                            cameraControls: true,
-                            autoRotate: false,
-                            disableZoom: false,
-                            backgroundColor: Colors.transparent,
-                            interactionPrompt: InteractionPrompt.none,
-                            cameraOrbit: '0deg 28deg 105%',
-                          ),
-                        )
-                      else
-                        GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTapUp: (details) => selectProvince(details, size),
-                          child: CustomPaint(
-                            size: size,
-                            painter: ProvinceMapPainter(
-                              is3D: false,
-                              rotation: rotation,
-                              tilt: tilt,
-                              selected: selected,
-                            ),
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onPanStart: beginDrag,
+                        onPanUpdate: updateDrag,
+                        onTapUp: (details) => selectProvince(details, size),
+                        child: CustomPaint(
+                          size: size,
+                          painter: ProvinceMapPainter(
+                            is3D: is3D,
+                            rotation: rotation,
+                            tilt: tilt,
+                            selected: selected,
                           ),
                         ),
-                      if (is3D)
-                        Positioned(
-                          left: 10,
-                          top: 10,
-                          child: PopupMenuButton<ProvinceData>(
-                            tooltip: 'Choose a province',
-                            onSelected: (province) =>
-                                setState(() => selected = province),
-                            itemBuilder: (_) => [
-                              for (final province in provinces)
-                                PopupMenuItem(
-                                  value: province,
-                                  child: Text(province.shortName),
-                                ),
-                            ],
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: .94),
-                                borderRadius: BorderRadius.circular(8),
-                                boxShadow: const [
-                                  BoxShadow(
-                                    color: Color(0x22000000),
-                                    blurRadius: 6,
-                                  ),
-                                ],
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 7,
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.location_on_outlined,
-                                      size: 15,
-                                      color: AppColors.brown,
-                                    ),
-                                    SizedBox(width: 5),
-                                    Text(
-                                      'Select province',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
+                      ),
                       if (selected != null)
                         Positioned(
                           right: 12,
@@ -174,8 +128,17 @@ class _SriLanka3DMapScreenState extends State<SriLanka3DMapScreen> {
                           child: _ProvinceCard(
                             province: selected!,
                             onClose: () => setState(() => selected = null),
-                            onExplore: () =>
-                                Navigator.pushNamed(context, '/explorer'),
+                            onExplore: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ProvinceDetailScreen(
+                                  name: selected!.name,
+                                  tagline: selected!.tagline,
+                                  sites: selected!.sites,
+                                  accentColor: selected!.color,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       Positioned(
@@ -191,11 +154,9 @@ class _SriLanka3DMapScreenState extends State<SriLanka3DMapScreen> {
                               horizontal: 8,
                               vertical: 5,
                             ),
-                            child: Text(
-                              is3D
-                                  ? 'Drag to rotate • Pinch to zoom'
-                                  : 'Tap a province',
-                              style: const TextStyle(
+                            child: const Text(
+                              'Drag to rotate • Tap a province',
+                              style: TextStyle(
                                 fontSize: 9,
                                 color: Colors.black54,
                               ),
@@ -240,7 +201,7 @@ class _SriLanka3DMapScreenState extends State<SriLanka3DMapScreen> {
       ),
     ),
     bottomNavigationBar: ExplorerFooter(
-      selectedIndex: 3,
+      selectedIndex: 1,
       onSelected: (index) {
         if (index == 0)
           Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);

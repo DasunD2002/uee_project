@@ -28,9 +28,7 @@ class _ExplorerShellState extends State<ExplorerShell> {
     body: IndexedStack(
       index: index,
       children: [
-        RedesignedExplorerScreen(
-          onOpenDrawer: openDrawer,
-        ),
+        RedesignedExplorerScreen(onOpenDrawer: openDrawer),
         MapScreen(repository: repository, onOpenDrawer: openDrawer),
         _ComingSoon(label: 'Journeys', onOpenDrawer: openDrawer),
         _ComingSoon(label: 'Profile', onOpenDrawer: openDrawer),
@@ -41,8 +39,6 @@ class _ExplorerShellState extends State<ExplorerShell> {
       onSelected: (value) {
         if (value == 0) {
           Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
-        } else if (value == 3) {
-          Navigator.pushNamed(context, '/province-map');
         } else {
           setState(() => index = value == 1 ? 0 : value);
         }
