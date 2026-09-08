@@ -20,6 +20,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void selectTab(int index) {
     if (index == 1) Navigator.pushNamed(context, '/explorer');
+    if (index == 3) Navigator.pushNamed(context, '/capsule');
   }
 
   @override
