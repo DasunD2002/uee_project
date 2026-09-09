@@ -40,7 +40,7 @@ class _ExplorerShellState extends State<ExplorerShell> {
         if (value == 0) {
           Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
         } else if (value == 3) {
-          Navigator.pushNamedAndRemoveUntil(context, '/capsules', (_) => false);
+          Navigator.pushNamedAndRemoveUntil(context, '/capsule', (_) => false);
         } else {
           setState(() => index = value == 1 ? 0 : value);
         }
