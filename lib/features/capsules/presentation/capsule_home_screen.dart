@@ -18,7 +18,7 @@ class CapsuleHomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: const Color(0xFFF8F5F2),
-    drawer: const HomeDrawer(),
+    drawer: const HomeDrawer(selectedSection: 'Time capsule'),
     appBar: AppBar(
       backgroundColor: const Color(0xFFF8F5F2),
       foregroundColor: const Color(0xFF4A281E),

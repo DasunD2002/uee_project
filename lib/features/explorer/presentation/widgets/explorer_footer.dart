@@ -7,7 +7,7 @@ class ExplorerFooter extends StatelessWidget {
     required this.selectedIndex,
     required this.onSelected,
   });
-  final int selectedIndex;
+  final int? selectedIndex;
   final ValueChanged<int> onSelected;
 
   static const items = <({IconData icon, String label})>[
@@ -18,19 +18,58 @@ class ExplorerFooter extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) => NavigationBar(
-    height: 62,
-    selectedIndex: selectedIndex,
-    onDestinationSelected: onSelected,
-    backgroundColor: Colors.white,
-    indicatorColor: const Color(0xFFFFD9BE),
-    labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-    destinations: [
-      for (final item in items)
-        NavigationDestination(
-          icon: Icon(item.icon, color: AppColors.brown, size: 19),
-          label: item.label,
-        ),
-    ],
-  );
+  Widget build(BuildContext context) => selectedIndex == null
+      ? Material(
+          color: Colors.white,
+          child: SafeArea(
+            top: false,
+            child: SizedBox(
+              height: 62,
+              child: Row(
+                children: [
+                  for (var i = 0; i < items.length; i++)
+                    Expanded(
+                      child: Semantics(
+                        selected: false,
+                        button: true,
+                        child: InkWell(
+                          onTap: () => onSelected(i),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                items[i].icon,
+                                color: AppColors.brown,
+                                size: 19,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                items[i].label,
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        )
+      : NavigationBar(
+          height: 62,
+          selectedIndex: selectedIndex!,
+          onDestinationSelected: onSelected,
+          backgroundColor: Colors.white,
+          indicatorColor: const Color(0xFFFFD9BE),
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          destinations: [
+            for (final item in items)
+              NavigationDestination(
+                icon: Icon(item.icon, color: AppColors.brown, size: 19),
+                label: item.label,
+              ),
+          ],
+        );
 }
