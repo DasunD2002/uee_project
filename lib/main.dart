@@ -3,7 +3,6 @@ import 'core/theme/app_colors.dart';
 import 'features/auth/presentation/login_screen.dart';
 import 'features/auth/presentation/signup_screen.dart';
 import 'features/capsules/presentation/create_capsule_screen.dart';
-import 'features/capsules/presentation/capsule_home_screen.dart';
 import 'features/capsule/presentation/capsule_screen.dart';
 import 'features/explorer/presentation/explorer_shell.dart';
 import 'features/explorer/presentation/sri_lanka_3d_map_screen.dart';
@@ -31,7 +30,7 @@ class RootlyApp extends StatelessWidget {
       '/login': (_) => const LoginScreen(),
       '/signup': (_) => const SignUpScreen(),
       '/create-capsule': (_) => const CreateCapsuleScreen(),
-      '/capsules': (_) => const CapsuleHomeScreen(),
+      '/capsules': (_) => const CapsuleScreen(),
       '/home': (_) => const HomeScreen(),
       '/capsule': (_) => const CapsuleScreen(),
       '/explorer': (_) => const ExplorerShell(),

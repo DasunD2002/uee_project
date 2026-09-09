@@ -21,11 +21,11 @@ class CapsuleScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFFFCFAF9),
+    backgroundColor: const Color(0xFFFFFAF7),
     drawer: const HomeDrawer(),
     appBar: AppBar(
-      toolbarHeight: 80,
-      backgroundColor: const Color(0xFFFFE9EA),
+      toolbarHeight: 68,
+      backgroundColor: const Color(0xFFFFF4F1),
       foregroundColor: AppColors.brown,
       centerTitle: true,
       elevation: 0,
@@ -34,14 +34,14 @@ class CapsuleScreen extends StatelessWidget {
         'Rootly',
         style: TextStyle(
           fontFamily: 'serif',
-          fontSize: 29,
+          fontSize: 25,
           fontWeight: FontWeight.w700,
         ),
       ),
       leading: Builder(
         builder: (context) => IconButton(
           tooltip: 'Open menu',
-          icon: const Icon(Icons.menu_rounded, size: 22),
+          icon: const Icon(Icons.menu_rounded, size: 20),
           onPressed: () => Scaffold.of(context).openDrawer(),
         ),
       ),
@@ -49,47 +49,63 @@ class CapsuleScreen extends StatelessWidget {
         IconButton(
           tooltip: 'Notifications',
           onPressed: () {},
-          icon: const Icon(Icons.notifications_none_rounded, size: 22),
+          icon: const Icon(Icons.notifications_none_rounded, size: 19),
         ),
         const SizedBox(width: 4),
       ],
     ),
     body: SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(22, 26, 22, 24),
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Ayubowan,\nKumari!',
+            'Your stories,\nbeautifully kept.',
             style: TextStyle(
-              color: Color(0xFF30201B),
+              color: Color(0xFF39231B),
               fontSize: 30,
-              height: 1.18,
+              height: .98,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -.7,
             ),
           ),
           const SizedBox(height: 5),
           const Text(
-            'Your Cultural Legacy',
+            'Ayubowan, Kumari  ·  your legacy vault',
             style: TextStyle(
               color: Color(0xFF6B5D58),
               fontFamily: 'serif',
-              fontSize: 14,
+              fontSize: 12,
             ),
           ),
-          const SizedBox(height: 21),
-          CapsulePromptCard(onCreate: () {}),
-          const SizedBox(height: 17),
-          const Text(
-            'ACTIVE CAPSULES (LOCKED)',
-            style: TextStyle(
-              color: Color(0xFF574640),
-              fontFamily: 'serif',
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              letterSpacing: .45,
-            ),
+          const SizedBox(height: 22),
+          CapsulePromptCard(
+            onCreate: () => Navigator.pushNamed(context, '/create-capsule'),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 25),
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'YOUR TIME CAPSULES',
+                style: TextStyle(
+                  color: Color(0xFF574640),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: .7,
+                ),
+              ),
+              Text(
+                '1 protected',
+                style: TextStyle(
+                  color: AppColors.brown,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 11),
           const CapsuleTile(),
         ],
       ),
