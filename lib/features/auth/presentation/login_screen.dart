@@ -20,7 +20,7 @@ class _LoginScreenState extends State<LoginScreen> {
     resizeToAvoidBottomInset: true,
     body: LayoutBuilder(builder: (context, box) => SingleChildScrollView(
       child: ConstrainedBox(constraints: BoxConstraints(minHeight: box.maxHeight), child: Column(children: [
-        SizedBox(height: box.maxHeight * .53, width: double.infinity, child: Image.asset('assets/images/login_image.jpg', fit: BoxFit.cover, errorBuilder: (_, __, ___) => const DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF69B5B6), Color(0xFFBEDAD0), Color(0xFF405738)])), child: Center(child: Icon(Icons.landscape, size: 90, color: Colors.white70))))),
+        SizedBox(height: box.maxHeight * .53, width: double.infinity, child: Image.asset('assets/images/login_image.jpg', fit: BoxFit.cover, errorBuilder: (_, _, _) => const DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF69B5B6), Color(0xFFBEDAD0), Color(0xFF405738)])), child: Center(child: Icon(Icons.landscape, size: 90, color: Colors.white70))))),
         Transform.translate(offset: const Offset(0, -72), child: Container(
           width: double.infinity, padding: const EdgeInsets.fromLTRB(30, 20, 30, 22),
           decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.only(topLeft: Radius.circular(70))),

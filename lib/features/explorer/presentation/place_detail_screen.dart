@@ -189,8 +189,9 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
     bottomNavigationBar: ExplorerFooter(
       selectedIndex: 1,
       onSelected: (index) {
-        if (index == 0)
+        if (index == 0) {
           Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
+        }
         if (index == 1) Navigator.pop(context);
       },
     ),

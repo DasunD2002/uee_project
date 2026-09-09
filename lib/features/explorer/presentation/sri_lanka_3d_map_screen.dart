@@ -203,8 +203,9 @@ class _SriLanka3DMapScreenState extends State<SriLanka3DMapScreen> {
     bottomNavigationBar: ExplorerFooter(
       selectedIndex: 1,
       onSelected: (index) {
-        if (index == 0)
+        if (index == 0) {
           Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
+        }
         if (index == 1) Navigator.pushReplacementNamed(context, '/explorer');
       },
     ),
@@ -411,10 +412,11 @@ Path provincePath(ProvinceData province, Rect rect) {
       rect.left + p.dx * rect.width,
       rect.top + p.dy * rect.height,
     );
-    if (i == 0)
+    if (i == 0) {
       path.moveTo(point.dx, point.dy);
-    else
+    } else {
       path.lineTo(point.dx, point.dy);
+    }
   }
   return path..close();
 }

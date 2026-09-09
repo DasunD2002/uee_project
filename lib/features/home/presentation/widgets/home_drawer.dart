@@ -21,7 +21,7 @@ class HomeDrawer extends StatelessWidget {
       ])),
       Expanded(child: ListView(padding: const EdgeInsets.fromLTRB(12, 10, 12, 8), children: [
         const _SectionLabel('Main'),
-        for (var i = 0; i < mainItems.length; i++) _DrawerItem(icon: mainItems[i].icon, label: mainItems[i].label, selected: i == 0, onTap: () { Navigator.pop(context); if (i == 0) { Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false); } else if (i == 1) { Navigator.pushReplacementNamed(context, '/explorer'); } }),
+        for (var i = 0; i < mainItems.length; i++) _DrawerItem(icon: mainItems[i].icon, label: mainItems[i].label, selected: i == 0, onTap: () { Navigator.pop(context); if (i == 0) { Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false); } else if (i == 1) { Navigator.pushReplacementNamed(context, '/explorer'); } else if (i == 3) { Navigator.pushNamed(context, '/capsules'); } }),
         const SizedBox(height: 8), const _SectionLabel('Saved'),
         for (var i = 0; i < savedItems.length; i++) _DrawerItem(icon: savedItems[i].icon, label: savedItems[i].label, onTap: () { Navigator.pop(context); if (i == 3) Navigator.pushNamed(context, '/province-map'); }),
       ])),
