@@ -175,13 +175,14 @@ class _ExplorerScreenState extends State<ExplorerScreen> {
                 FutureBuilder<List<Place>>(
                   future: places,
                   builder: (context, snapshot) {
-                    if (!snapshot.hasData)
+                    if (!snapshot.hasData) {
                       return const Center(
                         child: Padding(
                           padding: EdgeInsets.all(40),
                           child: CircularProgressIndicator(),
                         ),
                       );
+                    }
                     return Column(
                       children: snapshot.data!
                           .take(4)
@@ -506,7 +507,7 @@ class _PlaceImage extends StatelessWidget {
       : Image.network(
           url!,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => const ColoredBox(
+          errorBuilder: (_, _, _) => const ColoredBox(
             color: Color(0xFFD7B99E),
             child: Icon(Icons.account_balance, color: Colors.white),
           ),
