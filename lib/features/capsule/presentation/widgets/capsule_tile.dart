@@ -8,55 +8,52 @@ class CapsuleTile extends StatelessWidget {
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(4),
+      borderRadius: BorderRadius.circular(18),
       boxShadow: const [
-        BoxShadow(color: Color(0x0D000000), blurRadius: 7, offset: Offset(0, 2)),
+        BoxShadow(color: Color(0x121E100A), blurRadius: 14, offset: Offset(0, 6)),
       ],
     ),
     child: Row(
       children: [
         ClipRRect(
-          borderRadius: BorderRadius.circular(2),
+          borderRadius: BorderRadius.circular(12),
           child: Image.asset(
             'assets/images/login_image.jpg',
-            width: 40,
-            height: 40,
+            width: 52,
+            height: 52,
             fit: BoxFit.cover,
           ),
         ),
-        const SizedBox(width: 13),
+        const SizedBox(width: 12),
         const Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Family Recipes',
+                'Family recipes',
                 style: TextStyle(
                   color: Color(0xFF493027),
                   fontFamily: 'serif',
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              SizedBox(height: 3),
+              SizedBox(height: 4),
               Text(
-                'Sealed on April 12, 2024',
-                style: TextStyle(color: Color(0xFF6F6560), fontSize: 8),
+                'Locked until April 12, 2026',
+                style: TextStyle(color: Color(0xFF6F6560), fontSize: 10),
               ),
             ],
           ),
         ),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
-          color: const Color(0xFFFFF0EC),
-          child: const Text(
-            '2 YEARS LEFT',
-            style: TextStyle(
-              color: Color(0xFF634941),
-              fontFamily: 'serif',
-              fontSize: 8,
-              fontWeight: FontWeight.w700,
-            ),
+          width: 36,
+          height: 36,
+          decoration: const BoxDecoration(color: Color(0xFFFFE3D3), shape: BoxShape.circle),
+          child: const Icon(
+            Icons.lock_outline_rounded,
+            color: Color(0xFF84321F),
+            size: 17,
           ),
         ),
       ],
