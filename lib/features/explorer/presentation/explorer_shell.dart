@@ -24,7 +24,7 @@ class _ExplorerShellState extends State<ExplorerShell> {
   @override
   Widget build(BuildContext context) => Scaffold(
     key: scaffoldKey,
-    drawer: const HomeDrawer(),
+    drawer: HomeDrawer(selectedSection: index < 2 ? 'Explore Places' : 'Q&A Forum'),
     body: IndexedStack(
       index: index,
       children: [
