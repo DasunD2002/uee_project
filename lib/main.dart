@@ -7,6 +7,8 @@ import 'features/auth/presentation/change_password_screen.dart';
 import 'features/settings/presentation/settings_screen.dart';
 import 'features/capsules/presentation/create_capsule_screen.dart';
 import 'features/capsule/presentation/capsule_screen.dart';
+import 'features/capsule/presentation/family_receipt_screen.dart';
+import 'features/capsule/presentation/family_memories_screen.dart';
 import 'features/explorer/presentation/explorer_shell.dart';
 import 'features/explorer/presentation/sri_lanka_3d_map_screen.dart';
 import 'features/home/presentation/home_screen.dart';
@@ -45,6 +47,8 @@ class RootlyApp extends StatelessWidget {
       '/profile': (_) => const ProfileScreen(),
       '/saved-posts': (_) => const ProfileScreen(showSavedPosts: true),
       '/capsule': (_) => const CapsuleScreen(),
+      '/family-receipt': (_) => const FamilyReceiptScreen(),
+      '/family-memories': (_) => const FamilyMemoriesScreen(),
       '/explorer': (_) => const ExplorerShell(),
       '/province-map': (_) => const SriLanka3DMapScreen(),
     },
