@@ -40,7 +40,7 @@ class FamilyReceiptScreen extends StatelessWidget {
         child: Column(
           children: [
             const Text(
-              'Sinhala New Year 2024',
+              'Family Recipe',
               style: TextStyle(color: AppColors.brown, fontFamily: 'serif', fontSize: 21, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 25),
@@ -82,7 +82,7 @@ class FamilyReceiptScreen extends StatelessWidget {
               width: double.infinity,
               height: 47,
               child: FilledButton(
-                onPressed: () {},
+                onPressed: () => Navigator.pushNamed(context, '/family-memories'),
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.brown,
                   foregroundColor: Colors.white,
