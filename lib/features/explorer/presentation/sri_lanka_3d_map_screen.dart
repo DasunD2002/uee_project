@@ -64,7 +64,7 @@ class _SriLanka3DMapScreenState extends State<SriLanka3DMapScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    drawer: const HomeDrawer(),
+    drawer: const HomeDrawer(selectedSection: 'Explore Things With 3D Map'),
     backgroundColor: const Color(0xFFF8F6F4),
     appBar: AppBar(
       backgroundColor: const Color(0xFFFFEAEA),

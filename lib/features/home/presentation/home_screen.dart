@@ -26,7 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: const Color(0xFFF8F6F4),
-    drawer: const HomeDrawer(),
+    drawer: const HomeDrawer(selectedSection: 'Home'),
     appBar: AppBar(
       backgroundColor: const Color(0xFFFFEAEA),
       foregroundColor: AppColors.brown,
@@ -73,6 +73,9 @@ class _HomeScreenState extends State<HomeScreen> {
               SizedBox(height: 10),
               StoryCard(
                 category: 'Craft',
+                author: 'Dinesh',
+                handle: '@dineshcarves',
+                time: '5h',
                 imagePath: 'assets/images/mask_carver.png',
                 title: 'Ambalangoda mask carvers and the spirits they keep',
                 location: 'Ambalangoda · Galle',
