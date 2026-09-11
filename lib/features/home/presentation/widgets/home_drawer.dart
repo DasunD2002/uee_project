@@ -18,6 +18,7 @@ class HomeDrawer extends StatelessWidget {
         '/questions': 'Q&A Forum',
         '/question-detail': 'Q&A Forum',
         '/ask-question': 'Q&A Forum',
+        '/translations': 'Translation',
       }[ModalRoute.of(context)?.settings.name];
   static const mainItems = <({IconData icon, String label})>[
     (icon: Icons.home_outlined, label: 'Home'),
@@ -130,6 +131,12 @@ class HomeDrawer extends StatelessWidget {
                         );
                       } else if (i == 3) {
                         Navigator.pushNamed(context, '/capsules');
+                      } else if (i == 5) {
+                        Navigator.pushNamedAndRemoveUntil(
+                          context,
+                          '/translations',
+                          (_) => false,
+                        );
                       }
                     },
                   ),

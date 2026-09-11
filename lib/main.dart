@@ -19,6 +19,7 @@ import 'features/questions/presentation/ask_question_screen.dart';
 import 'features/questions/presentation/question_detail_screen.dart';
 import 'features/questions/presentation/questions_screen.dart';
 import 'features/notifications/presentation/notifications_screen.dart';
+import 'features/translations/presentation/translation_screen.dart';
 
 void main() => runApp(const RootlyApp());
 
@@ -65,6 +66,7 @@ class RootlyApp extends StatelessWidget {
       '/ask-question': (_) => const AskQuestionScreen(),
       '/notifications': (_) => const NotificationsScreen(),
       '/notification': (_) => const NotificationsScreen(),
+      '/translations': (_) => const TranslationScreen(),
     },
   );
 }
