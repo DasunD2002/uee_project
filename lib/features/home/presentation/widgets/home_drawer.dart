@@ -15,6 +15,9 @@ class HomeDrawer extends StatelessWidget {
         '/capsule': 'Time capsule',
         '/capsules': 'Time capsule',
         '/province-map': 'Explore Things With 3D Map',
+        '/questions': 'Q&A Forum',
+        '/question-detail': 'Q&A Forum',
+        '/ask-question': 'Q&A Forum',
       }[ModalRoute.of(context)?.settings.name];
   static const mainItems = <({IconData icon, String label})>[
     (icon: Icons.home_outlined, label: 'Home'),
@@ -119,6 +122,12 @@ class HomeDrawer extends StatelessWidget {
                         );
                       } else if (i == 1) {
                         Navigator.pushReplacementNamed(context, '/explorer');
+                      } else if (i == 2) {
+                        Navigator.pushNamedAndRemoveUntil(
+                          context,
+                          '/questions',
+                          (_) => false,
+                        );
                       } else if (i == 3) {
                         Navigator.pushNamed(context, '/capsules');
                       }

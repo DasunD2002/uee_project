@@ -1,6 +1,7 @@
 import '../domain/social_store.dart';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/navigation/primary_navigation.dart';
 import '../../../core/widgets/community_app_bar.dart';
 import '../../Post Creation/domain/user_post.dart';
 import '../../Post Creation/presentation/create_post_screen.dart';
@@ -128,16 +129,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void navigate(int index) {
-    if (index == 0) {
-      Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
-    }
-    if (index == 1) Navigator.pushNamed(context, '/explorer');
-    if (index == 3) Navigator.pushNamed(context, '/capsule');
-    if (index == 2) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Questions are not available yet.')),
-      );
-    }
+    navigateToPrimaryDestination(context, index);
   }
 
   @override

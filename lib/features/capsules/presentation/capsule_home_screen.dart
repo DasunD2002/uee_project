@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/navigation/primary_navigation.dart';
 import '../../explorer/presentation/widgets/explorer_footer.dart';
 import '../../home/presentation/widgets/home_drawer.dart';
 
@@ -8,11 +9,7 @@ class CapsuleHomeScreen extends StatelessWidget {
   const CapsuleHomeScreen({super.key});
 
   void _navigate(BuildContext context, int index) {
-    if (index == 0) {
-      Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
-    } else if (index == 1) {
-      Navigator.pushNamedAndRemoveUntil(context, '/explorer', (_) => false);
-    }
+    navigateToPrimaryDestination(context, index, currentIndex: 3);
   }
 
   @override

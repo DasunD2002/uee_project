@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/navigation/primary_navigation.dart';
 import '../../explorer/presentation/widgets/explorer_footer.dart';
 import '../../home/presentation/widgets/home_drawer.dart';
 import 'widgets/capsule_prompt_card.dart';
@@ -11,12 +12,7 @@ class CapsuleScreen extends StatelessWidget {
   const CapsuleScreen({super.key});
 
   void _onNavSelected(BuildContext context, int index) {
-    switch (index) {
-      case 0:
-        Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
-      case 1:
-        Navigator.pushNamedAndRemoveUntil(context, '/explorer', (_) => false);
-    }
+    navigateToPrimaryDestination(context, index, currentIndex: 3);
   }
 
   @override

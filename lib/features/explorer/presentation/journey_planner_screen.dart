@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
+import '../../../core/navigation/primary_navigation.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/rootly_back_button.dart';
 import '../../home/presentation/widgets/home_drawer.dart';
 import 'widgets/explorer_footer.dart';
 
 void _navigateFromFooter(BuildContext context, int index) {
-  if (index == 0) {
-    Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
-  } else if (index == 1) {
-    Navigator.pushNamedAndRemoveUntil(context, '/explorer', (_) => false);
-  }
+  navigateToPrimaryDestination(context, index);
 }
 
 class JourneyPlannerScreen extends StatefulWidget {
