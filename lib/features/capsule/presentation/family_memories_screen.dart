@@ -26,10 +26,14 @@ class FamilyMemoriesScreen extends StatelessWidget {
           fontWeight: FontWeight.w700,
         ),
       ),
-      actions: const [
+      actions: [
         Padding(
-          padding: EdgeInsets.only(right: 18),
-          child: Icon(Icons.notifications_none_rounded, size: 23),
+          padding: const EdgeInsets.only(right: 10),
+          child: IconButton(
+            tooltip: 'Notifications',
+            onPressed: () => Navigator.pushNamed(context, '/notifications'),
+            icon: const Icon(Icons.notifications_none_rounded, size: 23),
+          ),
         ),
       ],
     ),

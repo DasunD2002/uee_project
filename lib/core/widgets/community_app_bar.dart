@@ -29,11 +29,7 @@ class CommunityAppBar extends StatelessWidget implements PreferredSizeWidget {
     actions: [
       IconButton(
         tooltip: 'Notifications',
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No new notifications.')),
-          );
-        },
+        onPressed: () => Navigator.pushNamed(context, '/notifications'),
         icon: const Icon(Icons.notifications_none),
       ),
       const SizedBox(width: 12),
