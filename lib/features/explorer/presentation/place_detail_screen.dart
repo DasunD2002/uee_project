@@ -11,14 +11,38 @@ class PlaceDetailScreen extends StatefulWidget {
     super.key,
     this.title = 'Gal Vihara',
     this.imagePath = 'assets/images/gal_vihara.png',
+    this.imageUrl,
+    this.subtitle = 'Polonnaruwa, Sri Lanka',
+    this.category = 'Classical Era',
+    this.description,
   });
-  final String title, imagePath;
+
+  final String title;
+  final String imagePath;
+  final String? imageUrl;
+  final String subtitle;
+  final String category;
+  final String? description;
   @override
   State<PlaceDetailScreen> createState() => _PlaceDetailScreenState();
 }
 
 class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
   final scaffoldKey = GlobalKey<ScaffoldState>();
+
+  Widget _placeImage() {
+    final imageUrl = widget.imageUrl;
+    if (imageUrl == null || imageUrl.isEmpty) {
+      return Image.asset(widget.imagePath, fit: BoxFit.cover);
+    }
+    return Image.network(
+      imageUrl,
+      fit: BoxFit.cover,
+      errorBuilder: (_, _, _) =>
+          Image.asset(widget.imagePath, fit: BoxFit.cover),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     key: scaffoldKey,
@@ -39,7 +63,8 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
       ),
       actions: [
         IconButton(
-          onPressed: () {},
+          tooltip: 'Notifications',
+          onPressed: () => Navigator.pushNamed(context, '/notifications'),
           icon: const Icon(Icons.notifications_none, size: 20),
         ),
       ],
@@ -49,11 +74,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
         Stack(
           alignment: Alignment.bottomLeft,
           children: [
-            SizedBox(
-              height: 230,
-              width: double.infinity,
-              child: Image.asset(widget.imagePath, fit: BoxFit.cover),
-            ),
+            SizedBox(height: 230, width: double.infinity, child: _placeImage()),
             const Positioned.fill(
               child: DecoratedBox(
                 decoration: BoxDecoration(
@@ -81,14 +102,16 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const Text(
-                    'The silent witnesses of a kingdom',
-                    style: TextStyle(color: Colors.white, fontSize: 12),
+                  Text(
+                    widget.description ?? 'Discover the story of this place.',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white, fontSize: 12),
                   ),
                   const SizedBox(height: 5),
-                  const Text(
-                    '● Polonnaruwa, Sri Lanka  ·  Classical Era',
-                    style: TextStyle(color: Colors.white70, fontSize: 9),
+                  Text(
+                    '● ${widget.subtitle}  ·  ${widget.category}',
+                    style: const TextStyle(color: Colors.white70, fontSize: 9),
                   ),
                 ],
               ),
@@ -100,42 +123,29 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
           child: Column(
             children: [
               _ContentCard(
-                title: 'Historical Narrative',
+                title: 'About this place',
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Carved directly into the granite during the Polonnaruwa era, Gal Vihara is one of Sri Lanka’s most remarkable collections of ancient Buddhist sculpture. The four serene figures reveal the extraordinary skill and spiritual devotion of their creators.',
+                    Text(
+                      widget.description ??
+                          'Explore ${widget.title} and its cultural significance.',
                       style: _bodyStyle,
                     ),
                     const SizedBox(height: 12),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(6),
-                      child: Image.asset(
-                        'assets/images/gal_vihara.png',
+                      child: SizedBox(
                         height: 150,
                         width: double.infinity,
-                        fit: BoxFit.cover,
+                        child: _placeImage(),
                       ),
-                    ),
-                    const SizedBox(height: 5),
-                    const Text(
-                      'Detail of the reclining Buddha and surrounding rock carvings.',
-                      style: TextStyle(
-                        fontSize: 8,
-                        color: Colors.grey,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'The standing figure and reclining Buddha continue to inspire visitors with their calm expressions, balanced proportions, and the remarkable preservation of their hand-carved details.',
-                      style: _bodyStyle,
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 12),
+
               SizedBox(
                 width: double.infinity,
                 height: 46,
@@ -160,24 +170,19 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              const _ContentCard(
-                title: 'Visitor Essentials',
+              _ContentCard(
+                title: 'Place information',
                 child: Column(
                   children: [
                     _InfoRow(
-                      icon: Icons.schedule,
-                      title: 'Hours',
-                      value: '6:00 AM – 6:00 PM Daily',
+                      icon: Icons.category_outlined,
+                      title: 'Category',
+                      value: widget.category,
                     ),
                     _InfoRow(
-                      icon: Icons.confirmation_number_outlined,
-                      title: 'Tickets',
-                      value: 'Included in Polonnaruwa Ancient City pass',
-                    ),
-                    _InfoRow(
-                      icon: Icons.accessibility_new,
-                      title: 'Accessibility',
-                      value: 'Flat sandy paths; mostly wheelchair accessible',
+                      icon: Icons.place_outlined,
+                      title: 'Location',
+                      value: widget.subtitle,
                     ),
                   ],
                 ),

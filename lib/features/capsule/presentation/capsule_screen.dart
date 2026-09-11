@@ -44,7 +44,7 @@ class CapsuleScreen extends StatelessWidget {
       actions: [
         IconButton(
           tooltip: 'Notifications',
-          onPressed: () {},
+          onPressed: () => Navigator.pushNamed(context, '/notifications'),
           icon: const Icon(Icons.notifications_none_rounded, size: 19),
         ),
         const SizedBox(width: 4),

@@ -4,16 +4,24 @@ class CapsuleTile extends StatelessWidget {
   const CapsuleTile({super.key});
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: 'Open Family Receipt capsule',
+    child: Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: () => Navigator.pushNamed(context, '/family-receipt'),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(18),
       boxShadow: const [
         BoxShadow(color: Color(0x121E100A), blurRadius: 14, offset: Offset(0, 6)),
       ],
     ),
-    child: Row(
+          child: Row(
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(12),
@@ -57,6 +65,9 @@ class CapsuleTile extends StatelessWidget {
           ),
         ),
       ],
+          ),
+        ),
+      ),
     ),
   );
 }

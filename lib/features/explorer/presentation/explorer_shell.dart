@@ -23,13 +23,22 @@ class _ExplorerShellState extends State<ExplorerShell> {
   void openDrawer() => scaffoldKey.currentState?.openDrawer();
 
   @override
+  void dispose() {
+    repository.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) => Scaffold(
     key: scaffoldKey,
     drawer: HomeDrawer(selectedSection: index < 2 ? 'Explore Places' : 'Q&A Forum'),
     body: IndexedStack(
       index: index,
       children: [
-        RedesignedExplorerScreen(onOpenDrawer: openDrawer),
+        RedesignedExplorerScreen(
+          onOpenDrawer: openDrawer,
+          repository: repository,
+        ),
         MapScreen(repository: repository, onOpenDrawer: openDrawer),
         _ComingSoon(label: 'Journeys', onOpenDrawer: openDrawer),
         _ComingSoon(label: 'Profile', onOpenDrawer: openDrawer),
@@ -265,10 +274,7 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void initState() {
     super.initState();
-    places = widget.repository.search(
-      'cultural heritage sites near Polonnaruwa',
-      remember: false,
-    );
+    places = widget.repository.search('Polonnaruwa', remember: false);
   }
 
   @override
@@ -562,53 +568,6 @@ class _ComingSoon extends StatelessWidget {
         ),
         Expanded(child: Center(child: Text('$label coming soon'))),
       ],
-    ),
-  );
-}
-
-class _ExplorerNav extends StatelessWidget {
-  const _ExplorerNav({required this.index, required this.onChanged});
-  final int index;
-  final ValueChanged<int> onChanged;
-  static const items = [
-    (Icons.explore_outlined, 'Explore'),
-    (Icons.map_outlined, 'Map'),
-    (Icons.route_outlined, 'Journeys'),
-    (Icons.person_outline, 'Profile'),
-  ];
-  @override
-  Widget build(BuildContext context) => SafeArea(
-    top: false,
-    child: Container(
-      height: 62,
-      padding: const EdgeInsets.all(5),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        boxShadow: [BoxShadow(color: Color(0x22000000), blurRadius: 10)],
-      ),
-      child: Row(
-        children: List.generate(
-          items.length,
-          (i) => Expanded(
-            child: InkWell(
-              onTap: () => onChanged(i),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: i == index ? const Color(0xFFFFDEC6) : null,
-                  borderRadius: BorderRadius.circular(9),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(items[i].$1, size: 19, color: _brown),
-                    Text(items[i].$2, style: const TextStyle(fontSize: 9)),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
     ),
   );
 }

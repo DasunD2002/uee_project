@@ -82,7 +82,8 @@ class _SriLanka3DMapScreenState extends State<SriLanka3DMapScreen> {
       ),
       actions: [
         IconButton(
-          onPressed: () {},
+          tooltip: 'Notifications',
+          onPressed: () => Navigator.pushNamed(context, '/notifications'),
           icon: const Icon(Icons.notifications_none, size: 21),
         ),
       ],

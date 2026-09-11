@@ -42,7 +42,8 @@ class CapsuleHomeScreen extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(right: 10),
           child: IconButton(
-            onPressed: () {},
+            tooltip: 'Notifications',
+            onPressed: () => Navigator.pushNamed(context, '/notifications'),
             icon: const Icon(Icons.notifications_none_rounded, size: 21),
           ),
         ),
