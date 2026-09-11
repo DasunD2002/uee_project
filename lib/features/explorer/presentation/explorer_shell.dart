@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
+import '../../../core/navigation/primary_navigation.dart';
 import '../data/places_repository.dart';
 import '../domain/place.dart';
 import '../../home/presentation/widgets/home_drawer.dart';
@@ -46,13 +47,11 @@ class _ExplorerShellState extends State<ExplorerShell> {
     bottomNavigationBar: ExplorerFooter(
       selectedIndex: index < 2 ? 1 : index,
       onSelected: (value) {
-        if (value == 0) {
-          Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
-        } else if (value == 3) {
-          Navigator.pushNamedAndRemoveUntil(context, '/capsule', (_) => false);
-        } else {
-          setState(() => index = value == 1 ? 0 : value);
+        if (value == 1) {
+          setState(() => index = 0);
+          return;
         }
+        navigateToPrimaryDestination(context, value);
       },
     ),
   );

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/navigation/primary_navigation.dart';
 import '../../explorer/presentation/widgets/explorer_footer.dart';
 import 'widgets/home_drawer.dart';
 import 'widgets/story_card.dart';
@@ -19,8 +20,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void selectTab(int index) {
-    if (index == 1) Navigator.pushNamed(context, '/explorer');
-    if (index == 3) Navigator.pushNamed(context, '/capsule');
+    navigateToPrimaryDestination(context, index, currentIndex: 0);
   }
 
   @override

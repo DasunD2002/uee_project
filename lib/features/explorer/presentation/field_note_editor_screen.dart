@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/navigation/primary_navigation.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/rootly_back_button.dart';
 import 'widgets/explorer_footer.dart';
@@ -64,11 +65,7 @@ class _FieldNoteEditorScreenState extends State<FieldNoteEditorScreen> {
   }
 
   void navigate(int index) {
-    if (index == 0) {
-      Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
-    } else if (index == 1) {
-      Navigator.pushNamedAndRemoveUntil(context, '/explorer', (_) => false);
-    }
+    navigateToPrimaryDestination(context, index);
   }
 
   @override

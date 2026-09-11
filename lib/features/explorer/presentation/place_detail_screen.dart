@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/navigation/primary_navigation.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/rootly_back_button.dart';
 import '../../home/presentation/widgets/home_drawer.dart';
@@ -193,12 +194,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
     ),
     bottomNavigationBar: ExplorerFooter(
       selectedIndex: 1,
-      onSelected: (index) {
-        if (index == 0) {
-          Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
-        }
-        if (index == 1) Navigator.pop(context);
-      },
+      onSelected: (index) => navigateToPrimaryDestination(context, index),
     ),
   );
 }
