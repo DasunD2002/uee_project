@@ -194,13 +194,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             if (label == 'Capsules') {
                               Navigator.pushNamed(context, '/capsule');
                             } else if (label == 'Quizzes') {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Quizzes are not available yet.',
-                                  ),
-                                ),
-                              );
+                              Navigator.pushNamed(context, '/quizzes');
                             } else {
                               setState(() => saved = label == 'Saved posts');
                             }

@@ -19,6 +19,8 @@ class HomeDrawer extends StatelessWidget {
         '/question-detail': 'Q&A Forum',
         '/ask-question': 'Q&A Forum',
         '/translations': 'Translation',
+        '/quizzes': 'Quizzes',
+        '/daily-quiz': 'Quizzes',
       }[ModalRoute.of(context)?.settings.name];
   static const mainItems = <({IconData icon, String label})>[
     (icon: Icons.home_outlined, label: 'Home'),
@@ -135,6 +137,12 @@ class HomeDrawer extends StatelessWidget {
                         Navigator.pushNamedAndRemoveUntil(
                           context,
                           '/translations',
+                          (_) => false,
+                        );
+                      } else if (i == 6) {
+                        Navigator.pushNamedAndRemoveUntil(
+                          context,
+                          '/quizzes',
                           (_) => false,
                         );
                       }

@@ -20,6 +20,8 @@ import 'features/questions/presentation/question_detail_screen.dart';
 import 'features/questions/presentation/questions_screen.dart';
 import 'features/notifications/presentation/notifications_screen.dart';
 import 'features/translations/presentation/translation_screen.dart';
+import 'features/quizzes/presentation/daily_quiz_screen.dart';
+import 'features/quizzes/presentation/quiz_home_screen.dart';
 
 void main() => runApp(const RootlyApp());
 
@@ -67,6 +69,8 @@ class RootlyApp extends StatelessWidget {
       '/notifications': (_) => const NotificationsScreen(),
       '/notification': (_) => const NotificationsScreen(),
       '/translations': (_) => const TranslationScreen(),
+      '/quizzes': (_) => const QuizHomeScreen(),
+      '/daily-quiz': (_) => const DailyQuizScreen(),
     },
   );
 }
