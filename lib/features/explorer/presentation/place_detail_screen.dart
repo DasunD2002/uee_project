@@ -62,7 +62,8 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
       ),
       actions: [
         IconButton(
-          onPressed: () {},
+          tooltip: 'Notifications',
+          onPressed: () => Navigator.pushNamed(context, '/notifications'),
           icon: const Icon(Icons.notifications_none, size: 20),
         ),
       ],

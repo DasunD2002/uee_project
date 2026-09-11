@@ -14,6 +14,7 @@ import 'features/explorer/presentation/sri_lanka_3d_map_screen.dart';
 import 'features/home/presentation/home_screen.dart';
 import 'features/splash/presentation/splash_screen.dart';
 import 'features/Profile/presentation/profile_screen.dart';
+import 'features/notifications/presentation/notifications_screen.dart';
 
 void main() => runApp(const RootlyApp());
 
@@ -51,6 +52,8 @@ class RootlyApp extends StatelessWidget {
       '/family-memories': (_) => const FamilyMemoriesScreen(),
       '/explorer': (_) => const ExplorerShell(),
       '/province-map': (_) => const SriLanka3DMapScreen(),
+      '/notifications': (_) => const NotificationsScreen(),
+      '/notification': (_) => const NotificationsScreen(),
     },
   );
 }
