@@ -30,8 +30,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       const NotificationItemData(
         id: 'today_2',
         title: 'System: Weekly Digest is ready',
-        subtitle:
-            "Review your family's archival activity from this past week.",
+        subtitle: "Review your family's archival activity from this past week.",
         timeAgo: '5h ago',
         icon: Icons.article_outlined,
         isUnread: false,
@@ -41,8 +40,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     yesterdayNotifications = [
       const NotificationItemData(
         id: 'yesterday_1',
-        title:
-            "Saman Kumara left an audio note on Grandson's 18th Birthday",
+        title: "Saman Kumara left an audio note on Grandson's 18th Birthday",
         subtitle: '"Wishing you all the best on your journey ahead..."',
         timeAgo: 'Yesterday',
         avatarAsset: 'assets/images/dinesh_avatar.png',
@@ -207,13 +205,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: const Color(0xFFEFE8E1),
-              width: 1.2,
-            ),
+            border: Border.all(color: const Color(0xFFEFE8E1), width: 1.2),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.015),
+                color: Colors.black.withValues(alpha: 0.015),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
