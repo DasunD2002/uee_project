@@ -2,7 +2,16 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
 class AuthField extends StatelessWidget {
-  const AuthField({super.key, required this.label, this.hint, this.controller, this.keyboardType, this.obscureText = false, this.suffixIcon, this.validator});
+  const AuthField({
+    super.key,
+    required this.label,
+    this.hint,
+    this.controller,
+    this.keyboardType,
+    this.obscureText = false,
+    this.suffixIcon,
+    this.validator,
+  });
   final String label;
   final String? hint;
   final TextEditingController? controller;
@@ -19,11 +28,17 @@ class AuthField extends StatelessWidget {
     validator: validator,
     style: const TextStyle(fontSize: 13),
     decoration: fieldDecoration(label, hint).copyWith(
-      contentPadding: const EdgeInsets.fromLTRB(13, 12, 8, 9),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       suffixIcon: suffixIcon,
       suffixIconConstraints: const BoxConstraints(minWidth: 38, minHeight: 34),
-      errorBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.red)),
-      focusedErrorBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.red)),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.red),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.red, width: 1.5),
+      ),
     ),
   );
 }
@@ -39,7 +54,10 @@ class PrimaryButton extends StatelessWidget {
     height: 44,
     child: FilledButton(
       onPressed: onPressed,
-      style: FilledButton.styleFrom(backgroundColor: AppColors.brown, shape: const StadiumBorder()),
+      style: FilledButton.styleFrom(
+        backgroundColor: AppColors.brown,
+        shape: const StadiumBorder(),
+      ),
       child: Text(text, style: const TextStyle(fontSize: 15)),
     ),
   );
@@ -55,8 +73,21 @@ class GoogleButton extends StatelessWidget {
     height: 42,
     child: OutlinedButton(
       onPressed: onPressed,
-      style: OutlinedButton.styleFrom(foregroundColor: Colors.black87, backgroundColor: Colors.white, side: const BorderSide(color: Color(0xFFD9D9D9)), shape: const StadiumBorder(), elevation: 2),
-      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Image.asset('assets/images/google_icon.png', width: 22, height: 22), const SizedBox(width: 13), const Text('Sign in with Google')]),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: Colors.black87,
+        backgroundColor: Colors.white,
+        side: const BorderSide(color: Color(0xFFD9D9D9)),
+        shape: const StadiumBorder(),
+        elevation: 2,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Image.asset('assets/images/google_icon.png', width: 22, height: 22),
+          const SizedBox(width: 13),
+          const Text('Sign in with Google'),
+        ],
+      ),
     ),
   );
 }
@@ -64,18 +95,35 @@ class GoogleButton extends StatelessWidget {
 InputDecoration fieldDecoration(String label, String? hint) => InputDecoration(
   labelText: label,
   hintText: hint,
-  labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black),
+  labelStyle: const TextStyle(
+    fontSize: 13,
+    fontWeight: FontWeight.w600,
+    color: Colors.black,
+  ),
   hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF858585)),
   filled: true,
-  fillColor: const Color(0xFFF3F1F1),
+  fillColor: Colors.white,
   isDense: true,
-  contentPadding: const EdgeInsets.fromLTRB(13, 9, 8, 8),
-  enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF999999))),
-  focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppColors.brown, width: 1.5)),
+  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+  enabledBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(12),
+    borderSide: const BorderSide(color: Color(0xFFD5D9DF)),
+  ),
+  focusedBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(12),
+    borderSide: const BorderSide(color: AppColors.brown, width: 1.8),
+  ),
+  floatingLabelStyle: const TextStyle(
+    color: AppColors.brown,
+    fontWeight: FontWeight.w600,
+  ),
+  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
 );
 
 void showMessage(BuildContext context, String text) {
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(text), behavior: SnackBarBehavior.floating));
+    ..showSnackBar(
+      SnackBar(content: Text(text), behavior: SnackBarBehavior.floating),
+    );
 }

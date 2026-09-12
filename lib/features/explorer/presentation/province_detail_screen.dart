@@ -58,7 +58,7 @@ class ProvinceDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    drawer: const HomeDrawer(),
+    drawer: const HomeDrawer(selectedSection: 'Explore Places'),
     backgroundColor: const Color(0xFFFFFDFC),
     appBar: AppBar(
       backgroundColor: const Color(0xFFFFEAEA),
@@ -75,7 +75,8 @@ class ProvinceDetailScreen extends StatelessWidget {
       ),
       actions: [
         IconButton(
-          onPressed: () {},
+          tooltip: 'Notifications',
+          onPressed: () => Navigator.pushNamed(context, '/notifications'),
           icon: const Icon(Icons.notifications_none, size: 21),
         ),
       ],

@@ -110,7 +110,7 @@ class _JourneyPlannerScreenState extends State<JourneyPlannerScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    drawer: const HomeDrawer(),
+    drawer: const HomeDrawer(selectedSection: 'Explore Places'),
     backgroundColor: const Color(0xFFF9F7F5),
     appBar: AppBar(
       backgroundColor: const Color(0xFFFFEAEA),
@@ -127,7 +127,8 @@ class _JourneyPlannerScreenState extends State<JourneyPlannerScreen> {
       ),
       actions: [
         IconButton(
-          onPressed: () {},
+          tooltip: 'Notifications',
+          onPressed: () => Navigator.pushNamed(context, '/notifications'),
           icon: const Icon(Icons.notifications_none, size: 20),
         ),
       ],
@@ -582,7 +583,7 @@ class _JourneyDraftsScreenState extends State<JourneyDraftsScreen> {
           : ListView.separated(
               padding: const EdgeInsets.all(12),
               itemCount: drafts.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
                 final draft = drafts[index];
                 return Card(

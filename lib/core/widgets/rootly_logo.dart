@@ -16,7 +16,7 @@ class RootlyLogo extends StatelessWidget {
     child: Image.asset(
       'assets/images/rootly_logo.png',
       fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => const DecoratedBox(
+      errorBuilder: (_, _, _) => const DecoratedBox(
         decoration: BoxDecoration(
           gradient: LinearGradient(colors: [Color(0xFFBFCAC7), Color(0xFF53675B), Color(0xFF7B665A)]),
         ),

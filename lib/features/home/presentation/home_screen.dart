@@ -20,12 +20,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void selectTab(int index) {
     if (index == 1) Navigator.pushNamed(context, '/explorer');
+    if (index == 3) Navigator.pushNamed(context, '/capsule');
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: const Color(0xFFF8F6F4),
-    drawer: const HomeDrawer(),
+    drawer: const HomeDrawer(selectedSection: 'Home'),
     appBar: AppBar(
       backgroundColor: const Color(0xFFFFEAEA),
       foregroundColor: AppColors.brown,
@@ -47,7 +48,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       actions: [
         IconButton(
-          onPressed: () {},
+          tooltip: 'Notifications',
+          onPressed: () => Navigator.pushNamed(context, '/notifications'),
           icon: const Icon(Icons.notifications_none, size: 22),
         ),
       ],
@@ -72,6 +74,9 @@ class _HomeScreenState extends State<HomeScreen> {
               SizedBox(height: 10),
               StoryCard(
                 category: 'Craft',
+                author: 'Dinesh',
+                handle: '@dineshcarves',
+                time: '5h',
                 imagePath: 'assets/images/mask_carver.png',
                 title: 'Ambalangoda mask carvers and the spirits they keep',
                 location: 'Ambalangoda · Galle',
