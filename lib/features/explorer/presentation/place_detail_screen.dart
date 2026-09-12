@@ -5,24 +5,13 @@ import '../../../core/widgets/rootly_back_button.dart';
 import '../../home/presentation/widgets/home_drawer.dart';
 import 'widgets/explorer_footer.dart';
 import 'journey_planner_screen.dart';
+import '../domain/place.dart';
+import 'widgets/place_image.dart';
 
 class PlaceDetailScreen extends StatefulWidget {
-  const PlaceDetailScreen({
-    super.key,
-    this.title = 'Gal Vihara',
-    this.imagePath = 'assets/images/gal_vihara.png',
-    this.imageUrl,
-    this.subtitle = 'Polonnaruwa, Sri Lanka',
-    this.category = 'Classical Era',
-    this.description,
-  });
+  const PlaceDetailScreen({super.key, required this.place});
 
-  final String title;
-  final String imagePath;
-  final String? imageUrl;
-  final String subtitle;
-  final String category;
-  final String? description;
+  final Place place;
   @override
   State<PlaceDetailScreen> createState() => _PlaceDetailScreenState();
 }
@@ -30,18 +19,7 @@ class PlaceDetailScreen extends StatefulWidget {
 class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
-  Widget _placeImage() {
-    final imageUrl = widget.imageUrl;
-    if (imageUrl == null || imageUrl.isEmpty) {
-      return Image.asset(widget.imagePath, fit: BoxFit.cover);
-    }
-    return Image.network(
-      imageUrl,
-      fit: BoxFit.cover,
-      errorBuilder: (_, _, _) =>
-          Image.asset(widget.imagePath, fit: BoxFit.cover),
-    );
-  }
+  Widget _placeImage() => PlaceImage(url: widget.place.imageUrl);
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -94,7 +72,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    widget.title,
+                    widget.place.name,
                     style: const TextStyle(
                       color: Colors.white,
                       fontFamily: 'serif',
@@ -103,14 +81,15 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                     ),
                   ),
                   Text(
-                    widget.description ?? 'Discover the story of this place.',
+                    widget.place.description ??
+                        'Discover the story of this place.',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(color: Colors.white, fontSize: 12),
                   ),
                   const SizedBox(height: 5),
                   Text(
-                    '● ${widget.subtitle}  ·  ${widget.category}',
+                    '● ${widget.place.subtitle}  ·  ${widget.place.category}',
                     style: const TextStyle(color: Colors.white70, fontSize: 9),
                   ),
                 ],
@@ -128,8 +107,8 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      widget.description ??
-                          'Explore ${widget.title} and its cultural significance.',
+                      widget.place.description ??
+                          'Explore ${widget.place.name} and its cultural significance.',
                       style: _bodyStyle,
                     ),
                     const SizedBox(height: 12),
@@ -153,10 +132,9 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => JourneyPlannerScreen(
-                        selectedTitle: widget.title,
-                        selectedImagePath: widget.imagePath,
-                      ),
+                      settings: const RouteSettings(name: '/journey'),
+                      builder: (_) =>
+                          JourneyPlannerScreen(selectedPlace: widget.place),
                     ),
                   ),
                   style: FilledButton.styleFrom(
@@ -177,12 +155,12 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                     _InfoRow(
                       icon: Icons.category_outlined,
                       title: 'Category',
-                      value: widget.category,
+                      value: widget.place.category,
                     ),
                     _InfoRow(
                       icon: Icons.place_outlined,
                       title: 'Location',
-                      value: widget.subtitle,
+                      value: widget.place.subtitle,
                     ),
                   ],
                 ),

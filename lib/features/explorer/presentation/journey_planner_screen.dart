@@ -1,337 +1,359 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/navigation/primary_navigation.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/rootly_back_button.dart';
 import '../../home/presentation/widgets/home_drawer.dart';
+import '../data/journey_store.dart';
+import '../domain/journey.dart';
+import '../domain/place.dart';
 import 'widgets/explorer_footer.dart';
-
-void _navigateFromFooter(BuildContext context, int index) {
-  navigateToPrimaryDestination(context, index);
-}
+import 'widgets/place_image.dart';
 
 class JourneyPlannerScreen extends StatefulWidget {
-  const JourneyPlannerScreen({
-    super.key,
-    this.selectedTitle,
-    this.selectedImagePath,
-    this.initialSites,
-  });
+  const JourneyPlannerScreen({super.key, this.selectedPlace, this.store});
 
-  final String? selectedTitle;
-  final String? selectedImagePath;
-  final List<JourneySite>? initialSites;
+  final Place? selectedPlace;
+  final JourneyStore? store;
 
   @override
   State<JourneyPlannerScreen> createState() => _JourneyPlannerScreenState();
 }
 
 class _JourneyPlannerScreenState extends State<JourneyPlannerScreen> {
-  late final List<JourneySite> sites;
+  late final JourneyStore store;
 
   @override
   void initState() {
     super.initState();
-    final store = JourneyStore.instance;
-    if (widget.initialSites != null) {
-      store.replaceSites(widget.initialSites!);
-    } else {
-      store.initializeDefaults();
-    }
-    sites = store.sites;
-
-    if (widget.selectedTitle != null &&
-        !sites.any((site) => site.title == widget.selectedTitle)) {
-      sites.add(
-        JourneySite(
-          title: widget.selectedTitle!,
-          description:
-              'Renowned for its massive, sublime Buddha statues carved directly into a granite cliff.',
-          duration: '1.0 hrs',
-          imagePath: widget.selectedImagePath ?? 'assets/images/gal_vihara.png',
-        ),
-      );
-    }
+    store = widget.store ?? JourneyStore.instance;
+    if (widget.selectedPlace case final place?) store.addPlace(place);
   }
 
-  static List<JourneySite> defaultSites() => [
-    const JourneySite(
-      title: 'Royal Palace of King Parakramabahu',
-      description:
-          'The magnificent seven-storey palace ruins, showcasing the architectural grandeur.',
-      duration: '1.5 hrs',
-      imagePath: 'assets/images/login_image.jpg',
-    ),
-    const JourneySite(
-      title: 'The Quadrangle (Dalada Maluva)',
-      description:
-          'A compact group of fascinating ruins, including the circular Vatadage.',
-      duration: '2.5 hrs',
-      imagePath: 'assets/images/login_image.jpg',
-    ),
-    const JourneySite(
-      title: 'Polonnaruwa Vatadage',
-      description:
-          'An elegant circular relic house decorated with finely carved stone guardstones.',
-      duration: '45 mins',
-      imagePath: 'assets/images/gal_vihara.png',
-    ),
-    const JourneySite(
-      title: 'Rankoth Vehera',
-      description:
-          'The largest stupa in Polonnaruwa and an enduring landmark of the ancient city.',
-      duration: '40 mins',
-      imagePath: 'assets/images/login_image.jpg',
-    ),
-    const JourneySite(
-      title: 'Lankatilaka Image House',
-      description:
-          'A monumental brick shrine containing the remains of a towering Buddha image.',
-      duration: '50 mins',
-      imagePath: 'assets/images/gal_vihara.png',
-    ),
-  ];
-
-  void reorder(int oldIndex, int newIndex) {
-    setState(() {
-      if (newIndex > oldIndex) newIndex--;
-      final site = sites.removeAt(oldIndex);
-      sites.insert(newIndex, site);
+  void _addMoreSites() {
+    final navigator = Navigator.of(context);
+    var foundExplorer = false;
+    navigator.popUntil((route) {
+      foundExplorer = route.settings.name == '/explorer';
+      return foundExplorer || route.isFirst;
     });
+    if (!foundExplorer) navigator.pushReplacementNamed('/explorer');
   }
 
-  void showMessage(String text) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(text)));
+  Future<void> _chooseDate() async {
+    final now = DateUtils.dateOnly(DateTime.now());
+    final selected = store.date;
+    final date = await showDatePicker(
+      context: context,
+      initialDate: selected ?? now,
+      firstDate: selected != null && selected.isBefore(now) ? selected : now,
+      lastDate: DateTime(now.year + 5, 12, 31),
+    );
+    if (!mounted || date == null) return;
+    store.setDate(date);
+  }
+
+  void _showRoute() {
+    final sites = store.sites;
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: .65,
+          minChildSize: .3,
+          maxChildSize: .9,
+          builder: (context, controller) => ListView(
+            controller: controller,
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            children: [
+              Text(
+                'Route preview',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Your stops in visit order. Travel times are not included.',
+              ),
+              const SizedBox(height: 12),
+              for (var index = 0; index < sites.length; index++)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: CircleAvatar(
+                    backgroundColor: const Color(0xFFFFD9BE),
+                    foregroundColor: AppColors.brown,
+                    child: Text('${index + 1}'),
+                  ),
+                  title: Text(sites[index].place.name),
+                  subtitle: Text(
+                    '${sites[index].place.subtitle}\n'
+                    '${sites[index].place.location.latitude.toStringAsFixed(4)}, '
+                    '${sites[index].place.location.longitude.toStringAsFixed(4)}',
+                  ),
+                  isThreeLine: true,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    drawer: const HomeDrawer(selectedSection: 'Explore Places'),
-    backgroundColor: const Color(0xFFF9F7F5),
-    appBar: AppBar(
-      backgroundColor: const Color(0xFFFFEAEA),
-      foregroundColor: AppColors.brown,
-      centerTitle: true,
-      leading: const RootlyBackButton(fallbackRoute: '/explorer'),
-      title: const Text(
-        'Rootly',
-        style: TextStyle(
-          fontFamily: 'serif',
-          fontWeight: FontWeight.bold,
-          fontSize: 24,
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: store,
+    builder: (context, _) {
+      final sites = store.sites;
+      final timedStops = store.timedStops;
+      return Scaffold(
+        drawer: const HomeDrawer(selectedSection: 'Explore Places'),
+        backgroundColor: const Color(0xFFF9F7F5),
+        appBar: AppBar(
+          backgroundColor: const Color(0xFFFFEAEA),
+          foregroundColor: AppColors.brown,
+          centerTitle: true,
+          leading: const RootlyBackButton(fallbackRoute: '/explorer'),
+          title: const Text(
+            'Rootly',
+            style: TextStyle(
+              fontFamily: 'serif',
+              fontWeight: FontWeight.bold,
+              fontSize: 24,
+            ),
+          ),
+          actions: [
+            IconButton(
+              tooltip: 'Notifications',
+              onPressed: () => Navigator.pushNamed(context, '/notifications'),
+              icon: const Icon(Icons.notifications_none, size: 20),
+            ),
+          ],
         ),
-      ),
-      actions: [
-        IconButton(
-          tooltip: 'Notifications',
-          onPressed: () => Navigator.pushNamed(context, '/notifications'),
-          icon: const Icon(Icons.notifications_none, size: 20),
-        ),
-      ],
-    ),
-    body: SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-        child: Column(
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFE5D6),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: const Text(
-                'Heritage Guide',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppColors.brown,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'JOURNEY BUILDER',
-              style: TextStyle(fontSize: 8, letterSpacing: 1.3),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'One Day in Polonnaruwa',
-              style: TextStyle(
-                fontFamily: 'serif',
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Wrap(
-              spacing: 7,
-              children: [
-                _InfoChip(
-                  icon: Icons.calendar_today_outlined,
-                  label: '1 Ancient City',
-                ),
-                _InfoChip(icon: Icons.schedule, label: 'About 5 hours'),
-              ],
-            ),
-            const SizedBox(height: 12),
-            const _JourneyInfo(),
-            const SizedBox(height: 13),
-            Row(
-              children: [
-                const Text(
-                  'Itinerary',
-                  style: TextStyle(
-                    fontFamily: 'serif',
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+        body: SafeArea(
+          top: false,
+          child: CustomScrollView(
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
+                sliver: SliverToBoxAdapter(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'JOURNEY BUILDER',
+                        style: TextStyle(
+                          fontSize: 10,
+                          letterSpacing: 1.3,
+                          color: AppColors.brown,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        store.name,
+                        style: const TextStyle(
+                          fontFamily: 'serif',
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.brown,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
+                          _InfoChip(
+                            icon: Icons.route,
+                            label:
+                                '${sites.length} stop${sites.length == 1 ? '' : 's'}',
+                          ),
+                          _InfoChip(
+                            icon: Icons.schedule,
+                            label: timedStops == 0
+                                ? 'Visit times not set'
+                                : '${formatVisitMinutes(store.visitMinutes)} planned'
+                                      '${timedStops < sites.length ? ' · $timedStops/${sites.length} stops timed' : ''}',
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Material(
+                        color: const Color(0xFFFFF1E9),
+                        borderRadius: BorderRadius.circular(8),
+                        clipBehavior: Clip.antiAlias,
+                        child: Column(
+                          children: [
+                            ListTile(
+                              leading: const Icon(
+                                Icons.my_location,
+                                color: AppColors.brown,
+                              ),
+                              title: const Text(
+                                'Starting place',
+                                style: TextStyle(fontSize: 11),
+                              ),
+                              subtitle: Text(
+                                sites.isEmpty
+                                    ? 'Add a place to start your journey'
+                                    : sites.first.place.name,
+                              ),
+                            ),
+                            const Divider(height: 1, indent: 16, endIndent: 16),
+                            ListTile(
+                              leading: const Icon(
+                                Icons.calendar_month_outlined,
+                                color: AppColors.brown,
+                              ),
+                              title: const Text(
+                                'Journey date',
+                                style: TextStyle(fontSize: 11),
+                              ),
+                              subtitle: Text(
+                                store.date == null
+                                    ? 'Choose a date'
+                                    : MaterialLocalizations.of(
+                                        context,
+                                      ).formatFullDate(store.date!),
+                              ),
+                              onTap: _chooseDate,
+                              trailing: store.date == null
+                                  ? const Icon(Icons.chevron_right)
+                                  : IconButton(
+                                      tooltip: 'Clear journey date',
+                                      onPressed: () => store.setDate(null),
+                                      icon: const Icon(Icons.close, size: 18),
+                                    ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      const Text(
+                        'Itinerary',
+                        style: TextStyle(
+                          fontFamily: 'serif',
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: AppColors.brown,
+                        ),
+                      ),
+                      if (sites.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Drag the handle to reorder your stops.',
+                          style: TextStyle(fontSize: 11, color: Colors.black54),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-                const Spacer(),
-                Text(
-                  '${sites.length} stops on route',
-                  style: const TextStyle(fontSize: 9),
+              ),
+              if (sites.isEmpty)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.travel_explore,
+                          size: 44,
+                          color: AppColors.brown,
+                        ),
+                        SizedBox(height: 12),
+                        Text(
+                          'Your journey starts here',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        SizedBox(height: 6),
+                        Text(
+                          'Find a place in Explore Places and tap Add to Journey.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 12, color: Colors.black54),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  sliver: SliverReorderableList(
+                    itemCount: sites.length,
+                    onReorderItem: store.reorder,
+                    itemBuilder: (context, index) => _JourneySiteCard(
+                      key: ValueKey(sites[index].place.id),
+                      site: sites[index],
+                      index: index,
+                      onRemove: () => store.removePlace(sites[index].place.id),
+                      onVisitTimeChanged: (minutes) =>
+                          store.setVisitMinutes(sites[index].place.id, minutes),
+                    ),
+                  ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: ReorderableListView.builder(
-                buildDefaultDragHandles: false,
-                itemCount: sites.length,
-                onReorder: reorder,
-                proxyDecorator: (child, _, animation) => Material(
-                  elevation: 5,
-                  borderRadius: BorderRadius.circular(7),
-                  child: child,
-                ),
-                itemBuilder: (context, index) => _JourneySiteCard(
-                  key: ValueKey(sites[index].title),
-                  site: sites[index],
-                  index: index,
-                  onRemove: () => setState(() => sites.removeAt(index)),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+                sliver: SliverToBoxAdapter(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: _addMoreSites,
+                        icon: const Icon(Icons.add, size: 18),
+                        label: Text(
+                          sites.isEmpty ? 'Explore Places' : 'Add More Sites',
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      OutlinedButton(
+                        onPressed: sites.isEmpty
+                            ? null
+                            : () {
+                                if (!store.saveDraft()) return;
+                                ScaffoldMessenger.of(context)
+                                  ..hideCurrentSnackBar()
+                                  ..showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Journey draft saved.'),
+                                    ),
+                                  );
+                              },
+                        child: const Text('Save Draft'),
+                      ),
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => JourneyDraftsScreen(store: store),
+                          ),
+                        ),
+                        icon: const Icon(Icons.drafts_outlined, size: 18),
+                        label: Text('View Drafts (${store.drafts.length})'),
+                      ),
+                      const SizedBox(height: 8),
+                      FilledButton.icon(
+                        onPressed: sites.isEmpty ? null : _showRoute,
+                        icon: const Icon(Icons.route_outlined, size: 18),
+                        label: const Text('View Route'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.brown,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            OutlinedButton.icon(
-              onPressed: () => Navigator.popUntil(
-                context,
-                (route) => route.settings.name == '/explorer',
-              ),
-              icon: const Icon(Icons.add, size: 16),
-              label: const Text('Add More Sites'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.brown,
-                side: const BorderSide(color: Color(0xFFD6B5A8)),
-                minimumSize: const Size.fromHeight(40),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton(
-              onPressed: () {
-                JourneyStore.instance.saveDraft();
-                showMessage('Journey draft saved.');
-              },
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.brown,
-                minimumSize: const Size.fromHeight(40),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6),
-                ),
-              ),
-              child: const Text('Save Draft'),
-            ),
-            const SizedBox(height: 6),
-            OutlinedButton.icon(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const JourneyDraftsScreen()),
-              ),
-              icon: const Icon(Icons.drafts_outlined, size: 16),
-              label: const Text('View Drafts'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.brown,
-                minimumSize: const Size.fromHeight(40),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6),
-                ),
-              ),
-            ),
-            const SizedBox(height: 6),
-            FilledButton.icon(
-              onPressed: () => showMessage('Route is ready to view.'),
-              icon: const Icon(Icons.map_outlined, size: 16),
-              label: const Text('View Route'),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.brown,
-                minimumSize: const Size.fromHeight(40),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6),
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    ),
-    bottomNavigationBar: ExplorerFooter(
-      selectedIndex: 3,
-      onSelected: (index) => _navigateFromFooter(context, index),
-    ),
-  );
-}
-
-class _JourneyInfo extends StatelessWidget {
-  const _JourneyInfo();
-  @override
-  Widget build(BuildContext context) => Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: const Color(0xFFFFF1E9),
-      borderRadius: BorderRadius.circular(7),
-    ),
-    child: const Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Starting Location',
-          style: TextStyle(fontSize: 9, color: Colors.grey),
+        bottomNavigationBar: ExplorerFooter(
+          selectedIndex: 1,
+          onSelected: (index) => navigateToPrimaryDestination(context, index),
         ),
-        SizedBox(height: 4),
-        Row(
-          children: [
-            Icon(Icons.my_location, size: 14, color: AppColors.brown),
-            SizedBox(width: 5),
-            Text(
-              'Polonnaruwa Roundabout Hotel',
-              style: TextStyle(fontSize: 10),
-            ),
-          ],
-        ),
-        Divider(height: 18),
-        Text('Journey Date', style: TextStyle(fontSize: 9, color: Colors.grey)),
-        SizedBox(height: 4),
-        Row(
-          children: [
-            Icon(
-              Icons.calendar_month_outlined,
-              size: 14,
-              color: AppColors.brown,
-            ),
-            SizedBox(width: 5),
-            Text('Friday 24th May', style: TextStyle(fontSize: 10)),
-          ],
-        ),
-      ],
-    ),
+      );
+    },
   );
 }
 
@@ -341,106 +363,155 @@ class _JourneySiteCard extends StatelessWidget {
     required this.site,
     required this.index,
     required this.onRemove,
+    required this.onVisitTimeChanged,
   });
+
   final JourneySite site;
   final int index;
   final VoidCallback onRemove;
+  final ValueChanged<int?> onVisitTimeChanged;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 9),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        ReorderableDragStartListener(
-          index: index,
-          child: Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              border: Border.all(color: AppColors.brown),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: const Icon(
-              Icons.drag_indicator,
-              size: 18,
-              color: AppColors.brown,
-            ),
+  Widget build(BuildContext context) => Card(
+    margin: const EdgeInsets.only(bottom: 10),
+    elevation: 0,
+    color: Colors.white,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(8),
+      side: const BorderSide(color: Color(0xFFE5DEDA)),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: SizedBox(
+                  width: 76,
+                  height: 76,
+                  child: PlaceImage(url: site.place.imageUrl),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      site.place.category,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: AppColors.brown,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      site.place.name,
+                      style: const TextStyle(
+                        fontFamily: 'serif',
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: AppColors.brown,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      site.place.subtitle,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.black54,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: onRemove,
+                tooltip: 'Remove ${site.place.name}',
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.close, size: 18, color: AppColors.brown),
+              ),
+            ],
           ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(7),
-              border: Border.all(color: const Color(0xFFE5DEDA)),
+          if (site.place.description case final description?) ...[
+            const SizedBox(height: 8),
+            Text(
+              description,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 11,
+                height: 1.4,
+                color: Colors.black54,
+              ),
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(5),
-                  child: Image.asset(
-                    site.imagePath,
-                    width: 92,
-                    height: 66,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                const SizedBox(width: 9),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        site.title,
-                        style: const TextStyle(
-                          fontFamily: 'serif',
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
+          ],
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              ReorderableDragStartListener(
+                index: index,
+                child: Tooltip(
+                  message: 'Drag to reorder stop ${index + 1}',
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.drag_indicator,
+                          color: AppColors.brown,
+                          size: 20,
                         ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        site.description,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 9,
-                          color: Colors.black54,
-                          height: 1.3,
+                        const SizedBox(width: 4),
+                        Text(
+                          '${index + 1}',
+                          style: const TextStyle(color: AppColors.brown),
                         ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '◷ ${site.duration}',
-                        style: const TextStyle(fontSize: 8, color: Colors.grey),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-                IconButton(
-                  onPressed: onRemove,
-                  tooltip: 'Remove site',
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.all(3),
-                  constraints: const BoxConstraints(
-                    minWidth: 28,
-                    minHeight: 28,
-                  ),
-                  icon: const Icon(
-                    Icons.close,
-                    size: 16,
-                    color: AppColors.brown,
+              ),
+              const Spacer(),
+              Flexible(
+                flex: 5,
+                child: PopupMenuButton<int>(
+                  tooltip: 'Set visit time for ${site.place.name}',
+                  onSelected: (minutes) =>
+                      onVisitTimeChanged(minutes == 0 ? null : minutes),
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(value: 0, child: Text('Not set')),
+                    for (final minutes in [30, 45, 60, 90, 120, 180])
+                      PopupMenuItem(
+                        value: minutes,
+                        child: Text(formatVisitMinutes(minutes)),
+                      ),
+                  ],
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 12,
+                    ),
+                    child: Text(
+                      site.visitMinutes == null
+                          ? 'Set visit time'
+                          : formatVisitMinutes(site.visitMinutes!),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.brown,
+                      ),
+                    ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ),
-      ],
+        ],
+      ),
     ),
   );
 }
@@ -449,181 +520,128 @@ class _InfoChip extends StatelessWidget {
   const _InfoChip({required this.icon, required this.label});
   final IconData icon;
   final String label;
+
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
     decoration: BoxDecoration(
       color: const Color(0xFFEAF5E9),
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(12),
     ),
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 10, color: Colors.green),
-        const SizedBox(width: 4),
-        Text(label, style: const TextStyle(fontSize: 8)),
+        Icon(icon, size: 14, color: const Color(0xFF427748)),
+        const SizedBox(width: 5),
+        Flexible(child: Text(label, style: const TextStyle(fontSize: 11))),
       ],
     ),
   );
 }
 
-class JourneySite {
-  const JourneySite({
-    required this.title,
-    required this.description,
-    required this.duration,
-    required this.imagePath,
-  });
-  final String title, description, duration, imagePath;
-}
+class JourneyDraftsScreen extends StatelessWidget {
+  const JourneyDraftsScreen({super.key, this.store});
 
-class JourneyDraft {
-  const JourneyDraft({required this.name, required this.sites});
-  final String name;
-  final List<JourneySite> sites;
-}
+  final JourneyStore? store;
 
-class JourneyStore {
-  JourneyStore._();
-  static final instance = JourneyStore._();
-
-  final List<JourneySite> sites = [];
-  final List<JourneyDraft> drafts = [];
-  bool _initialized = false;
-
-  void initializeDefaults() {
-    if (_initialized) return;
-    sites.addAll(_JourneyPlannerScreenState.defaultSites());
-    _initialized = true;
-  }
-
-  void replaceSites(List<JourneySite> newSites) {
-    sites
-      ..clear()
-      ..addAll(newSites);
-    _initialized = true;
-  }
-
-  void saveDraft() {
-    if (sites.isEmpty) return;
-    drafts.insert(
-      0,
-      JourneyDraft(
-        name: 'One Day in Polonnaruwa',
-        sites: List<JourneySite>.from(sites),
-      ),
-    );
-  }
-}
-
-class JourneyDraftsScreen extends StatefulWidget {
-  const JourneyDraftsScreen({super.key});
-
-  @override
-  State<JourneyDraftsScreen> createState() => _JourneyDraftsScreenState();
-}
-
-class _JourneyDraftsScreenState extends State<JourneyDraftsScreen> {
-  void openDraft(JourneyDraft draft) {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => JourneyPlannerScreen(
-          initialSites: List<JourneySite>.from(draft.sites),
-        ),
-      ),
-    );
-  }
-
-  Future<void> deleteDraft(int index) async {
+  Future<void> _deleteDraft(
+    BuildContext context,
+    JourneyStore store,
+    JourneyDraft draft,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (context) => AlertDialog(
         title: const Text('Delete draft?'),
-        content: const Text(
-          'This draft will be permanently removed. This action cannot be undone.',
-        ),
+        content: Text('Remove "${draft.name}" from your drafts?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
+            onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancel'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () => Navigator.pop(context, true),
             child: const Text('Delete'),
           ),
         ],
       ),
     );
-
-    if (confirmed != true || !mounted) return;
-    setState(() => JourneyStore.instance.drafts.removeAt(index));
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text('Draft deleted.')));
+    if (confirmed == true) store.deleteDraft(draft);
   }
 
   @override
   Widget build(BuildContext context) {
-    final drafts = JourneyStore.instance.drafts;
-    return Scaffold(
-      backgroundColor: const Color(0xFFF9F7F5),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFFFEAEA),
-        foregroundColor: AppColors.brown,
-        leading: const RootlyBackButton(fallbackRoute: '/explorer'),
-        title: const Text('Journey Drafts'),
-      ),
-      body: drafts.isEmpty
-          ? const Center(child: Text('No saved drafts yet.'))
-          : ListView.separated(
-              padding: const EdgeInsets.all(12),
-              itemCount: drafts.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final draft = drafts[index];
-                return Card(
-                  child: ListTile(
-                    leading: const CircleAvatar(
-                      backgroundColor: Color(0xFFFFD9BE),
-                      child: Icon(Icons.route, color: AppColors.brown),
-                    ),
-                    title: Text(
-                      draft.name,
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    subtitle: Text('${draft.sites.length} stops'),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          onPressed: () => openDraft(draft),
-                          tooltip: 'Edit draft',
+    final journeyStore = store ?? JourneyStore.instance;
+    return ListenableBuilder(
+      listenable: journeyStore,
+      builder: (context, _) {
+        final drafts = journeyStore.drafts;
+        return Scaffold(
+          backgroundColor: const Color(0xFFF9F7F5),
+          appBar: AppBar(
+            backgroundColor: const Color(0xFFFFEAEA),
+            foregroundColor: AppColors.brown,
+            leading: const RootlyBackButton(fallbackRoute: '/journey'),
+            title: const Text('Journey Drafts'),
+          ),
+          body: drafts.isEmpty
+              ? const Center(child: Text('No saved drafts yet.'))
+              : ListView.separated(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: drafts.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final draft = drafts[index];
+                    void openDraft() {
+                      journeyStore.openDraft(draft);
+                      if (Navigator.canPop(context)) {
+                        Navigator.pop(context);
+                      } else {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            settings: const RouteSettings(name: '/journey'),
+                            builder: (_) =>
+                                JourneyPlannerScreen(store: journeyStore),
+                          ),
+                        );
+                      }
+                    }
+
+                    return Card(
+                      child: ListTile(
+                        leading: const CircleAvatar(
+                          backgroundColor: Color(0xFFFFD9BE),
+                          child: Icon(Icons.route, color: AppColors.brown),
+                        ),
+                        title: Text(
+                          draft.name,
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        subtitle: Text(
+                          '${draft.sites.length} stop${draft.sites.length == 1 ? '' : 's'}'
+                          '${draft.date == null ? '' : '\n${MaterialLocalizations.of(context).formatMediumDate(draft.date!)}'}',
+                        ),
+                        trailing: IconButton(
+                          tooltip: 'Delete draft',
+                          onPressed: () =>
+                              _deleteDraft(context, journeyStore, draft),
                           icon: const Icon(
-                            Icons.edit_outlined,
+                            Icons.delete_outline,
                             color: AppColors.brown,
                           ),
                         ),
-                        IconButton(
-                          onPressed: () => deleteDraft(index),
-                          tooltip: 'Delete draft',
-                          icon: const Icon(
-                            Icons.delete_outline,
-                            color: Colors.redAccent,
-                          ),
-                        ),
-                      ],
-                    ),
-                    onTap: () => openDraft(draft),
-                  ),
-                );
-              },
-            ),
-      bottomNavigationBar: ExplorerFooter(
-        selectedIndex: 3,
-        onSelected: (index) => _navigateFromFooter(context, index),
-      ),
+                        onTap: openDraft,
+                      ),
+                    );
+                  },
+                ),
+          bottomNavigationBar: ExplorerFooter(
+            selectedIndex: 1,
+            onSelected: (index) => navigateToPrimaryDestination(context, index),
+          ),
+        );
+      },
     );
   }
 }
