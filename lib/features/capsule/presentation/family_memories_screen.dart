@@ -118,7 +118,7 @@ class FamilyMemoriesScreen extends StatelessWidget {
             SizedBox(
               height: 41,
               child: FilledButton.icon(
-                onPressed: () {},
+                onPressed: () => Navigator.pushNamed(context, '/response-capsule'),
                 icon: const Icon(Icons.hub_outlined, size: 17),
                 label: const Text('Create a Response Capsule', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
                 style: FilledButton.styleFrom(

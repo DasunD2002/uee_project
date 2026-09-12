@@ -32,6 +32,14 @@ class FamilyReceiptScreen extends StatelessWidget {
       ),
       title: const Text('Your capsule', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
       centerTitle: true,
+      actions: [
+        IconButton(
+          tooltip: 'Share capsule',
+          onPressed: () {},
+          icon: const Icon(Icons.ios_share_rounded, size: 20),
+        ),
+        const SizedBox(width: 4),
+      ],
     ),
     body: SafeArea(
       top: false,
@@ -39,11 +47,22 @@ class FamilyReceiptScreen extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(28, 10, 28, 28),
         child: Column(
           children: [
+            // ── Title ──────────────────────────────────────────────────
             const Text(
               'Family Recipe',
               style: TextStyle(color: AppColors.brown, fontFamily: 'serif', fontSize: 21, fontWeight: FontWeight.w700),
             ),
-            const SizedBox(height: 25),
+            const SizedBox(height: 8),
+
+            // ── Unlock status badge ─────────────────────────────────────
+            const _UnlockBadge(),
+            const SizedBox(height: 10),
+
+            // ── Contributor avatars + memory counter ────────────────────
+            const _MetaRow(),
+            const SizedBox(height: 18),
+
+            // ── Polaroid scatter ────────────────────────────────────────
             Expanded(
               child: Center(
                 child: Stack(
@@ -68,16 +87,41 @@ class FamilyReceiptScreen extends StatelessWidget {
                       caption: 'Her blessing',
                     ),
                     _LetterCard(),
-                    Container(
-                      width: 54,
-                      height: 54,
-                      decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Color(0x24000000), blurRadius: 12)]),
-                      child: const Icon(Icons.play_arrow_rounded, color: AppColors.brown, size: 31),
+                    // ── Video Polaroid (replaces bare play circle) ──────
+                    _VideoCard(
+                      alignment: const Alignment(.10, -.05),
+                      angle: -.02,
+                      image: 'assets/images/gal_vihara.png',
+                      onPlay: () => _showVideoPlayer(context),
                     ),
                   ],
                 ),
               ),
             ),
+
+            // ── Secondary CTA ───────────────────────────────────────────
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: OutlinedButton.icon(
+                onPressed: () {},
+                icon: const Icon(Icons.add_rounded, size: 17),
+                label: const Text(
+                  'Add More Memories',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.brown,
+                  side: const BorderSide(color: Color(0xFFD9B49E), width: 1.3),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  backgroundColor: const Color(0xFFFFF3E8),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // ── Primary CTA ─────────────────────────────────────────────
             SizedBox(
               width: double.infinity,
               height: 47,
@@ -96,6 +140,235 @@ class FamilyReceiptScreen extends StatelessWidget {
       ),
     ),
     bottomNavigationBar: ExplorerFooter(selectedIndex: 3, onSelected: (index) => _onNavSelected(context, index)),
+  );
+
+  // ── Video player modal ──────────────────────────────────────────────────────
+  void _showVideoPlayer(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Align(
+              alignment: Alignment.topRight,
+              child: IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close_rounded, color: Colors.white, size: 26),
+              ),
+            ),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.asset('assets/images/gal_vihara.png', fit: BoxFit.cover),
+                    const ColoredBox(color: Color(0x66000000)),
+                    const Center(
+                      child: Icon(Icons.play_circle_fill_rounded, color: Colors.white, size: 64),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Watch Family Video · 0:45',
+              style: TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Unlock badge ──────────────────────────────────────────────────────────────
+
+class _UnlockBadge extends StatelessWidget {
+  const _UnlockBadge();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+    decoration: BoxDecoration(
+      color: const Color(0xFFFFECDB),
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: const Color(0xFFE8C5A8)),
+    ),
+    child: const Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.lock_outline_rounded, size: 12, color: AppColors.brown),
+        SizedBox(width: 5),
+        Text(
+          'Unlocks on April 14, 2027',
+          style: TextStyle(
+            color: AppColors.brown,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+// ── Meta row (contributor avatars + memory counter) ───────────────────────────
+
+class _MetaRow extends StatelessWidget {
+  const _MetaRow();
+
+  static const _avatarColors = [
+    Color(0xFFD4A89A),
+    Color(0xFF9BC4B2),
+    Color(0xFFA8BDD4),
+  ];
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      SizedBox(
+        width: 52,
+        height: 22,
+        child: Stack(
+          children: [
+            for (var i = 0; i < _avatarColors.length; i++)
+              Positioned(
+                left: i * 16.0,
+                child: Container(
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    color: _avatarColors[i],
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1.5),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+      const SizedBox(width: 8),
+      const Text(
+        'Added by Grandma, Uncle & You',
+        style: TextStyle(color: Color(0xFFA07060), fontSize: 11),
+      ),
+      const SizedBox(width: 10),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: AppColors.brown,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: const Text(
+          '4 Memories',
+          style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.w700),
+        ),
+      ),
+    ],
+  );
+}
+
+// ── Video Polaroid card ───────────────────────────────────────────────────────
+
+class _VideoCard extends StatelessWidget {
+  const _VideoCard({
+    required this.alignment,
+    required this.angle,
+    required this.image,
+    required this.onPlay,
+  });
+  final Alignment alignment;
+  final double angle;
+  final String image;
+  final VoidCallback onPlay;
+
+  @override
+  Widget build(BuildContext context) => Align(
+    alignment: alignment,
+    child: Transform.rotate(
+      angle: angle,
+      child: GestureDetector(
+        onTap: onPlay,
+        child: Container(
+          width: 115,
+          padding: const EdgeInsets.all(7),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(9),
+            boxShadow: const [
+              BoxShadow(color: Color(0x2A4D3022), blurRadius: 12, offset: Offset(0, 5)),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(5),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Image.asset(image, height: 94, width: double.infinity, fit: BoxFit.cover),
+                    Container(
+                      height: 94,
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Color(0x33000000), Color(0xAA000000)],
+                        ),
+                      ),
+                    ),
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withAlpha(220),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.play_arrow_rounded, color: AppColors.brown, size: 22),
+                    ),
+                    Positioned(
+                      bottom: 6,
+                      right: 6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          '0:45',
+                          style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Watch Family Video',
+                style: TextStyle(
+                  color: AppColors.brown,
+                  fontFamily: 'serif',
+                  fontSize: 9.5,
+                  fontStyle: FontStyle.italic,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
   );
 }
 
