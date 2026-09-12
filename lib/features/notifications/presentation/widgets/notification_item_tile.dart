@@ -22,23 +22,19 @@ class NotificationItemData {
   final bool isUnread;
 
   NotificationItemData copyWith({bool? isUnread}) => NotificationItemData(
-        id: id,
-        title: title,
-        subtitle: subtitle,
-        timeAgo: timeAgo,
-        avatarAsset: avatarAsset,
-        avatarUrl: avatarUrl,
-        icon: icon,
-        isUnread: isUnread ?? this.isUnread,
-      );
+    id: id,
+    title: title,
+    subtitle: subtitle,
+    timeAgo: timeAgo,
+    avatarAsset: avatarAsset,
+    avatarUrl: avatarUrl,
+    icon: icon,
+    isUnread: isUnread ?? this.isUnread,
+  );
 }
 
 class NotificationItemTile extends StatelessWidget {
-  const NotificationItemTile({
-    super.key,
-    required this.data,
-    this.onTap,
-  });
+  const NotificationItemTile({super.key, required this.data, this.onTap});
 
   final NotificationItemData data;
   final VoidCallback? onTap;
@@ -129,11 +125,7 @@ class NotificationItemTile extends StatelessWidget {
           shape: BoxShape.circle,
         ),
         child: Center(
-          child: Icon(
-            data.icon,
-            color: const Color(0xFFF5EBE1),
-            size: 22,
-          ),
+          child: Icon(data.icon, color: const Color(0xFFF5EBE1), size: 22),
         ),
       );
     }
@@ -146,7 +138,7 @@ class NotificationItemTile extends StatelessWidget {
           width: 44,
           height: 44,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _fallbackAvatar(),
+          errorBuilder: (_, _, _) => _fallbackAvatar(),
         ),
       );
     }
@@ -159,7 +151,7 @@ class NotificationItemTile extends StatelessWidget {
           width: 44,
           height: 44,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _fallbackAvatar(),
+          errorBuilder: (_, _, _) => _fallbackAvatar(),
         ),
       );
     }
