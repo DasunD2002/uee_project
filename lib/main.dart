@@ -2,10 +2,16 @@ import 'package:flutter/material.dart';
 import 'core/theme/app_colors.dart';
 import 'features/auth/presentation/login_screen.dart';
 import 'features/auth/presentation/signup_screen.dart';
+import 'features/auth/presentation/otp_screen.dart';
+import 'features/auth/presentation/change_password_screen.dart';
+import 'features/settings/presentation/settings_screen.dart';
+import 'features/capsules/presentation/create_capsule_screen.dart';
+import 'features/capsule/presentation/capsule_screen.dart';
 import 'features/explorer/presentation/explorer_shell.dart';
 import 'features/explorer/presentation/sri_lanka_3d_map_screen.dart';
 import 'features/home/presentation/home_screen.dart';
 import 'features/splash/presentation/splash_screen.dart';
+import 'features/Profile/presentation/profile_screen.dart';
 
 void main() => runApp(const RootlyApp());
 
@@ -27,7 +33,18 @@ class RootlyApp extends StatelessWidget {
       '/': (_) => const SplashScreen(),
       '/login': (_) => const LoginScreen(),
       '/signup': (_) => const SignUpScreen(),
+      '/otp': (context) => OtpScreen(
+        email: ModalRoute.of(context)?.settings.arguments as String? ?? '',
+      ),
+      '/forgot-password': (_) => const ChangePasswordScreen(isReset: true),
+      '/change-password': (_) => const ChangePasswordScreen(),
+      '/settings': (_) => const SettingsScreen(),
+      '/create-capsule': (_) => const CreateCapsuleScreen(),
+      '/capsules': (_) => const CapsuleScreen(),
       '/home': (_) => const HomeScreen(),
+      '/profile': (_) => const ProfileScreen(),
+      '/saved-posts': (_) => const ProfileScreen(showSavedPosts: true),
+      '/capsule': (_) => const CapsuleScreen(),
       '/explorer': (_) => const ExplorerShell(),
       '/province-map': (_) => const SriLanka3DMapScreen(),
     },

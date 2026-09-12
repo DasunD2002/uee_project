@@ -30,7 +30,7 @@ class _ExplorerShellState extends State<ExplorerShell> {
   @override
   Widget build(BuildContext context) => Scaffold(
     key: scaffoldKey,
-    drawer: const HomeDrawer(),
+    drawer: HomeDrawer(selectedSection: index < 2 ? 'Explore Places' : 'Q&A Forum'),
     body: IndexedStack(
       index: index,
       children: [
@@ -48,6 +48,8 @@ class _ExplorerShellState extends State<ExplorerShell> {
       onSelected: (value) {
         if (value == 0) {
           Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
+        } else if (value == 3) {
+          Navigator.pushNamedAndRemoveUntil(context, '/capsule', (_) => false);
         } else {
           setState(() => index = value == 1 ? 0 : value);
         }
@@ -182,13 +184,14 @@ class _ExplorerScreenState extends State<ExplorerScreen> {
                 FutureBuilder<List<Place>>(
                   future: places,
                   builder: (context, snapshot) {
-                    if (!snapshot.hasData)
+                    if (!snapshot.hasData) {
                       return const Center(
                         child: Padding(
                           padding: EdgeInsets.all(40),
                           child: CircularProgressIndicator(),
                         ),
                       );
+                    }
                     return Column(
                       children: snapshot.data!
                           .take(4)
@@ -510,7 +513,7 @@ class _PlaceImage extends StatelessWidget {
       : Image.network(
           url!,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => const ColoredBox(
+          errorBuilder: (_, _, _) => const ColoredBox(
             color: Color(0xFFD7B99E),
             child: Icon(Icons.account_balance, color: Colors.white),
           ),

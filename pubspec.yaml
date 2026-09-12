@@ -37,6 +37,7 @@ dependencies:
   http: ^1.6.0
   maplibre_gl: 0.22.0
   shared_preferences: ^2.5.3
+  file_selector: ^1.1.0
 
 dev_dependencies:
   flutter_test:

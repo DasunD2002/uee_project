@@ -45,7 +45,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     key: scaffoldKey,
-    drawer: const HomeDrawer(),
+    drawer: const HomeDrawer(selectedSection: 'Explore Places'),
     backgroundColor: const Color(0xFFF8F6F4),
     appBar: AppBar(
       backgroundColor: const Color(0xFFFFEAEA),
@@ -196,9 +196,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
         if (index == 0) {
           Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
         }
-        if (index == 1) {
-          Navigator.pop(context);
-        }
+        if (index == 1) Navigator.pop(context);
       },
     ),
   );
