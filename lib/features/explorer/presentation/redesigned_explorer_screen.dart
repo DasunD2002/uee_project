@@ -8,6 +8,7 @@ import '../domain/explore_category.dart';
 import '../domain/place.dart';
 import '../domain/places_page.dart';
 import 'place_detail_screen.dart';
+import 'widgets/place_image.dart';
 
 class RedesignedExplorerScreen extends StatefulWidget {
   const RedesignedExplorerScreen({
@@ -144,15 +145,7 @@ class _RedesignedExplorerScreenState extends State<RedesignedExplorerScreen> {
   void _openPlace(Place place) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => PlaceDetailScreen(
-          title: place.name,
-          imageUrl: place.imageUrl,
-          subtitle: place.subtitle,
-          category: place.category,
-          description: place.description,
-        ),
-      ),
+      MaterialPageRoute(builder: (_) => PlaceDetailScreen(place: place)),
     );
   }
 
@@ -181,6 +174,11 @@ class _RedesignedExplorerScreenState extends State<RedesignedExplorerScreen> {
               ),
             ),
             actions: [
+              IconButton(
+                tooltip: 'Journey Builder',
+                onPressed: () => Navigator.pushNamed(context, '/journey'),
+                icon: const Icon(Icons.route_outlined, size: 20),
+              ),
               IconButton(
                 tooltip: 'Notifications',
                 onPressed: () => Navigator.pushNamed(context, '/notifications'),
@@ -446,7 +444,7 @@ class _PlaceCard extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            _PlaceImage(url: place.imageUrl),
+            PlaceImage(url: place.imageUrl),
             const DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -507,42 +505,6 @@ class _PlaceCard extends StatelessWidget {
           ],
         ),
       ),
-    ),
-  );
-}
-
-class _PlaceImage extends StatelessWidget {
-  const _PlaceImage({required this.url});
-
-  final String? url;
-
-  @override
-  Widget build(BuildContext context) {
-    if (url == null || url!.isEmpty) return const _ImageFallback();
-    return Image.network(
-      url!,
-      fit: BoxFit.cover,
-      loadingBuilder: (context, child, progress) =>
-          progress == null ? child : const _ImageFallback(showProgress: true),
-      errorBuilder: (_, _, _) => const _ImageFallback(),
-    );
-  }
-}
-
-class _ImageFallback extends StatelessWidget {
-  const _ImageFallback({this.showProgress = false});
-
-  final bool showProgress;
-
-  @override
-  Widget build(BuildContext context) => DecoratedBox(
-    decoration: const BoxDecoration(
-      gradient: LinearGradient(colors: [Color(0xFFD7B99E), Color(0xFF657B6D)]),
-    ),
-    child: Center(
-      child: showProgress
-          ? const CircularProgressIndicator(color: Colors.white)
-          : const Icon(Icons.account_balance, color: Colors.white70, size: 52),
     ),
   );
 }
