@@ -9,6 +9,9 @@ import 'features/capsules/presentation/create_capsule_screen.dart';
 import 'features/capsule/presentation/capsule_screen.dart';
 import 'features/capsule/presentation/family_receipt_screen.dart';
 import 'features/capsule/presentation/family_memories_screen.dart';
+import 'features/capsule/presentation/add_memory_screen.dart';
+import 'features/capsule/presentation/response_capsule_screen.dart';
+import 'features/capsule/presentation/edit_capsule_screen.dart';
 import 'features/explorer/presentation/explorer_shell.dart';
 import 'features/explorer/presentation/journey_planner_screen.dart';
 import 'features/explorer/presentation/sri_lanka_3d_map_screen.dart';
@@ -58,6 +61,9 @@ class RootlyApp extends StatelessWidget {
       '/capsule': (_) => const CapsuleScreen(),
       '/family-receipt': (_) => const FamilyReceiptScreen(),
       '/family-memories': (_) => const FamilyMemoriesScreen(),
+      '/add-memory': (_) => const AddMemoryScreen(),
+      '/response-capsule': (_) => const ResponseCapsuleScreen(),
+      '/edit-capsule': (_) => const EditCapsuleScreen(),
       '/explorer': (_) => const ExplorerShell(),
       '/journey': (_) => const JourneyPlannerScreen(),
       '/province-map': (_) => const SriLanka3DMapScreen(),
