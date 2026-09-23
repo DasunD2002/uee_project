@@ -145,7 +145,10 @@ class _RedesignedExplorerScreenState extends State<RedesignedExplorerScreen> {
   void _openPlace(Place place) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => PlaceDetailScreen(place: place)),
+      MaterialPageRoute(
+        builder: (_) =>
+            PlaceDetailScreen(place: place, repository: widget.repository),
+      ),
     );
   }
 

@@ -64,6 +64,39 @@ void main() {
       expect(result.items.single.location.latitude, closeTo(7.9668, 0.0001));
     });
 
+    test('loads the selected place narrative and image', () async {
+      late http.Request captured;
+      final repository = PlacesRepository(
+        baseUrl: 'http://localhost:8080',
+        client: _StubClient((request) async {
+          captured = request;
+          return http.Response(
+            jsonEncode({
+              'id': 'Q100',
+              'name': 'Gal Vihara',
+              'subtitle': 'Polonnaruwa, Sri Lanka',
+              'category': 'Sacred Sites',
+              'categoryId': 'sacred-sites',
+              'location': {'latitude': 7.9668, 'longitude': 81.0041},
+              'description': 'The first paragraph.\n\nThe second paragraph.',
+              'imageUrl': 'https://upload.wikimedia.org/photo.jpg',
+              'imageSourceUrl': 'https://en.wikipedia.org/wiki/File:photo.jpg',
+              'sourceUrl': 'https://www.wikidata.org/wiki/Q100',
+              'wikipediaUrl': 'https://en.wikipedia.org/wiki/Gal_Vihara',
+            }),
+            200,
+          );
+        }),
+      );
+
+      final place = await repository.fetchPlace('Q100');
+      expect(captured.method, 'GET');
+      expect(captured.url.path, '/api/v1/explore/places/Q100');
+      expect(place.description, contains('The second paragraph.'));
+      expect(place.imageUrl, 'https://upload.wikimedia.org/photo.jpg');
+      expect(place.imageSourceUrl, 'https://en.wikipedia.org/wiki/File:photo.jpg');
+    });
+
     test('loads categories from the public endpoint', () async {
       final repository = PlacesRepository(
         baseUrl: 'http://localhost:8080',

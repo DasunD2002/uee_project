@@ -3,6 +3,7 @@ import '../../../core/navigation/primary_navigation.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/rootly_back_button.dart';
 import 'widgets/explorer_footer.dart';
+import 'widgets/region_image.dart';
 
 class FieldNoteEditorResult {
   const FieldNoteEditorResult({
@@ -115,11 +116,10 @@ class _FieldNoteEditorScreenState extends State<FieldNoteEditorScreen> {
           const SizedBox(height: 18),
           ClipRRect(
             borderRadius: BorderRadius.circular(3),
-            child: Image.asset(
-              widget.image,
+            child: RegionImage(
+              source: widget.image,
               height: 205,
               width: double.infinity,
-              fit: BoxFit.cover,
             ),
           ),
           const SizedBox(height: 14),
