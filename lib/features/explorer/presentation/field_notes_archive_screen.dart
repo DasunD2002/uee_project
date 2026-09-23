@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/rootly_back_button.dart';
 import 'field_note_editor_screen.dart';
 import 'widgets/explorer_footer.dart';
+import 'widgets/region_image.dart';
 
 class FieldNotesArchiveScreen extends StatefulWidget {
   const FieldNotesArchiveScreen({
@@ -254,12 +255,7 @@ class _NoteCard extends StatelessWidget {
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(3),
-          child: Image.asset(
-            note.image,
-            width: 160,
-            height: 105,
-            fit: BoxFit.cover,
-          ),
+          child: RegionImage(source: note.image, width: 160, height: 105),
         ),
         const SizedBox(height: 10),
         DecoratedBox(

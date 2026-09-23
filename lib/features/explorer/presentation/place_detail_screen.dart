@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../../../core/navigation/primary_navigation.dart';
 import '../../../core/theme/app_colors.dart';
@@ -6,20 +8,65 @@ import '../../home/presentation/widgets/home_drawer.dart';
 import 'widgets/explorer_footer.dart';
 import 'journey_planner_screen.dart';
 import '../domain/place.dart';
+import '../data/places_repository.dart';
+import 'widgets/province_source_button.dart';
 import 'widgets/place_image.dart';
 
 class PlaceDetailScreen extends StatefulWidget {
-  const PlaceDetailScreen({super.key, required this.place});
+  const PlaceDetailScreen({super.key, required this.place, this.repository});
 
   final Place place;
+  final PlacesRepository? repository;
   @override
   State<PlaceDetailScreen> createState() => _PlaceDetailScreenState();
 }
 
 class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
   final scaffoldKey = GlobalKey<ScaffoldState>();
+  late final PlacesRepository _repository;
+  late final bool _ownsRepository;
+  late Place _place;
+  bool _loadingDetail = true;
+  String? _detailError;
 
-  Widget _placeImage() => PlaceImage(url: widget.place.imageUrl);
+  @override
+  void initState() {
+    super.initState();
+    _place = widget.place;
+    _ownsRepository = widget.repository == null;
+    _repository = widget.repository ?? PlacesRepository();
+    unawaited(_loadDetail());
+  }
+
+  Future<void> _loadDetail() async {
+    setState(() {
+      _loadingDetail = true;
+      _detailError = null;
+    });
+    try {
+      final place = await _repository.fetchPlace(_place.id);
+      if (!mounted) return;
+      setState(() {
+        _place = place;
+        _loadingDetail = false;
+      });
+    } on Object {
+      if (!mounted) return;
+      setState(() {
+        _detailError =
+            'Could not load the full story. Showing available details.';
+        _loadingDetail = false;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    if (_ownsRepository) _repository.dispose();
+    super.dispose();
+  }
+
+  Widget _placeImage() => PlaceImage(url: _place.imageUrl);
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -52,7 +99,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
         Stack(
           alignment: Alignment.bottomLeft,
           children: [
-            SizedBox(height: 230, width: double.infinity, child: _placeImage()),
+            SizedBox(height: 280, width: double.infinity, child: _placeImage()),
             const Positioned.fill(
               child: DecoratedBox(
                 decoration: BoxDecoration(
@@ -72,24 +119,27 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    widget.place.name,
+                    _place.name,
                     style: const TextStyle(
                       color: Colors.white,
                       fontFamily: 'serif',
-                      fontSize: 29,
+                      fontSize: 32,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   Text(
-                    widget.place.description ??
-                        'Discover the story of this place.',
-                    maxLines: 2,
+                    _place.description ?? 'Discover the story of this place.',
+                    maxLines: 3,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      height: 1.4,
+                    ),
                   ),
                   const SizedBox(height: 5),
                   Text(
-                    '● ${widget.place.subtitle}  ·  ${widget.place.category}',
+                    '● ${_place.subtitle}  ·  ${_place.category}',
                     style: const TextStyle(color: Colors.white70, fontSize: 9),
                   ),
                 ],
@@ -102,23 +152,35 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
           child: Column(
             children: [
               _ContentCard(
-                title: 'About this place',
+                title: 'Historical Narrative',
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (_loadingDetail) ...[
+                      const LinearProgressIndicator(),
+                      const SizedBox(height: 14),
+                    ],
+                    if (_detailError case final error?) ...[
+                      Text(
+                        error,
+                        style: const TextStyle(color: AppColors.brown),
+                      ),
+                      TextButton(
+                        onPressed: _loadDetail,
+                        child: const Text('Retry'),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
                     Text(
-                      widget.place.description ??
-                          'Explore ${widget.place.name} and its cultural significance.',
+                      _place.description ??
+                          'No detailed description is available from the source for this place.',
                       style: _bodyStyle,
                     ),
                     const SizedBox(height: 12),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: SizedBox(
-                        height: 150,
-                        width: double.infinity,
-                        child: _placeImage(),
-                      ),
+                    ProvinceSourceButton(
+                      sourceUrl: _place.sourceUrl,
+                      imageSourceUrl: _place.imageSourceUrl,
+                      wikipediaUrl: _place.wikipediaUrl,
                     ),
                   ],
                 ),
@@ -134,7 +196,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                     MaterialPageRoute(
                       settings: const RouteSettings(name: '/journey'),
                       builder: (_) =>
-                          JourneyPlannerScreen(selectedPlace: widget.place),
+                          JourneyPlannerScreen(selectedPlace: _place),
                     ),
                   ),
                   style: FilledButton.styleFrom(
@@ -155,12 +217,12 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                     _InfoRow(
                       icon: Icons.category_outlined,
                       title: 'Category',
-                      value: widget.place.category,
+                      value: _place.category,
                     ),
                     _InfoRow(
                       icon: Icons.place_outlined,
                       title: 'Location',
-                      value: widget.place.subtitle,
+                      value: _place.subtitle,
                     ),
                   ],
                 ),
@@ -178,8 +240,8 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
 }
 
 const _bodyStyle = TextStyle(
-  fontSize: 11,
-  height: 1.55,
+  fontSize: 15,
+  height: 1.6,
   color: Color(0xFF534B47),
 );
 
@@ -190,7 +252,7 @@ class _ContentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     width: double.infinity,
-    padding: const EdgeInsets.all(14),
+    padding: const EdgeInsets.all(18),
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(8),
@@ -204,7 +266,7 @@ class _ContentCard extends StatelessWidget {
           style: const TextStyle(
             color: AppColors.brown,
             fontFamily: 'serif',
-            fontSize: 17,
+            fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
         ),

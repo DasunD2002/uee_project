@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../domain/explore_category.dart';
 import '../domain/place.dart';
 import '../domain/places_page.dart';
+import '../domain/province_details.dart';
 
 class PlacesApiException implements Exception {
   const PlacesApiException(this.message, {this.statusCode, this.retryAfter});
@@ -111,6 +112,70 @@ class PlacesRepository {
 
     final decoded = _decodeObject(response.body);
     return PlacesPage.fromJson(decoded);
+  }
+
+  Future<ProvinceDetails> fetchProvince(
+    String provinceId, {
+    String query = '',
+    int page = 0,
+    int size = 10,
+  }) async {
+    const supported = {
+      'northern',
+      'north-central',
+      'north-western',
+      'central',
+      'eastern',
+      'western',
+      'southern',
+      'sabaragamuwa',
+      'uva',
+    };
+    final normalizedQuery = query.trim();
+    if (normalizedQuery.length > 120) {
+      throw const PlacesApiException(
+        'Search text must be 120 characters or fewer.',
+      );
+    }
+    if (!supported.contains(provinceId) ||
+        page < 0 ||
+        page > 1000000 ||
+        size < 1 ||
+        size > 50) {
+      throw const PlacesApiException('Invalid province request.');
+    }
+    final response = await _post(
+      '/api/v1/explore/province',
+      body: {
+        'provinceId': provinceId,
+        'q': normalizedQuery,
+        'page': page,
+        'size': size,
+      },
+    );
+    _ensureSuccess(response);
+    final result = ProvinceDetails.fromJson(_decodeObject(response.body));
+    if (result.province.id != provinceId) {
+      throw const PlacesApiException(
+        'The server returned a different province. Please retry.',
+      );
+    }
+    return result;
+  }
+
+  Future<Place> fetchPlace(String placeId) async {
+    if (!RegExp(r'^Q[1-9][0-9]*$').hasMatch(placeId)) {
+      throw const PlacesApiException('Invalid place identifier.');
+    }
+    final response = await _get('/api/v1/explore/places/$placeId');
+    _ensureSuccess(response);
+    final place = Place.fromJson(_decodeObject(response.body));
+    if (place.id != placeId) {
+      throw const PlacesApiException(
+        'The server returned a different place. Please retry.',
+      );
+    }
+    return place;
   }
 
   Future<List<ExploreCategory>> fetchCategories() async {

@@ -3,7 +3,10 @@
 ## Explore Places API
 
 The Explore screen uses the Rootly backend endpoints at `/api/v1/explore/places`
-and `/api/v1/explore/categories`.
+and `/api/v1/explore/categories`. The 3D map's **Explore regions** page uses
+`/api/v1/explore/province` for the selected province, including source-linked
+Wikimedia Commons images. Each province page has a place search that filters all
+places in that province before pagination; clearing it restores the full list.
 
 The default development URL is `http://localhost:8080` on desktop, iOS simulator,
 and web. Android emulators automatically use `http://10.0.2.2:8080`.
@@ -39,7 +42,9 @@ backend URL with the computer's current LAN address:
 flutter run --dart-define=API_BASE_URL=http://192.168.1.21:8080
 ```
 
-Start `Rootly_Backend` before opening Explore. The phone and backend computer must
+Start `Rootly_Backend` before opening Explore; province data and images need that
+service on the configured API address. Source records without a photo show a
+placeholder. The phone and backend computer must
 be on the same network when using a LAN address.
 ## Google Maps setup
 

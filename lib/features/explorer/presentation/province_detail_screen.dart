@@ -1,56 +1,204 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../../../core/navigation/primary_navigation.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/rootly_back_button.dart';
 import '../../home/presentation/widgets/home_drawer.dart';
+import '../data/places_repository.dart';
+import '../domain/place.dart';
+import '../domain/province_details.dart';
 import 'field_notes_archive_screen.dart';
 import 'field_note_editor_screen.dart';
 import 'widgets/explorer_footer.dart';
+import 'widgets/province_source_button.dart';
+import 'widgets/region_image.dart';
 
-class ProvinceDetailScreen extends StatelessWidget {
+class ProvinceDetailScreen extends StatefulWidget {
   const ProvinceDetailScreen({
     super.key,
     required this.name,
     required this.tagline,
     required this.sites,
     required this.accentColor,
+    this.repository,
   });
 
   final String name;
   final String tagline;
   final List<String> sites;
   final Color accentColor;
+  final PlacesRepository? repository;
 
-  String get _description => switch (name) {
-    'Uva Province' =>
-      'Nestled in the southeastern part of the island, Uva Province is renowned for its dramatic highlands, ancient rock temples, and deeply rooted artistic traditions.',
-    'Northern Province' =>
-      'A storied northern landscape shaped by ancient kingdoms, coastal communities, sacred temples, and a distinctive Tamil cultural heritage.',
-    'North Central Province' =>
-      'The heartland of Sri Lanka’s ancient capitals, filled with monumental stupas, reservoirs, monasteries, and living archaeological landscapes.',
-    'Central Province' =>
-      'A cool highland region where royal heritage, sacred traditions, mountain scenery, and generations of craft meet.',
-    'Eastern Province' =>
-      'A diverse eastern coast of historic forts, sacred shrines, lagoons, beaches, and long-standing multicultural traditions.',
-    'Western Province' =>
-      'Sri Lanka’s lively western gateway, bringing together colonial landmarks, museums, temples, and contemporary urban culture.',
-    'Southern Province' =>
-      'A maritime province celebrated for fortified towns, temple traditions, artisan communities, and its historic Indian Ocean coast.',
-    'Sabaragamuwa Province' =>
-      'A lush province of pilgrimage routes, gem-mining heritage, forest traditions, and dramatic mountain landscapes.',
-    _ =>
-      'A culturally rich region shaped by historic kingdoms, sacred places, local craftsmanship, and living community traditions.',
-  };
+  String get provinceId =>
+      name.replaceFirst(' Province', '').toLowerCase().replaceAll(' ', '-');
 
-  String get _heroImage => switch (name) {
-    'Southern Province' ||
-    'Western Province' => 'assets/images/login_image.jpg',
-    'North Western Province' => 'assets/images/mask_carver.png',
-    _ => 'assets/images/gal_vihara.png',
-  };
+  @override
+  State<ProvinceDetailScreen> createState() => _ProvinceDetailScreenState();
+}
 
-  void _navigate(BuildContext context, int index) {
-    navigateToPrimaryDestination(context, index);
+class _ProvinceDetailScreenState extends State<ProvinceDetailScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
+  late final PlacesRepository _repository;
+  late final bool _ownsRepository;
+  ProvinceDetails? _details;
+  List<Place> _places = [];
+  String? _error;
+  bool _loading = true;
+  bool _loadingMore = false;
+  bool _retryMore = false;
+  int _requestId = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _repository = widget.repository ?? PlacesRepository();
+    _ownsRepository = widget.repository == null;
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant ProvinceDetailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.provinceId != widget.provinceId) {
+      _searchDebounce?.cancel();
+      _searchController.clear();
+      _details = null;
+      _places = [];
+      _load();
+    }
+  }
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    _searchController.dispose();
+    if (_ownsRepository) _repository.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    ++_requestId;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) _load();
+    });
+  }
+
+  void _submitSearch() {
+    _searchDebounce?.cancel();
+    FocusScope.of(context).unfocus();
+    _load();
+  }
+
+  void _clearSearch() {
+    _searchDebounce?.cancel();
+    _searchController.clear();
+    _load();
+  }
+
+  Future<void> _load({bool more = false}) async {
+    final request = ++_requestId;
+    final page = more ? _details!.places.page + 1 : 0;
+    setState(() {
+      _error = null;
+      _loading = !more;
+      _loadingMore = more;
+    });
+    try {
+      final result = await _repository.fetchProvince(
+        widget.provinceId,
+        query: _searchController.text,
+        page: page,
+      );
+      if (!mounted || request != _requestId) return;
+      setState(() {
+        _details = result;
+        final items = more
+            ? [..._places, ...result.places.items]
+            : result.places.items;
+        _places = {for (final item in items) item.id: item}.values.toList();
+        _loading = false;
+        _loadingMore = false;
+      });
+    } on Object catch (error) {
+      if (!mounted || request != _requestId) return;
+      setState(() {
+        _error = error is PlacesApiException
+            ? error.message
+            : 'Could not load this province. Please try again.';
+        _retryMore = more;
+        _loading = false;
+        _loadingMore = false;
+      });
+    }
+  }
+
+  void _showTradition(ProvinceTradition tradition) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(tradition.name),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              RegionImage(
+                source: tradition.imageUrl,
+                height: 150,
+                width: double.infinity,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                tradition.description ??
+                    'No description is available from the source.',
+              ),
+              ProvinceSourceButton(
+                sourceUrl: tradition.sourceUrl,
+                imageSourceUrl: tradition.imageSourceUrl,
+                wikipediaUrl: tradition.wikipediaUrl,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAllTraditions() {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: ListView(
+          children: [
+            for (final tradition in _details!.traditions)
+              ListTile(
+                title: Text(tradition.name),
+                subtitle: Text(
+                  tradition.description ?? 'View tradition details',
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showTradition(tradition);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -78,105 +226,238 @@ class ProvinceDetailScreen extends StatelessWidget {
         ),
       ],
     ),
-    body: ListView(
-      padding: const EdgeInsets.fromLTRB(14, 18, 14, 26),
-      children: [
-        _PageHeading(accentColor: accentColor),
-        const SizedBox(height: 28),
-        _Hero(name: name, tagline: tagline, image: _heroImage),
-        const SizedBox(height: 24),
-        _InfoCard(
-          title: 'Region at a Glance',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(_description, style: _bodyStyle),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 7,
-                runSpacing: 7,
-                children: [
-                  _Tag(
-                    label: name == 'Uva Province'
-                        ? 'Ancient Kingdoms'
-                        : 'Living Heritage',
-                  ),
-                  _Tag(label: tagline),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        const _InfoCard(
-          title: 'Visitor Essentials',
-          child: Column(
-            children: [
-              _Essential(
-                icon: Icons.thermostat_outlined,
-                title: 'Climate',
-                value: 'Tropical climate with regional highland variation.',
-              ),
-              _Essential(
-                icon: Icons.directions_car_outlined,
-                title: 'Access',
-                value: 'Main roads and local transport links available.',
-              ),
-              _Essential(
-                icon: Icons.map_outlined,
-                title: 'Local Guides',
-                value: 'Find a certified regional guide',
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 28),
-        const Text('Top Heritage Sites', style: _sectionTitle),
-        const SizedBox(height: 12),
-        for (var i = 0; i < sites.length; i++) ...[
-          _HeritageCard(
-            province: name,
-            title: sites[i],
-            image: i.isEven
-                ? 'assets/images/gal_vihara.png'
-                : 'assets/images/login_image.jpg',
-            category: i.isEven ? 'HERITAGE SITE' : 'SACRED SITE',
-            description:
-                'Discover the history, craftsmanship, and community stories preserved at ${sites[i]} in $name.',
-          ),
-          const SizedBox(height: 16),
+    body: RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(14, 18, 14, 26),
+        children: [
+          _PageHeading(accentColor: widget.accentColor),
+          const SizedBox(height: 28),
+          if (_details == null) ...[
+            Text(widget.name, style: _sectionTitle),
+            const SizedBox(height: 24),
+            if (_loading)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(32),
+                  child: CircularProgressIndicator(),
+                ),
+              )
+            else if (_error != null)
+              _LoadError(message: _error!, onRetry: _load),
+          ] else
+            ..._content(_details!),
         ],
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      ),
+    ),
+    bottomNavigationBar: ExplorerFooter(
+      selectedIndex: 1,
+      onSelected: (index) => navigateToPrimaryDestination(context, index),
+    ),
+  );
+
+  List<Widget> _content(ProvinceDetails details) {
+    final province = details.province;
+    final page = details.places;
+    return [
+      if (_loading) const LinearProgressIndicator(),
+      _Hero(
+        name: province.name,
+        tagline: province.description ?? 'Sri Lanka',
+        image: province.imageUrl ?? '',
+      ),
+      ProvinceSourceButton(
+        sourceUrl: province.sourceUrl,
+        imageSourceUrl: province.imageSourceUrl,
+        wikipediaUrl: province.wikipediaUrl,
+      ),
+      if (page.stale || page.truncated)
+        Text(
+          [
+            if (page.stale) 'Showing cached province data.',
+            if (page.truncated)
+              'Some places may be missing from these results.',
+          ].join(' '),
+          style: _bodyStyle,
+        ),
+      const SizedBox(height: 24),
+      _InfoCard(
+        title: 'Region at a Glance',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Cultural Traditions', style: _sectionTitle),
-            TextButton(onPressed: () {}, child: const Text('View all →')),
+            Text(
+              province.overview.isEmpty
+                  ? 'No overview is available from the source.'
+                  : province.overview,
+              style: _bodyStyle,
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 7,
+              runSpacing: 7,
+              children: [
+                for (final district in province.districts)
+                  _Tag(label: district),
+              ],
+            ),
           ],
         ),
+      ),
+      const SizedBox(height: 16),
+      _InfoCard(
+        title: 'Visitor Essentials',
+        child: Column(
+          children: [
+            _Essential(
+              icon: Icons.location_city_outlined,
+              title: 'Provincial Capital',
+              value: province.capital ?? 'Not available from the source.',
+            ),
+            _Essential(
+              icon: Icons.map_outlined,
+              title: 'Districts',
+              value: province.districts.isEmpty
+                  ? 'Not available from the source.'
+                  : province.districts.join(', '),
+            ),
+            const _Essential(
+              icon: Icons.public,
+              title: 'Country',
+              value: 'Sri Lanka',
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 28),
+      const Text('Top Heritage Sites', style: _sectionTitle),
+      const SizedBox(height: 12),
+      TextField(
+        key: const Key('province-place-search'),
+        controller: _searchController,
+        maxLength: 120,
+        textInputAction: TextInputAction.search,
+        onChanged: _onSearchChanged,
+        onSubmitted: (_) => _submitSearch(),
+        decoration: InputDecoration(
+          hintText: 'Search places in ${province.name}',
+          prefixIcon: const Icon(Icons.search),
+          suffixIcon: _searchController.text.isEmpty
+              ? null
+              : IconButton(
+                  tooltip: 'Clear place search',
+                  onPressed: _clearSearch,
+                  icon: const Icon(Icons.close),
+                ),
+          border: const OutlineInputBorder(),
+          counterText: '',
+        ),
+      ),
+      const SizedBox(height: 4),
+      Text(
+        '${page.total} place${page.total == 1 ? '' : 's'} · ${page.source}',
+        style: _bodyStyle,
+      ),
+      const SizedBox(height: 12),
+      if (_places.isEmpty)
+        _InfoCard(
+          title: _searchController.text.trim().isEmpty
+              ? 'No heritage sites found'
+              : 'No matching places',
+          child: Text(
+            _searchController.text.trim().isEmpty
+                ? 'The source has no heritage places linked to this province yet.'
+                : 'No places match your search in this province.',
+            style: _bodyStyle,
+          ),
+        ),
+      for (final place in _places) ...[
+        _HeritageCard(
+          province: province.name,
+          title: place.name,
+          image: place.imageUrl ?? '',
+          category: place.category.toUpperCase(),
+          description:
+              place.description ??
+              'No description is available from the source.',
+          sourceUrl: place.sourceUrl,
+          imageSourceUrl: place.imageSourceUrl,
+          wikipediaUrl: place.wikipediaUrl,
+        ),
+        const SizedBox(height: 16),
+      ],
+      if (_error != null)
+        _LoadError(
+          message: _error!,
+          onRetry: () => _load(more: _retryMore),
+        ),
+      if (page.hasNext)
+        OutlinedButton(
+          onPressed: _loadingMore || _loading ? null : () => _load(more: true),
+          child: _loadingMore
+              ? const SizedBox.square(
+                  dimension: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Load more heritage sites'),
+        ),
+      Row(
+        children: [
+          const Expanded(
+            child: Text('Cultural Traditions', style: _sectionTitle),
+          ),
+          TextButton(
+            onPressed: details.traditions.isEmpty ? null : _showAllTraditions,
+            child: const Text('View all →'),
+          ),
+        ],
+      ),
+      if (details.traditions.isEmpty)
+        const Text(
+          'No documented traditions are linked to this province in the source yet.',
+          style: _bodyStyle,
+        )
+      else
         SizedBox(
           height: 210,
           child: ListView(
             scrollDirection: Axis.horizontal,
-            children: const [
-              _TraditionCard(
-                image: 'assets/images/mask_carver.png',
-                title: 'Regional Craftsmanship',
-                description: 'Age-old skills passed through generations.',
-              ),
-              _TraditionCard(
-                image: 'assets/images/login_image.jpg',
-                title: 'Rituals & Festivals',
-                description:
-                    'Living traditions celebrated by local communities.',
-              ),
+            children: [
+              for (final tradition in details.traditions)
+                _TraditionCard(
+                  image: tradition.imageUrl ?? '',
+                  title: tradition.name,
+                  description:
+                      tradition.description ?? 'View tradition details',
+                  onTap: () => _showTradition(tradition),
+                ),
             ],
           ),
         ),
+    ];
+  }
+}
+
+class _LoadError extends StatelessWidget {
+  const _LoadError({required this.message, required this.onRetry});
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 20),
+    child: Column(
+      children: [
+        const Icon(Icons.cloud_off_outlined, color: AppColors.brown, size: 34),
+        const SizedBox(height: 10),
+        Text(message, textAlign: TextAlign.center, style: _bodyStyle),
+        TextButton.icon(
+          onPressed: onRetry,
+          icon: const Icon(Icons.refresh),
+          label: const Text('Try again'),
+        ),
       ],
-    ),
-    bottomNavigationBar: ExplorerFooter(
-      selectedIndex: 1,
-      onSelected: (index) => _navigate(context, index),
     ),
   );
 }
@@ -223,7 +504,7 @@ class _Hero extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset(image, fit: BoxFit.cover),
+          RegionImage(source: image),
           const DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -385,8 +666,12 @@ class _HeritageCard extends StatelessWidget {
     required this.image,
     required this.category,
     required this.description,
+    this.sourceUrl,
+    this.imageSourceUrl,
+    this.wikipediaUrl,
   });
   final String province, title, image, category, description;
+  final String? sourceUrl, imageSourceUrl, wikipediaUrl;
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(13),
@@ -400,11 +685,10 @@ class _HeritageCard extends StatelessWidget {
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(4),
-          child: Image.asset(
-            image,
+          child: RegionImage(
+            source: image,
             height: 155,
             width: double.infinity,
-            fit: BoxFit.cover,
           ),
         ),
         const SizedBox(height: 12),
@@ -432,6 +716,11 @@ class _HeritageCard extends StatelessWidget {
           maxLines: 3,
           overflow: TextOverflow.ellipsis,
           style: _bodyStyle,
+        ),
+        ProvinceSourceButton(
+          sourceUrl: sourceUrl,
+          imageSourceUrl: imageSourceUrl,
+          wikipediaUrl: wikipediaUrl,
         ),
         const SizedBox(height: 13),
         OutlinedButton(
@@ -487,53 +776,59 @@ class _TraditionCard extends StatelessWidget {
     required this.image,
     required this.title,
     required this.description,
+    required this.onTap,
   });
   final String image, title, description;
+  final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) => Container(
-    width: 210,
-    margin: const EdgeInsets.only(right: 12),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(5),
-      border: Border.all(color: const Color(0xFFE8D8CF)),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(5)),
-          child: Image.asset(
-            image,
-            height: 125,
-            width: double.infinity,
-            fit: BoxFit.cover,
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      width: 210,
+      margin: const EdgeInsets.only(right: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: const Color(0xFFE8D8CF)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(5)),
+            child: RegionImage(
+              source: image,
+              height: 125,
+              width: double.infinity,
+            ),
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.all(10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontFamily: 'serif',
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
+          Padding(
+            padding: const EdgeInsets.all(10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: 'serif',
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                description,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 9, color: Colors.black54),
-              ),
-            ],
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 9, color: Colors.black54),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     ),
   );
 }
