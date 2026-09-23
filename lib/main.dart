@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'core/constants/api_constants.dart';
 import 'core/theme/app_colors.dart';
 import 'features/auth/presentation/login_screen.dart';
 import 'features/auth/presentation/signup_screen.dart';
@@ -27,7 +29,16 @@ import 'features/translations/presentation/translation_screen.dart';
 import 'features/quizzes/presentation/daily_quiz_screen.dart';
 import 'features/quizzes/presentation/quiz_home_screen.dart';
 
-void main() => runApp(const RootlyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Supabase.initialize(
+    url: ApiConstants.supabaseUrl,
+    anonKey: ApiConstants.supabaseAnonKey,
+  );
+
+  runApp(const RootlyApp());
+}
 
 class RootlyApp extends StatelessWidget {
   const RootlyApp({super.key});
