@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/navigation/primary_navigation.dart';
 import '../../explorer/presentation/widgets/explorer_footer.dart';
+import '../../Post Creation/data/post_service.dart';
+import '../../Post Creation/domain/user_post.dart';
 import 'widgets/home_drawer.dart';
 import 'widgets/story_card.dart';
 
@@ -13,6 +15,19 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final searchController = TextEditingController();
+  List<UserPost>? _posts;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchPosts();
+  }
+
+  Future<void> _fetchPosts() async {
+    final posts = await PostService().getAllPosts();
+    if (mounted) setState(() => _posts = posts);
+  }
+
   @override
   void dispose() {
     searchController.dispose();
@@ -57,37 +72,47 @@ class _HomeScreenState extends State<HomeScreen> {
     body: CustomScrollView(
       slivers: [
         SliverToBoxAdapter(child: _SearchBar(controller: searchController)),
-        const SliverPadding(
-          padding: EdgeInsets.fromLTRB(8, 2, 8, 12),
-          sliver: SliverList(
-            delegate: SliverChildListDelegate.fixed([
-              StoryCard(
-                category: 'Heritage Site',
-                imagePath: 'assets/images/login_image.jpg',
-                title: 'The frescoes hidden halfway up Sigiriya',
-                location: 'Sigiriya Rock Fortress · Matale',
-                description:
-                    'My grandmother climbed Sigiriya in 1962, barefoot, with a tiffin of string hoppers tied to her waist...',
-                likes: '1,284',
-                comments: '96',
+        if (_posts == null)
+          const SliverFillRemaining(
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (_posts!.isEmpty)
+          const SliverFillRemaining(
+            child: Center(child: Text('No posts yet.')),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(8, 2, 8, 12),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final post = _posts![index];
+                  return Column(
+                    children: [
+                      StoryCard(
+                        postId: post.id,
+                        category: post.category.isEmpty ? 'General' : post.category,
+                        imagePath: post.asset.isEmpty ? 'assets/images/login_image.jpg' : post.asset,
+                        title: post.title,
+                        location: '${post.place} · ${post.district}',
+                        description: post.story,
+                        likes: post.likeCount.toString(),
+                        comments: post.commentCount.toString(),
+                        author: post.authorName,
+                        handle: post.authorHandle,
+                        time: post.createdAt != null 
+                            ? '${DateTime.now().difference(post.createdAt!).inHours}h'
+                            : 'now',
+                        postComments: post.comments,
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                  );
+                },
+                childCount: _posts!.length,
               ),
-              SizedBox(height: 10),
-              StoryCard(
-                category: 'Craft',
-                author: 'Dinesh',
-                handle: '@dineshcarves',
-                time: '5h',
-                imagePath: 'assets/images/mask_carver.png',
-                title: 'Ambalangoda mask carvers and the spirits they keep',
-                location: 'Ambalangoda · Galle',
-                description:
-                    'For generations, local artisans have shaped stories and spirits from kaduru wood, keeping an ancient craft alive.',
-                likes: '842',
-                comments: '54',
-              ),
-            ]),
+            ),
           ),
-        ),
       ],
     ),
     bottomNavigationBar: ExplorerFooter(

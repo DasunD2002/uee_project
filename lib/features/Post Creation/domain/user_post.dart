@@ -23,12 +23,75 @@ class UserPost {
     this.disableComments = false,
     this.isPrivate = false,
     this.isDraft = false,
+    this.authorName = 'Unknown User',
+    this.authorHandle = '@unknown',
+    this.authorPhoto,
+    this.createdAt,
+    this.likeCount = 0,
+    this.commentCount = 0,
+    this.comments = const [],
   });
-  final String id, title, story, category, place, district, language, asset;
+  final String id, title, story, category, place, district, language, asset, authorName, authorHandle;
+  final String? authorPhoto;
+  final DateTime? createdAt;
+  final int likeCount, commentCount;
   final List<String> tags;
   final PostMedia? cover;
   final List<PostMedia> proofs;
+  final List<UserComment> comments;
   final bool disableComments, isPrivate, isDraft;
+
+  factory UserPost.fromJson(Map<String, dynamic> json) {
+    String p = 'Unknown';
+    String d = 'Unknown';
+    if (json['location'] != null) {
+      final loc = json['location'].toString().split(',');
+      if (loc.isNotEmpty) p = loc[0].trim();
+      if (loc.length > 1) d = loc[1].trim();
+    }
+    return UserPost(
+      id: json['id'] ?? '',
+      title: json['title'] ?? '',
+      story: json['story'] ?? '',
+      category: json['category'] ?? '',
+      place: p,
+      district: d,
+      language: '',
+      tags: List<String>.from(json['tags'] ?? []),
+      asset: json['media'] ?? '',
+      disableComments: json['disableComments'] ?? false,
+      isPrivate: json['visibility'] == 'private',
+      isDraft: false,
+      authorName: json['authorName'] ?? 'Unknown User',
+      authorHandle: json['authorHandle'] ?? '@unknown',
+      authorPhoto: json['authorPhoto'],
+      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt']) : null,
+      likeCount: json['likeCount'] ?? 0,
+      commentCount: json['commentCount'] ?? 0,
+      comments: (json['comments'] as List?)?.map((e) => UserComment.fromJson(e)).toList() ?? [],
+    );
+  }
+}
+
+class UserComment {
+  const UserComment({
+    required this.userId,
+    required this.text,
+    required this.authorName,
+    this.authorPhoto,
+    this.createdAt,
+  });
+  final String userId, text, authorName;
+  final String? authorPhoto;
+  final DateTime? createdAt;
+
+  factory UserComment.fromJson(Map<String, dynamic> json) => UserComment(
+        userId: json['userId'] ?? '',
+        text: json['text'] ?? '',
+        authorName: json['authorName'] ?? 'Unknown User',
+        authorPhoto: json['authorPhoto'],
+        createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt']) : null,
+      );
 }
 
 class PostEditorResult {

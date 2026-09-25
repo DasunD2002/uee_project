@@ -4,10 +4,13 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import 'post_interaction_sheets.dart';
 import '../../features/Profile/domain/social_store.dart';
+import '../../features/Post Creation/domain/user_post.dart';
+import '../../features/Post Creation/data/post_service.dart';
 
 class FeedPostCard extends StatefulWidget {
   const FeedPostCard({
     super.key,
+    required this.postId,
     required this.media,
     required this.category,
     required this.title,
@@ -25,10 +28,13 @@ class FeedPostCard extends StatefulWidget {
     this.detailFields = const {},
     this.proofs = const [],
     this.commentsDisabled = false,
+    this.postComments = const [],
     this.margin = EdgeInsets.zero,
   });
   final Widget media;
-  final String category,
+  final List<UserComment> postComments;
+  final String postId,
+      category,
       title,
       location,
       description,
@@ -61,16 +67,23 @@ class _FeedPostCardState extends State<FeedPostCard> {
     super.dispose();
   }
 
-  void toggleLike() => setState(() {
-    if (liked) {
-      SocialStore.instance.likedPosts.remove(postId);
-    } else {
-      SocialStore.instance.likedPosts.add(postId);
-    }
-  });
+  void toggleLike() {
+    setState(() {
+      if (liked) {
+        SocialStore.instance.likedPosts.remove(postId);
+      } else {
+        SocialStore.instance.likedPosts.add(postId);
+        PostService().likePost(widget.postId);
+      }
+    });
+  }
+
   Future<void> doubleLike() async {
     setState(() {
-      SocialStore.instance.likedPosts.add(postId);
+      if (!liked) {
+        SocialStore.instance.likedPosts.add(postId);
+        PostService().likePost(widget.postId);
+      }
       showHeart = true;
     });
     await Future<void>.delayed(const Duration(milliseconds: 650));
@@ -115,9 +128,11 @@ class _FeedPostCardState extends State<FeedPostCard> {
       useSafeArea: true,
       showDragHandle: true,
       builder: (_) => PostCommentsSheet(
+        backendComments: widget.postComments,
         comments: addedComments,
         onSend: (text) {
           setState(() => addedComments.add(text));
+          PostService().commentPost(widget.postId, text);
         },
       ),
     );
@@ -131,6 +146,7 @@ class _FeedPostCardState extends State<FeedPostCard> {
       MaterialPageRoute(
         builder: (detailContext) => PostDetailsScreen(
           post: FeedPostCard(
+            postId: widget.postId,
             isDetail: true,
             media: widget.media,
             category: widget.category,
@@ -376,7 +392,7 @@ class _FeedPostCardState extends State<FeedPostCard> {
                       : TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 13, height: 1.4),
                 ),
-                if (!widget.isDetail && widget.description.isNotEmpty)
+                if (!widget.isDetail && widget.description.length > 100)
                   InkWell(
                     onTap: () => setState(() => expanded = !expanded),
                     child: Padding(

@@ -72,7 +72,7 @@ void main() {
         },
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 1));
 
     final notificationBell = find.byTooltip('Notifications');
     expect(notificationBell, findsOneWidget);

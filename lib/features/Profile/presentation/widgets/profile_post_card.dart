@@ -8,6 +8,7 @@ class ProfilePostCard extends StatelessWidget {
   final VoidCallback onEdit;
   @override
   Widget build(BuildContext context) => FeedPostCard(
+    postId: post.id,
     detailFields: {
       'Language': post.language,
       'Tags': post.tags.map((t) => '#$t').join(' '),
@@ -41,7 +42,14 @@ class ProfilePostCard extends StatelessWidget {
             color: const Color(0xFFFFF5EC),
             child: const Icon(Icons.image_outlined, size: 52),
           )
-        : Image.asset(post.asset, fit: BoxFit.cover),
+        : post.asset.toLowerCase().endsWith('.mp4')
+            ? Container(
+                color: const Color(0xFFFFF5EC),
+                child: const Icon(Icons.video_file_outlined, size: 52),
+              )
+            : post.asset.startsWith('http')
+                ? Image.network(post.asset, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.broken_image))
+                : Image.asset(post.asset, fit: BoxFit.cover),
     category: post.isDraft
         ? 'Draft'
         : post.isPrivate
@@ -50,10 +58,14 @@ class ProfilePostCard extends StatelessWidget {
     title: post.title.isEmpty ? 'Untitled draft' : post.title,
     location: '${post.place} · ${post.district}',
     description: post.story,
-    likes: '1,284',
-    comments: '96',
+    likes: post.likeCount.toString(),
+    comments: post.commentCount.toString(),
     commentsDisabled: post.disableComments,
-    time: post.isDraft ? 'Draft' : '2h',
+    postComments: post.comments,
+    time: post.isDraft ? 'Draft' : (post.createdAt != null ? '${DateTime.now().difference(post.createdAt!).inHours}h' : 'now'),
+    author: post.authorName,
+    handle: post.authorHandle,
+    avatar: post.authorPhoto ?? 'assets/images/profile_avatar.png',
     onEdit: onEdit,
   );
 }

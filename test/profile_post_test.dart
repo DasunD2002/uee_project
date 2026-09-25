@@ -9,8 +9,16 @@ import 'package:uee_project/features/Profile/presentation/profile_screen.dart';
 import 'package:uee_project/features/Post Creation/presentation/create_post_screen.dart';
 import 'package:uee_project/features/home/presentation/home_screen.dart';
 
+import 'package:uee_project/core/services/api_service.dart';
+
+import 'package:uee_project/features/Post Creation/data/post_service.dart';
+
 void main() {
-  setUp(() => SharedPreferences.setMockInitialValues({}));
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+    isTestEnvironment = true;
+    PostService.clearMockPosts();
+  });
 
   testWidgets('create and edit back buttons return to the previous screen', (
     tester,
@@ -142,6 +150,10 @@ void main() {
     );
     await tester.tap(find.text('Save as Draft'));
     await tester.pumpAndSettle();
+    
+    print('MOCK POSTS COUNT: ${PostService.mockPostsLength()}');
+    print('POSTS TITLES: ${PostService.mockPostsTitles()}');
+    
     expect(find.text('A new draft'), findsOneWidget);
     await tester.pump(const Duration(seconds: 5));
     await tester.scrollUntilVisible(

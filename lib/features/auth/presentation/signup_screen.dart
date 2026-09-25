@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/widgets/auth_widgets.dart';
 import '../../../core/widgets/rootly_logo.dart';
+import '../data/auth_service.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -16,7 +17,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
       password = TextEditingController(),
       confirm = TextEditingController();
   String? age;
+  String? language;
   bool hidePassword = true, hideConfirm = true;
+  final _authService = AuthService();
+  bool _isLoading = false;
   @override
   void dispose() {
     for (final c in [name, email, phone, password, confirm]) {
@@ -61,6 +65,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         (v?.trim().length ?? 0) < 2 ? 'Enter your name' : null,
                   ),
                   const SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     initialValue: age,
                     isDense: true,
@@ -69,6 +74,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         .map((a) => DropdownMenuItem(value: a, child: Text(a)))
                         .toList(),
                     onChanged: (v) => setState(() => age = v),
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    initialValue: language,
+                    isDense: true,
+                    decoration: fieldDecoration('Language', 'Select a language'),
+                    items: ['English', 'Sinhala', 'Tamil']
+                        .map((l) => DropdownMenuItem(value: l, child: Text(l)))
+                        .toList(),
+                    validator: (v) => v == null ? 'Select your language' : null,
+                    onChanged: (v) => setState(() => language = v),
                   ),
                   const SizedBox(height: 8),
                   AuthField(
@@ -129,18 +145,41 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         v != password.text ? 'Passwords do not match' : null,
                   ),
                   const SizedBox(height: 22),
-                  PrimaryButton(
-                    text: 'Create an account',
-                    onPressed: () {
-                      if (key.currentState!.validate()) {
-                        Navigator.pushNamed(
-                          context,
-                          '/otp',
-                          arguments: email.text.trim(),
-                        );
-                      }
-                    },
-                  ),
+                  _isLoading
+                      ? const CircularProgressIndicator()
+                      : PrimaryButton(
+                          text: 'Create an account',
+                          onPressed: () async {
+                            if (key.currentState!.validate()) {
+                              setState(() => _isLoading = true);
+                              final error = await _authService.register({
+                                'name': name.text.trim(),
+                                'email': email.text.trim(),
+                                'phone': phone.text.trim(),
+                                'password': password.text,
+                                'gender': 'Prefer not to say', // Required by backend
+                                'languages': [language ?? 'English'], // Selected from dropdown
+                              });
+                              setState(() => _isLoading = false);
+
+                              if (error == null) {
+                                if (mounted) {
+                                  Navigator.pushNamed(
+                                    context,
+                                    '/otp',
+                                    arguments: email.text.trim(),
+                                  );
+                                }
+                              } else {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(error), backgroundColor: Colors.red),
+                                  );
+                                }
+                              }
+                            }
+                          },
+                        ),
                   const SizedBox(height: 10),
                   GoogleButton(
                     onPressed: () =>

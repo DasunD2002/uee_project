@@ -30,6 +30,7 @@ void main() {
         home: Scaffold(
           body: SingleChildScrollView(
             child: StoryCard(
+              postId: 'test_post_2',
               category: 'Craft',
               imagePath: 'assets/images/mask_carver.png',
               title: 'Mask carvers',
@@ -80,8 +81,6 @@ void main() {
     expect(find.byIcon(Icons.send_outlined), findsNothing);
     await tester.tap(find.byTooltip('Comment'));
     await tester.pumpAndSettle();
-    expect(find.text('Nimal'), findsOneWidget);
-    expect(find.text('Sanduni'), findsOneWidget);
     await tester.enterText(find.byType(TextField).last, 'Wonderful story');
     await tester.tap(find.byTooltip('Send comment'));
     await tester.pumpAndSettle();

@@ -10,6 +10,7 @@ import '../domain/explore_category.dart';
 import '../domain/place.dart';
 import '../domain/places_page.dart';
 import '../domain/province_details.dart';
+import '../../../core/constants/api_constants.dart';
 
 class PlacesApiException implements Exception {
   const PlacesApiException(this.message, {this.statusCode, this.retryAfter});
@@ -29,10 +30,9 @@ class PlacesRepository {
     this.requestTimeout = const Duration(seconds: 30),
   }) : _client = client ?? http.Client(),
        _ownsClient = client == null,
-       baseUrl = _normalizeBaseUrl(baseUrl ?? _defaultBaseUrl());
+       baseUrl = _normalizeBaseUrl(baseUrl ?? ApiConstants.baseUrl);
 
   static const _historyKey = 'explorer_search_history';
-  static const _configuredBaseUrl = String.fromEnvironment('API_BASE_URL');
 
   static const fallbackPlaces = <Place>[
     Place(
@@ -292,15 +292,7 @@ class PlacesRepository {
     );
   }
 
-  static String _defaultBaseUrl() {
-    if (_configuredBaseUrl.trim().isNotEmpty) {
-      return _configuredBaseUrl;
-    }
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:8080';
-    }
-    return 'http://localhost:8080';
-  }
+
 
   static String _normalizeBaseUrl(String value) =>
       value.trim().replaceFirst(RegExp(r'/+$'), '');
