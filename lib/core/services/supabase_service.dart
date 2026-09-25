@@ -1,9 +1,10 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../constants/api_constants.dart';
 
 class SupabaseService {
-  final SupabaseClient _supabase = Supabase.instance.client;
+  SupabaseClient get _supabase => Supabase.instance.client;
 
   /// Uploads a file to Supabase Storage and returns its public URL.
   /// 
@@ -12,17 +13,27 @@ class SupabaseService {
   Future<String?> uploadFile(File file, String path) async {
     try {
       final bucket = ApiConstants.supabaseBucketName;
-      
-      // Upload the file to the specified bucket
       await _supabase.storage.from(bucket).upload(path, file);
-
-      // Get the public URL for the uploaded file
-      final publicUrl = _supabase.storage.from(bucket).getPublicUrl(path);
-      
-      return publicUrl;
+      return _supabase.storage.from(bucket).getPublicUrl(path);
     } catch (e) {
       print('Error uploading file to Supabase: $e');
       return null;
+    }
+  }
+
+  Future<String?> uploadBytes(List<int> bytes, String path, String mimeType) async {
+    try {
+      final bucket = ApiConstants.supabaseBucketName;
+      await _supabase.storage.from(bucket).uploadBinary(
+        path,
+        Uint8List.fromList(bytes),
+        fileOptions: FileOptions(contentType: mimeType),
+      );
+      return _supabase.storage.from(bucket).getPublicUrl(path);
+    } on StorageException catch (e) {
+      throw Exception('Supabase Storage Error: ${e.message}');
+    } catch (e) {
+      throw Exception('Upload error: $e');
     }
   }
 

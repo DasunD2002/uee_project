@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
+import '../../features/Post Creation/domain/user_post.dart';
+
 class PostCommentsSheet extends StatefulWidget {
   const PostCommentsSheet({
     super.key,
+    required this.backendComments,
     required this.comments,
     required this.onSend,
   });
+  final List<UserComment> backendComments;
   final List<String> comments;
   final ValueChanged<String> onSend;
   @override
@@ -63,22 +67,17 @@ class _PostCommentsSheetState extends State<PostCommentsSheet> {
               controller: scroll,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
               children: [
-                _Comment(
-                  name: 'Nimal',
-                  text: 'Thank you for sharing the story behind this place!',
-                  onReply: () {
-                    setState(() => replyTo = 'Nimal');
-                    focus.requestFocus();
-                  },
-                ),
-                _Comment(
-                  name: 'Sanduni',
-                  text: 'Love seeing our heritage celebrated.',
-                  onReply: () {
-                    setState(() => replyTo = 'Sanduni');
-                    focus.requestFocus();
-                  },
-                ),
+                for (final comment in widget.backendComments)
+                  _Comment(
+                    name: comment.authorName,
+                    text: comment.text,
+                    time: comment.createdAt != null ? '${DateTime.now().difference(comment.createdAt!).inHours}h' : 'now',
+                    avatar: comment.authorPhoto,
+                    onReply: () {
+                      setState(() => replyTo = comment.authorName);
+                      focus.requestFocus();
+                    },
+                  ),
                 for (var i = 0; i < widget.comments.length; i++)
                   _Comment(
                     key: ValueKey('sent-$i'),
@@ -181,10 +180,13 @@ class _Comment extends StatefulWidget {
     super.key,
     required this.name,
     required this.text,
+    this.time = '2h',
+    this.avatar,
     this.mine = false,
     this.onReply,
   });
-  final String name, text;
+  final String name, text, time;
+  final String? avatar;
   final bool mine;
   final VoidCallback? onReply;
   @override
@@ -201,11 +203,17 @@ class _CommentState extends State<_Comment> {
       children: [
         if (widget.mine) const SizedBox(width: 24),
         if (!widget.mine) ...[
-          CircleAvatar(
-            radius: 17,
-            backgroundColor: const Color(0xFFE2DCF5),
-            child: Text(widget.name[0]),
-          ),
+          if (widget.avatar != null && widget.avatar!.isNotEmpty)
+            CircleAvatar(
+              radius: 17,
+              backgroundImage: NetworkImage(widget.avatar!),
+            )
+          else
+            CircleAvatar(
+              radius: 17,
+              backgroundColor: const Color(0xFFE2DCF5),
+              child: Text(widget.name.isNotEmpty ? widget.name[0] : '?'),
+            ),
           const SizedBox(width: 9),
         ],
         Expanded(
@@ -231,7 +239,7 @@ class _CommentState extends State<_Comment> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      widget.mine ? 'Now' : '2h',
+                      widget.mine ? 'Now' : widget.time,
                       style: const TextStyle(fontSize: 11, color: Colors.grey),
                     ),
                   ],

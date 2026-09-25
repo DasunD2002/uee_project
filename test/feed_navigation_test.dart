@@ -18,6 +18,7 @@ void main() {
         home: Scaffold(
           body: SingleChildScrollView(
             child: FeedPostCard(
+              postId: 'test_post_1',
               media: const ColoredBox(color: Colors.orange),
               category: 'Cultural Craft',
               title: 'Mask carvers',

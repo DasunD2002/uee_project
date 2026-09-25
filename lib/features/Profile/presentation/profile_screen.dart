@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/navigation/primary_navigation.dart';
 import '../../../core/widgets/community_app_bar.dart';
+import '../../Post Creation/data/post_service.dart';
 import '../../Post Creation/domain/user_post.dart';
 import '../../Post Creation/presentation/create_post_screen.dart';
 import '../../Post Creation/presentation/edit_post_screen.dart';
@@ -48,6 +49,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.initState();
     saved = widget.showSavedPosts;
     SocialStore.instance.addListener(refreshCollections);
+    _fetchPosts();
+  }
+
+  Future<void> _fetchPosts() async {
+    final posts = saved 
+        ? await PostService().getSavedPosts()
+        : await PostService().getMyPosts();
+    if (posts != null && mounted) {
+      setState(() {
+        _posts.clear();
+        _posts.addAll(posts);
+      });
+    }
   }
 
   void refreshCollections() {
@@ -70,18 +84,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
     if (result == null || !mounted) return;
-    setState(() {
-      final index = _posts.indexWhere((p) => p.id == post?.id);
-      if (result.deleted) {
-        if (index >= 0) _posts.removeAt(index);
-      } else if (result.post != null) {
-        if (index >= 0) {
-          _posts[index] = result.post!;
-        } else {
-          _posts.insert(0, result.post!);
-        }
-      }
-    });
+    await _fetchPosts();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -197,6 +200,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               Navigator.pushNamed(context, '/quizzes');
                             } else {
                               setState(() => saved = label == 'Saved posts');
+                              _fetchPosts();
                             }
                           },
                         ),

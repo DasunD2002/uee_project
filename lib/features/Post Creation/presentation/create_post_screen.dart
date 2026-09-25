@@ -2,8 +2,10 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/community_app_bar.dart';
+import '../../../core/services/supabase_service.dart';
 import '../../home/presentation/widgets/home_drawer.dart';
 import '../domain/user_post.dart';
+import '../data/post_service.dart';
 import 'widgets/post_fields.dart';
 
 class CreatePostScreen extends StatefulWidget {
@@ -15,14 +17,16 @@ class CreatePostScreen extends StatefulWidget {
 
 class _CreatePostScreenState extends State<CreatePostScreen> {
   final formKey = GlobalKey<FormState>();
-  late final TextEditingController title, story;
+  late final TextEditingController title, story, place;
   final tag = TextEditingController();
   late List<String> tags;
   late List<PostMedia> proofs;
   PostMedia? cover;
-  String? category, place, district, language;
-  bool disableComments = false, isPrivate = false, picking = false;
+  String? category, district;
+  bool disableComments = false, isPrivate = false, picking = false, _isSaving = false;
   bool get editing => widget.post != null;
+  final _supabaseService = SupabaseService();
+  final _postService = PostService();
 
   @override
   void initState() {
@@ -30,13 +34,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     final post = widget.post;
     title = TextEditingController(text: post?.title);
     story = TextEditingController(text: post?.story);
+    place = TextEditingController(text: post?.place);
     tags = [...?post?.tags];
     proofs = [...?post?.proofs];
     cover = post?.cover;
     category = post?.category;
-    place = post?.place;
     district = post?.district;
-    language = post?.language;
     disableComments = post?.disableComments ?? false;
     isPrivate = post?.isPrivate ?? false;
   }
@@ -45,6 +48,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   void dispose() {
     title.dispose();
     story.dispose();
+    place.dispose();
     tag.dispose();
     super.dispose();
   }
@@ -102,36 +106,99 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     });
   }
 
-  void save({bool draft = false}) {
+  Future<void> save({bool draft = false}) async {
     if (!draft && !formKey.currentState!.validate()) return;
     if (!draft && cover == null && (widget.post?.asset.isEmpty ?? true)) {
       message('Add a cover photo or video.');
       return;
     }
     addTag();
-    Navigator.pop(
-      context,
-      PostEditorResult(
-        post: UserPost(
-          id:
-              widget.post?.id ??
-              DateTime.now().microsecondsSinceEpoch.toString(),
-          title: title.text.trim(),
-          story: story.text.trim(),
-          category: category ?? '',
-          place: place ?? '',
-          district: district ?? '',
-          language: language ?? '',
-          tags: tags,
-          cover: cover,
-          proofs: proofs,
-          asset: widget.post?.asset ?? '',
-          disableComments: disableComments,
-          isPrivate: isPrivate,
-          isDraft: draft,
+
+    if (draft) {
+      Navigator.pop(
+        context,
+        PostEditorResult(
+          post: UserPost(
+            id: widget.post?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
+            title: title.text.trim(),
+            story: story.text.trim(),
+            category: category ?? '',
+            place: place.text.trim(),
+            district: district ?? '',
+            language: '',
+            tags: tags,
+            cover: cover,
+            proofs: proofs,
+            asset: widget.post?.asset ?? '',
+            disableComments: disableComments,
+            isPrivate: isPrivate,
+            isDraft: draft,
+          ),
         ),
-      ),
-    );
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+    message('Saving post...');
+
+    try {
+      String mediaUrl = widget.post?.asset ?? '';
+      if (cover != null) {
+        final path = 'posts/${DateTime.now().millisecondsSinceEpoch}_${cover!.name}';
+        final mimeType = cover!.isVideo ? 'video/mp4' : 'image/jpeg';
+        final url = await _supabaseService.uploadBytes(cover!.bytes, path, mimeType);
+        if (url != null) {
+          mediaUrl = url;
+        } else {
+          throw Exception('Failed to upload cover media to Supabase');
+        }
+      }
+
+      if (!draft && mediaUrl.isEmpty) {
+        message('Cover media upload failed or is empty.');
+        return;
+      }
+
+      List<String> proofUrls = [];
+      for (final proof in proofs) {
+        final path = 'proofs/${DateTime.now().millisecondsSinceEpoch}_${proof.name}';
+        final mimeType = proof.isVideo ? 'video/mp4' : 'image/jpeg';
+        final url = await _supabaseService.uploadBytes(proof.bytes, path, mimeType);
+        if (url != null) proofUrls.add(url);
+      }
+
+      final post = UserPost(
+        id: widget.post?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        title: title.text.trim(),
+        story: story.text.trim(),
+        category: category ?? '',
+        place: place.text.trim(),
+        district: district ?? '',
+        language: '',
+        tags: tags,
+        cover: cover,
+        proofs: proofs,
+        asset: mediaUrl,
+        disableComments: disableComments,
+        isPrivate: isPrivate,
+        isDraft: draft,
+      );
+
+      final error = editing
+          ? await _postService.editPost(post, mediaUrl, proofUrls)
+          : await _postService.createPost(post, mediaUrl, proofUrls);
+
+      if (error == null) {
+        if (mounted) Navigator.pop(context, PostEditorResult(post: post));
+      } else {
+        message(error);
+      }
+    } catch (e) {
+      message('Error: $e');
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   Future<void> delete() async {
@@ -153,7 +220,22 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       ),
     );
     if (confirmed == true && mounted) {
-      Navigator.pop(context, const PostEditorResult(deleted: true));
+      setState(() => _isSaving = true);
+      message('Deleting post...');
+      if (widget.post != null) {
+        final error = await _postService.deletePost(widget.post!.id);
+        if (error != null) {
+          if (mounted) {
+            setState(() => _isSaving = false);
+            message(error);
+          }
+          return;
+        }
+      }
+      if (mounted) {
+        setState(() => _isSaving = false);
+        Navigator.pop(context, const PostEditorResult(deleted: true));
+      }
     }
   }
 
@@ -177,8 +259,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             ),
           )
           .toList(),
-      validator: (v) =>
-          v == null || v.isEmpty ? 'Select ${label.toLowerCase()}' : null,
+      validator: (v) {
+        if (label.contains('Optional')) return null;
+        return v == null || v.isEmpty ? 'Select ${label.replaceAll(' (Optional)', '').toLowerCase()}' : null;
+      },
       onChanged: changed,
     ),
   );
@@ -373,57 +457,42 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     'Nature',
                     'Festival',
                   ], (v) => setState(() => category = v)),
-                  dropdown('Related place', place, [
-                    'Sigiriya Rock Fortress',
-                    'Ambalangoda',
-                    'Kandy',
-                    'Galle Fort',
-                    'Other',
-                  ], (v) => setState(() => place = v)),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: dropdown('District', district, [
-                          'Ampara',
-                          'Anuradhapura',
-                          'Badulla',
-                          'Batticaloa',
-                          'Colombo',
-                          'Galle',
-                          'Gampaha',
-                          'Hambantota',
-                          'Jaffna',
-                          'Kalutara',
-                          'Kandy',
-                          'Kegalle',
-                          'Kilinochchi',
-                          'Kurunegala',
-                          'Mannar',
-                          'Matale',
-                          'Matara',
-                          'Monaragala',
-                          'Mullaitivu',
-                          'Nuwara Eliya',
-                          'Polonnaruwa',
-                          'Puttalam',
-                          'Ratnapura',
-                          'Trincomalee',
-                          'Vavuniya',
-                        ], (v) => setState(() => district = v)),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: dropdown('Language', language, [
-                          'English',
-                          'Sinhala',
-                          'Tamil',
-                        ], (v) => setState(() => language = v)),
-                      ),
-                    ],
-                  ),
                   PostField(
-                    'Tags',
+                    'Related place (Optional)',
+                    child: TextFormField(
+                      controller: place,
+                      decoration: postDecoration('e.g. Sigiriya Rock Fortress'),
+                    ),
+                  ),
+                  dropdown('District (Optional)', district, [
+                    'Ampara',
+                    'Anuradhapura',
+                    'Badulla',
+                    'Batticaloa',
+                    'Colombo',
+                    'Galle',
+                    'Gampaha',
+                    'Hambantota',
+                    'Jaffna',
+                    'Kalutara',
+                    'Kandy',
+                    'Kegalle',
+                    'Kilinochchi',
+                    'Kurunegala',
+                    'Mannar',
+                    'Matale',
+                    'Matara',
+                    'Monaragala',
+                    'Mullaitivu',
+                    'Nuwara Eliya',
+                    'Polonnaruwa',
+                    'Puttalam',
+                    'Ratnapura',
+                    'Trincomalee',
+                    'Vavuniya',
+                  ], (v) => setState(() => district = v)),
+                  PostField(
+                    'Tags (Optional)',
                     child: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
@@ -470,7 +539,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     ),
                   ),
                   PostField(
-                    'Add Proofs (Extra images videos)',
+                    'Add Proofs (Extra images/videos) (Optional)',
                     child: Wrap(
                       spacing: 8,
                       runSpacing: 8,
@@ -556,17 +625,23 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 22),
-                  PostAction(
-                    editing ? 'Save Changes' : 'Create Post',
-                    onPressed: save,
-                  ),
-                  const SizedBox(height: 16),
-                  PostAction(
-                    editing ? 'Delete Post' : 'Save as Draft',
-                    outlined: true,
-                    onPressed: editing ? delete : () => save(draft: true),
-                  ),
+                  _isSaving
+                      ? const Center(child: CircularProgressIndicator())
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            PostAction(
+                              editing ? 'Save Changes' : 'Create Post',
+                              onPressed: save,
+                            ),
+                            const SizedBox(height: 16),
+                            PostAction(
+                              editing ? 'Delete Post' : 'Save as Draft',
+                              outlined: true,
+                              onPressed: editing ? delete : () => save(draft: true),
+                            ),
+                          ],
+                        ),
                 ],
               ),
             ),

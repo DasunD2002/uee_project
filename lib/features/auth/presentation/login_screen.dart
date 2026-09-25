@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/widgets/auth_widgets.dart';
+import '../data/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -11,7 +12,9 @@ class _LoginScreenState extends State<LoginScreen> {
   final key = GlobalKey<FormState>();
   final email = TextEditingController();
   final password = TextEditingController();
+  final _authService = AuthService();
   bool hidden = true;
+  bool _isLoading = false;
   @override
   void dispose() {
     email.dispose();
@@ -137,14 +140,30 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                         ),
-                        PrimaryButton(
-                          text: 'Login',
-                          onPressed: () {
-                            if (key.currentState!.validate()) {
-                              Navigator.pushReplacementNamed(context, '/home');
-                            }
-                          },
-                        ),
+                        _isLoading
+                            ? const CircularProgressIndicator()
+                            : PrimaryButton(
+                                text: 'Login',
+                                onPressed: () async {
+                                  if (key.currentState!.validate()) {
+                                    setState(() => _isLoading = true);
+                                    final error = await _authService.login(email.text.trim(), password.text);
+                                    setState(() => _isLoading = false);
+                                    
+                                    if (error == null) {
+                                      if (mounted) {
+                                        Navigator.pushReplacementNamed(context, '/home');
+                                      }
+                                    } else {
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text(error), backgroundColor: Colors.red),
+                                        );
+                                      }
+                                    }
+                                  }
+                                },
+                              ),
                         const SizedBox(height: 9),
                         GoogleButton(
                           onPressed: () =>

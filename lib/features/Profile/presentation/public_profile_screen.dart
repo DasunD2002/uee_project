@@ -89,6 +89,7 @@ class PublicProfileScreen extends StatelessWidget {
               ),
             ),
             FeedPostCard(
+              postId: '$handle:$title',
               margin: const EdgeInsets.fromLTRB(8, 0, 8, 24),
               media: Image.asset(image, fit: BoxFit.cover),
               category: category,
