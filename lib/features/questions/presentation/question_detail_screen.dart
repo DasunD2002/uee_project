@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../data/question_service.dart';
 import '../domain/question.dart';
-import '../domain/question_store.dart';
+import 'ask_question_screen.dart';
 import 'widgets/vote_control.dart';
 
 class QuestionDetailScreen extends StatefulWidget {
-  const QuestionDetailScreen({super.key, required this.question});
+  const QuestionDetailScreen({
+    super.key,
+    required this.questionId,
+    this.questionService,
+  });
 
-  final Question question;
+  final String questionId;
+  final QuestionService? questionService;
 
   @override
   State<QuestionDetailScreen> createState() => _QuestionDetailScreenState();
@@ -17,63 +23,86 @@ class QuestionDetailScreen extends StatefulWidget {
 class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
   final _composerController = TextEditingController();
   final _composerFocus = FocusNode();
-  final _answerVoteSelections = <String, int>{};
-  final _store = QuestionStore.instance;
-  int _questionVoteSelection = 0;
+  late final QuestionService _questionService;
+  Question? _question;
   String _answerSort = 'top';
   String? _replyToId;
   String? _replyToName;
-  bool _bookmarked = false;
+  String? _error;
+  bool _loading = true;
+  bool _posting = false;
+  bool _composerHasText = false;
+  bool _changed = false;
 
   @override
   void initState() {
     super.initState();
-    _store.addListener(_refreshThread);
-  }
-
-  void _refreshThread() {
-    if (mounted) setState(() {});
+    _questionService = widget.questionService ?? ApiQuestionService();
+    _loadQuestion();
   }
 
   @override
   void dispose() {
-    _store.removeListener(_refreshThread);
     _composerController.dispose();
     _composerFocus.dispose();
     super.dispose();
   }
 
-  Question get _question =>
-      _store.questionById(widget.question.id) ?? widget.question;
-
-  List<QuestionAnswer> get _answers {
-    final answers = [..._question.answers];
-    if (_answerSort == 'top') {
-      answers.sort(
-        (a, b) => _answerVoteCount(b).compareTo(_answerVoteCount(a)),
-      );
-    } else {
-      return answers.reversed.toList();
+  Future<void> _loadQuestion({bool showLoader = true}) async {
+    if (showLoader && _question == null) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
     }
-    return answers;
+    try {
+      final question = await _questionService.getQuestion(
+        widget.questionId,
+        sort: _answerSort,
+      );
+      if (mounted) {
+        setState(() {
+          _question = question;
+          _error = null;
+        });
+      }
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
-  int _answerVoteCount(QuestionAnswer answer) =>
-      answer.votes + (_answerVoteSelections[answer.id] ?? 0);
-
-  void _voteQuestion(int direction) {
-    setState(() {
-      _questionVoteSelection = _questionVoteSelection == direction
-          ? 0
-          : direction;
-    });
+  Future<void> _voteQuestion(int direction) async {
+    final question = _question;
+    if (question == null) return;
+    final value = question.viewerVote == direction ? 0 : direction;
+    try {
+      final result = await _questionService.voteQuestion(question.id, value);
+      if (mounted) {
+        setState(() {
+          _question = question.copyWith(
+            voteScore: result.voteScore,
+            viewerVote: result.viewerVote,
+          );
+          _changed = true;
+        });
+      }
+    } catch (error) {
+      _showError(error);
+    }
   }
 
-  void _voteAnswer(QuestionAnswer answer, int direction) {
-    setState(() {
-      final current = _answerVoteSelections[answer.id] ?? 0;
-      _answerVoteSelections[answer.id] = current == direction ? 0 : direction;
-    });
+  Future<void> _voteAnswer(QuestionAnswer answer, int direction) async {
+    if (answer.deleted) return;
+    final value = answer.viewerVote == direction ? 0 : direction;
+    try {
+      await _questionService.voteComment(answer.id, value);
+      _changed = true;
+      await _loadQuestion(showLoader: false);
+    } catch (error) {
+      _showError(error);
+    }
   }
 
   void _beginReply(QuestionAnswer answer) {
@@ -91,30 +120,157 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
     });
   }
 
-  void _postResponse() {
+  Future<void> _postResponse() async {
     final body = _composerController.text.trim();
-    if (body.isEmpty) return;
+    final question = _question;
+    if (body.isEmpty || question == null || _posting) return;
     final parentId = _replyToId;
-    final timestamp = DateTime.now().microsecondsSinceEpoch;
-    setState(() {
-      _composerController.clear();
-      _replyToId = null;
-      _replyToName = null;
-    });
-    _store.addAnswer(
-      _question.id,
-      QuestionAnswer(
-        id: 'community-answer-$timestamp',
-        author: 'Amaya Perera',
-        authorInitials: 'AP',
-        role: 'Local guide',
-        timeAgo: 'Just now',
+    setState(() => _posting = true);
+    try {
+      await _questionService.createComment(
+        questionId: question.id,
         body: body,
-        votes: 0,
+        parentCommentId: parentId,
+      );
+      if (!mounted) return;
+      setState(() {
+        _composerController.clear();
+        _composerHasText = false;
+        _replyToId = null;
+        _replyToName = null;
+        _changed = true;
+      });
+      _composerFocus.unfocus();
+      await _loadQuestion(showLoader: false);
+    } catch (error) {
+      _showError(error);
+    } finally {
+      if (mounted) setState(() => _posting = false);
+    }
+  }
+
+  void _handleComposerChanged(String value) {
+    final hasText = value.trim().isNotEmpty;
+    if (hasText == _composerHasText) return;
+    setState(() => _composerHasText = hasText);
+  }
+
+  Future<void> _toggleBookmark() async {
+    final question = _question;
+    if (question == null) return;
+    try {
+      final bookmarked = await _questionService.setBookmark(
+        question.id,
+        bookmarked: !question.bookmarked,
+      );
+      if (mounted) {
+        setState(() {
+          _question = question.copyWith(bookmarked: bookmarked);
+          _changed = true;
+        });
+      }
+    } catch (error) {
+      _showError(error);
+    }
+  }
+
+  void _handleQuestionAction(String action) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (action == 'edit') _editQuestion();
+      if (action == 'delete') _deleteQuestion();
+    });
+  }
+
+  void _handleAnswerAction(QuestionAnswer answer, String action) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (action == 'edit') _editAnswer(answer);
+      if (action == 'delete') _deleteAnswer(answer);
+    });
+  }
+
+  Future<void> _editQuestion() async {
+    final question = _question;
+    if (question == null) return;
+    final updated = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AskQuestionScreen(
+          question: question,
+          questionService: _questionService,
+        ),
       ),
-      parentAnswerId: parentId,
     );
-    _composerFocus.unfocus();
+    if (updated == true && mounted) {
+      _changed = true;
+      await _loadQuestion(showLoader: false);
+    }
+  }
+
+  Future<void> _deleteQuestion() async {
+    final question = _question;
+    if (question == null || !await _confirmDelete('Delete question?')) return;
+    try {
+      await _questionService.deleteQuestion(question.id);
+      if (mounted) Navigator.pop(context, true);
+    } catch (error) {
+      _showError(error);
+    }
+  }
+
+  Future<void> _editAnswer(QuestionAnswer answer) async {
+    final body = await showDialog<String>(
+      context: context,
+      builder: (_) => _EditCommentDialog(initialBody: answer.body),
+    );
+    if (body == null || !mounted) return;
+    try {
+      await _questionService.updateComment(commentId: answer.id, body: body);
+      if (!mounted) return;
+      _changed = true;
+      await _loadQuestion(showLoader: false);
+    } catch (error) {
+      _showError(error);
+    }
+  }
+
+  Future<void> _deleteAnswer(QuestionAnswer answer) async {
+    if (!await _confirmDelete('Delete comment?')) return;
+    try {
+      await _questionService.deleteComment(answer.id);
+      _changed = true;
+      await _loadQuestion(showLoader: false);
+    } catch (error) {
+      _showError(error);
+    }
+  }
+
+  Future<bool> _confirmDelete(String title) async =>
+      await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(title),
+          content: const Text('This action cannot be undone.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Delete'),
+            ),
+          ],
+        ),
+      ) ??
+      false;
+
+  void _showError(Object error) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(error.toString())));
   }
 
   void _shareThread() {
@@ -127,8 +283,32 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final question = _question;
-    final answers = _answers;
+    if (_loading && _question == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (_question == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Thread')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(_error ?? 'Question could not be loaded.'),
+                const SizedBox(height: 12),
+                OutlinedButton(
+                  onPressed: _loadQuestion,
+                  child: const Text('Try again'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    final question = _question!;
+    final answers = question.answers;
     return Scaffold(
       backgroundColor: const Color(0xFFFFFCF8),
       appBar: AppBar(
@@ -141,7 +321,7 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
         centerTitle: false,
         leading: IconButton(
           tooltip: 'Back',
-          onPressed: () => Navigator.maybePop(context),
+          onPressed: () => Navigator.pop(context, _changed),
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
         ),
         titleSpacing: 0,
@@ -155,10 +335,12 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
         ),
         actions: [
           IconButton(
-            tooltip: _bookmarked ? 'Remove bookmark' : 'Bookmark thread',
-            onPressed: () => setState(() => _bookmarked = !_bookmarked),
+            tooltip: question.bookmarked
+                ? 'Remove bookmark'
+                : 'Bookmark thread',
+            onPressed: _toggleBookmark,
             icon: Icon(
-              _bookmarked
+              question.bookmarked
                   ? Icons.bookmark_rounded
                   : Icons.bookmark_border_rounded,
               size: 21,
@@ -169,6 +351,15 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
             onPressed: _shareThread,
             icon: const Icon(Icons.share_outlined, size: 20),
           ),
+          if (question.ownedByViewer)
+            PopupMenuButton<String>(
+              tooltip: 'Question actions',
+              onSelected: _handleQuestionAction,
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'edit', child: Text('Edit question')),
+                PopupMenuItem(value: 'delete', child: Text('Delete question')),
+              ],
+            ),
           const SizedBox(width: 3),
         ],
         shape: const Border(bottom: BorderSide(color: Color(0xFFEDE1D9))),
@@ -254,8 +445,8 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
                       ),
                     ),
                     VoteControl(
-                      count: question.votes + _questionVoteSelection,
-                      selection: _questionVoteSelection,
+                      count: question.voteScore,
+                      selection: question.viewerVote,
                       onUpvote: () => _voteQuestion(1),
                       onDownvote: () => _voteQuestion(-1),
                     ),
@@ -281,13 +472,19 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
                 _SortButton(
                   label: 'top',
                   selected: _answerSort == 'top',
-                  onTap: () => setState(() => _answerSort = 'top'),
+                  onTap: () {
+                    setState(() => _answerSort = 'top');
+                    _loadQuestion(showLoader: false);
+                  },
                 ),
                 const SizedBox(width: 15),
                 _SortButton(
                   label: 'new',
                   selected: _answerSort == 'new',
-                  onTap: () => setState(() => _answerSort = 'new'),
+                  onTap: () {
+                    setState(() => _answerSort = 'new');
+                    _loadQuestion(showLoader: false);
+                  },
                 ),
               ],
             ),
@@ -304,11 +501,11 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
                       key: ValueKey('thread-answer-${answer.id}'),
                       answer: answer,
                       depth: 0,
-                      voteCount: _answerVoteCount,
-                      voteSelection: (entry) =>
-                          _answerVoteSelections[entry.id] ?? 0,
+                      voteCount: (entry) => entry.voteScore,
+                      voteSelection: (entry) => entry.viewerVote,
                       onVote: _voteAnswer,
                       onReply: _beginReply,
+                      onAction: _handleAnswerAction,
                     ),
                 ],
               ),
@@ -320,7 +517,10 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
         focusNode: _composerFocus,
         replyingTo: _replyToName,
         onCancelReply: _cancelReply,
+        onChanged: _handleComposerChanged,
         onPost: _postResponse,
+        posting: _posting,
+        canPost: _composerHasText,
       ),
     );
   }
@@ -335,6 +535,7 @@ class _AnswerThread extends StatelessWidget {
     required this.voteSelection,
     required this.onVote,
     required this.onReply,
+    required this.onAction,
   });
 
   final QuestionAnswer answer;
@@ -343,6 +544,7 @@ class _AnswerThread extends StatelessWidget {
   final int Function(QuestionAnswer answer) voteSelection;
   final void Function(QuestionAnswer answer, int direction) onVote;
   final ValueChanged<QuestionAnswer> onReply;
+  final void Function(QuestionAnswer answer, String action) onAction;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -398,19 +600,17 @@ class _AnswerThread extends StatelessWidget {
                 ],
               ),
             ),
-            Container(
-              width: 23,
-              height: 23,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFFE7D8CE)),
+            if (answer.ownedByViewer && !answer.deleted)
+              PopupMenuButton<String>(
+                tooltip: 'Comment actions',
+                padding: EdgeInsets.zero,
+                onSelected: (value) => onAction(answer, value),
+                itemBuilder: (_) => const [
+                  PopupMenuItem(value: 'edit', child: Text('Edit comment')),
+                  PopupMenuItem(value: 'delete', child: Text('Delete comment')),
+                ],
+                icon: const Icon(Icons.more_horiz, size: 18),
               ),
-              child: const Icon(
-                Icons.remove_rounded,
-                color: Color(0xFF8D786E),
-                size: 14,
-              ),
-            ),
           ],
         ),
         if (answer.isVerified) ...[
@@ -437,38 +637,43 @@ class _AnswerThread extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           answer.body,
-          style: const TextStyle(
-            color: Color(0xFF49362F),
+          style: TextStyle(
+            color: answer.deleted
+                ? const Color(0xFF9B8B83)
+                : const Color(0xFF49362F),
             fontSize: 12,
             height: 1.55,
+            fontStyle: answer.deleted ? FontStyle.italic : FontStyle.normal,
           ),
         ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            VoteControl(
-              count: voteCount(answer),
-              selection: voteSelection(answer),
-              onUpvote: () => onVote(answer, 1),
-              onDownvote: () => onVote(answer, -1),
-            ),
-            const SizedBox(width: 8),
-            TextButton.icon(
-              key: ValueKey('reply-${answer.id}'),
-              onPressed: () => onReply(answer),
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF806B61),
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                visualDensity: VisualDensity.compact,
+        if (!answer.deleted) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              VoteControl(
+                count: voteCount(answer),
+                selection: voteSelection(answer),
+                onUpvote: () => onVote(answer, 1),
+                onDownvote: () => onVote(answer, -1),
               ),
-              icon: const Icon(
-                Icons.subdirectory_arrow_right_rounded,
-                size: 15,
+              const SizedBox(width: 8),
+              TextButton.icon(
+                key: ValueKey('reply-${answer.id}'),
+                onPressed: () => onReply(answer),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF806B61),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  visualDensity: VisualDensity.compact,
+                ),
+                icon: const Icon(
+                  Icons.subdirectory_arrow_right_rounded,
+                  size: 15,
+                ),
+                label: const Text('Reply', style: TextStyle(fontSize: 10)),
               ),
-              label: const Text('Reply', style: TextStyle(fontSize: 10)),
-            ),
-          ],
-        ),
+            ],
+          ),
+        ],
         for (final reply in answer.replies)
           _AnswerThread(
             key: ValueKey('thread-answer-${reply.id}'),
@@ -478,9 +683,62 @@ class _AnswerThread extends StatelessWidget {
             voteSelection: voteSelection,
             onVote: onVote,
             onReply: onReply,
+            onAction: onAction,
           ),
       ],
     ),
+  );
+}
+
+class _EditCommentDialog extends StatefulWidget {
+  const _EditCommentDialog({required this.initialBody});
+
+  final String initialBody;
+
+  @override
+  State<_EditCommentDialog> createState() => _EditCommentDialogState();
+}
+
+class _EditCommentDialogState extends State<_EditCommentDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialBody);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final body = _controller.text.trim();
+    if (body.isEmpty) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    Navigator.pop(context, body);
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Edit comment'),
+    content: TextField(
+      key: const ValueKey('edit-comment-body'),
+      controller: _controller,
+      autofocus: true,
+      minLines: 3,
+      maxLines: 7,
+      decoration: const InputDecoration(hintText: 'Comment'),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(onPressed: _save, child: const Text('Save')),
+    ],
   );
 }
 
@@ -490,14 +748,20 @@ class _ThreadComposer extends StatelessWidget {
     required this.focusNode,
     required this.replyingTo,
     required this.onCancelReply,
+    required this.onChanged,
     required this.onPost,
+    required this.posting,
+    required this.canPost,
   });
 
   final TextEditingController controller;
   final FocusNode focusNode;
   final String? replyingTo;
   final VoidCallback onCancelReply;
+  final ValueChanged<String> onChanged;
   final VoidCallback onPost;
+  final bool posting;
+  final bool canPost;
 
   @override
   Widget build(BuildContext context) => Material(
@@ -544,6 +808,7 @@ class _ThreadComposer extends StatelessWidget {
                     minLines: 1,
                     maxLines: 4,
                     textCapitalization: TextCapitalization.sentences,
+                    onChanged: onChanged,
                     decoration: InputDecoration(
                       hintText: replyingTo == null
                           ? 'Share what you know...'
@@ -575,14 +840,21 @@ class _ThreadComposer extends StatelessWidget {
                   height: 42,
                   child: FilledButton(
                     key: const ValueKey('post-answer-button'),
-                    onPressed: onPost,
+                    onPressed: posting || !canPost ? null : onPost,
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFFE8D9C6),
-                      foregroundColor: const Color(0xFF8F7B70),
+                      backgroundColor: AppColors.brown,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: const Color(0xFFE8D9C6),
+                      disabledForegroundColor: const Color(0xFF8F7B70),
                       padding: const EdgeInsets.symmetric(horizontal: 18),
                       shape: const StadiumBorder(),
                     ),
-                    child: Text(replyingTo == null ? 'Answer' : 'Reply'),
+                    child: posting
+                        ? const SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text(replyingTo == null ? 'Answer' : 'Reply'),
                   ),
                 ),
               ],

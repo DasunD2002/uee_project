@@ -1,15 +1,19 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../explorer/presentation/widgets/explorer_footer.dart';
 import '../../home/presentation/widgets/home_drawer.dart';
+import '../data/question_service.dart';
 import '../domain/question.dart';
-import '../domain/question_store.dart';
 import 'widgets/question_app_bar.dart';
 import 'widgets/vote_control.dart';
 
 class QuestionsScreen extends StatefulWidget {
-  const QuestionsScreen({super.key});
+  const QuestionsScreen({super.key, this.questionService});
+
+  final QuestionService? questionService;
 
   @override
   State<QuestionsScreen> createState() => _QuestionsScreenState();
@@ -29,67 +33,154 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
   static const _sorts = <String>['Top', 'New', 'Unanswered'];
 
   final _searchController = TextEditingController();
-  final _voteSelections = <String, int>{};
-  final _store = QuestionStore.instance;
+  final _scrollController = ScrollController();
+  late final QuestionService _questionService;
+  final List<Question> _questions = [];
+  Timer? _searchDebounce;
   String _category = 'All';
   String _sort = 'Top';
   String _query = '';
+  String? _error;
+  bool _loading = true;
+  bool _loadingMore = false;
+  bool _hasNext = false;
+  int _page = 0;
+  int _total = 0;
+  int _requestVersion = 0;
 
   @override
   void initState() {
     super.initState();
-    _store.addListener(_refreshQuestions);
+    _questionService = widget.questionService ?? ApiQuestionService();
+    _scrollController.addListener(_loadNextPage);
+    _loadQuestions();
   }
 
-  void _refreshQuestions() {
-    if (mounted) setState(() {});
+  Future<void> _loadQuestions({bool reset = true}) async {
+    final requestVersion = reset ? ++_requestVersion : _requestVersion;
+    if (reset) {
+      setState(() {
+        _loading = true;
+        _error = null;
+        _page = 0;
+      });
+    } else {
+      if (_loadingMore || !_hasNext) return;
+      setState(() => _loadingMore = true);
+    }
+
+    try {
+      final page = await _questionService.getQuestions(
+        query: _query,
+        category: _category == 'All' ? null : _categorySlug(_category),
+        sort: _sort.toLowerCase(),
+        page: reset ? 0 : _page + 1,
+      );
+      if (!mounted || requestVersion != _requestVersion) return;
+      setState(() {
+        if (reset) _questions.clear();
+        _questions.addAll(page.items);
+        _page = page.page;
+        _total = page.total;
+        _hasNext = page.hasNext;
+        _error = null;
+      });
+    } catch (error) {
+      if (!mounted || requestVersion != _requestVersion) return;
+      setState(() => _error = error.toString());
+    } finally {
+      if (mounted && requestVersion == _requestVersion) {
+        setState(() {
+          _loading = false;
+          _loadingMore = false;
+        });
+      }
+    }
+  }
+
+  void _loadNextPage() {
+    if (_scrollController.position.extentAfter < 300) {
+      _loadQuestions(reset: false);
+    }
+  }
+
+  void _search(String value) {
+    _query = value;
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 400), _loadQuestions);
+  }
+
+  void _selectCategory(String value) {
+    setState(() => _category = value);
+    _loadQuestions();
+  }
+
+  void _selectSort(String value) {
+    setState(() => _sort = value);
+    _loadQuestions();
   }
 
   @override
   void dispose() {
-    _store.removeListener(_refreshQuestions);
+    _searchDebounce?.cancel();
+    _scrollController
+      ..removeListener(_loadNextPage)
+      ..dispose();
     _searchController.dispose();
     super.dispose();
   }
 
-  List<Question> get _visibleQuestions {
-    final query = _query.trim().toLowerCase();
-    final questions = _store.questions.where((question) {
-      final matchesCategory =
-          _category == 'All' || question.category == _category;
-      final searchable = <String>[
-        question.title,
-        question.body,
-        question.location,
-        question.category,
-      ].join(' ').toLowerCase();
-      final matchesQuery = query.isEmpty || searchable.contains(query);
-      final matchesSort = _sort != 'Unanswered' || question.answers.isEmpty;
-      return matchesCategory && matchesQuery && matchesSort;
-    }).toList();
-    if (_sort == 'Top') {
-      questions.sort((a, b) => _voteCount(b).compareTo(_voteCount(a)));
+  Future<void> _vote(Question question, int direction) async {
+    final requestedValue = question.viewerVote == direction ? 0 : direction;
+    try {
+      final result = await _questionService.voteQuestion(
+        question.id,
+        requestedValue,
+      );
+      if (!mounted) return;
+      final index = _questions.indexWhere((entry) => entry.id == question.id);
+      if (index >= 0) {
+        setState(() {
+          _questions[index] = question.copyWith(
+            voteScore: result.voteScore,
+            viewerVote: result.viewerVote,
+          );
+        });
+      }
+    } catch (error) {
+      _showError(error);
     }
-    return questions;
   }
 
-  int _voteCount(Question question) =>
-      question.votes + (_voteSelections[question.id] ?? 0);
-
-  void _vote(Question question, int direction) {
-    setState(() {
-      final current = _voteSelections[question.id] ?? 0;
-      _voteSelections[question.id] = current == direction ? 0 : direction;
-    });
+  Future<void> _openQuestion(Question question) async {
+    await Navigator.pushNamed(
+      context,
+      '/question-detail',
+      arguments: question.id,
+    );
+    if (mounted) _loadQuestions();
   }
-
-  void _openQuestion(Question question) =>
-      Navigator.pushNamed(context, '/question-detail', arguments: question);
 
   Future<void> _askQuestion() async {
     final posted = await Navigator.pushNamed(context, '/ask-question');
-    if (posted == true && mounted) setState(() => _sort = 'New');
+    if (posted == true && mounted) {
+      setState(() => _sort = 'New');
+      _loadQuestions();
+    }
   }
+
+  void _showError(Object error) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(error.toString())));
+  }
+
+  static String _categorySlug(String category) => category
+      .toLowerCase()
+      .replaceAll('&', '')
+      .replaceAll(RegExp(r'\s+'), '-')
+      .replaceAll(RegExp(r'-+'), '-');
 
   void _onNavigationSelected(int index) {
     if (index == 2) return;
@@ -103,12 +194,13 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final questions = _visibleQuestions;
+    final questions = _questions;
     return Scaffold(
       backgroundColor: Colors.white,
       drawer: const HomeDrawer(selectedSection: 'Q&A Forum'),
       appBar: const QuestionAppBar(),
       body: CustomScrollView(
+        controller: _scrollController,
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         slivers: [
           SliverToBoxAdapter(
@@ -118,13 +210,25 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
               sorts: _sorts,
               selectedCategory: _category,
               selectedSort: _sort,
-              threadCount: questions.length,
-              onSearchChanged: (value) => setState(() => _query = value),
-              onCategorySelected: (value) => setState(() => _category = value),
-              onSortSelected: (value) => setState(() => _sort = value),
+              threadCount: _total,
+              onSearchChanged: _search,
+              onCategorySelected: _selectCategory,
+              onSortSelected: _selectSort,
             ),
           ),
-          if (questions.isEmpty)
+          if (_loading)
+            const SliverFillRemaining(
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_error != null && questions.isEmpty)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: _QuestionLoadError(
+                message: _error!,
+                onRetry: _loadQuestions,
+              ),
+            )
+          else if (questions.isEmpty)
             const SliverFillRemaining(
               hasScrollBody: false,
               child: _EmptyQuestions(),
@@ -140,13 +244,20 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
                   return QuestionCard(
                     key: ValueKey('question-${question.id}'),
                     question: question,
-                    voteCount: _voteCount(question),
-                    voteSelection: _voteSelections[question.id] ?? 0,
+                    voteCount: question.voteScore,
+                    voteSelection: question.viewerVote,
                     onTap: () => _openQuestion(question),
                     onUpvote: () => _vote(question, 1),
                     onDownvote: () => _vote(question, -1),
                   );
                 },
+              ),
+            ),
+          if (_loadingMore)
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.only(bottom: 100),
+                child: Center(child: CircularProgressIndicator()),
               ),
             ),
         ],
@@ -439,7 +550,7 @@ class QuestionCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 5),
                     Text(
-                      '${question.answers.length} ${question.answers.length == 1 ? 'answer' : 'answers'}',
+                      '${question.commentCount} ${question.commentCount == 1 ? 'answer' : 'answers'}',
                       style: const TextStyle(
                         color: Color(0xFF6E5B52),
                         fontSize: 11,
@@ -554,6 +665,34 @@ class _EmptyQuestions extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(color: Color(0xFF88766D), fontSize: 12),
           ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _QuestionLoadError extends StatelessWidget {
+  const _QuestionLoadError({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.cloud_off_outlined,
+            color: AppColors.brown,
+            size: 38,
+          ),
+          const SizedBox(height: 10),
+          Text(message, textAlign: TextAlign.center),
+          const SizedBox(height: 12),
+          OutlinedButton(onPressed: onRetry, child: const Text('Try again')),
         ],
       ),
     ),

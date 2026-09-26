@@ -3,11 +3,14 @@ import 'package:flutter/material.dart';
 import '../../../core/navigation/primary_navigation.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../explorer/presentation/widgets/explorer_footer.dart';
+import '../data/question_service.dart';
 import '../domain/question.dart';
-import '../domain/question_store.dart';
 
 class AskQuestionScreen extends StatefulWidget {
-  const AskQuestionScreen({super.key});
+  const AskQuestionScreen({super.key, this.question, this.questionService});
+
+  final Question? question;
+  final QuestionService? questionService;
 
   @override
   State<AskQuestionScreen> createState() => _AskQuestionScreenState();
@@ -25,18 +28,37 @@ class _AskQuestionScreenState extends State<AskQuestionScreen> {
     'Rituals & Etiquette',
     'Architecture',
     'Language',
+    'History',
+    'Crafts',
     'Getting There',
     'Folklore',
   ];
 
-  final _questionController = TextEditingController();
-  final _contextController = TextEditingController();
-  String _place = _places.first;
-  String _topic = _topics.first;
+  late final TextEditingController _questionController;
+  late final TextEditingController _contextController;
+  late final QuestionService _questionService;
+  late String _place;
+  late String _topic;
+  bool _saving = false;
+
+  bool get _editing => widget.question != null;
+  List<String> get _availablePlaces =>
+      _places.contains(_place) ? _places : [_place, ..._places];
 
   bool get _canPost =>
       _questionController.text.trim().length >= 10 &&
       _contextController.text.trim().length >= 20;
+
+  @override
+  void initState() {
+    super.initState();
+    final question = widget.question;
+    _questionService = widget.questionService ?? ApiQuestionService();
+    _questionController = TextEditingController(text: question?.title);
+    _contextController = TextEditingController(text: question?.body);
+    _place = question?.location ?? _places.first;
+    _topic = question?.category ?? _topics.first;
+  }
 
   @override
   void dispose() {
@@ -47,26 +69,46 @@ class _AskQuestionScreenState extends State<AskQuestionScreen> {
 
   void _refreshForm(String _) => setState(() {});
 
-  void _postQuestion() {
-    if (!_canPost) return;
-    final timestamp = DateTime.now().microsecondsSinceEpoch;
-    QuestionStore.instance.addQuestion(
-      Question(
-        id: 'community-question-$timestamp',
-        title: _questionController.text.trim(),
-        body: _contextController.text.trim(),
-        location: _place,
-        category: _topic,
-        timeAgo: 'Just now',
-        author: 'Amaya Perera',
-        authorInitials: 'AP',
-        votes: 0,
-        answers: const [],
-        isVerified: false,
-      ),
-    );
-    Navigator.pop(context, true);
+  Future<void> _postQuestion() async {
+    if (!_canPost || _saving) return;
+    setState(() => _saving = true);
+    try {
+      if (_editing) {
+        await _questionService.updateQuestion(
+          questionId: widget.question!.id,
+          title: _questionController.text.trim(),
+          body: _contextController.text.trim(),
+          location: _place,
+          category: _categorySlug(_topic),
+          placeId: widget.question!.placeId,
+        );
+      } else {
+        await _questionService.createQuestion(
+          title: _questionController.text.trim(),
+          body: _contextController.text.trim(),
+          location: _place,
+          category: _categorySlug(_topic),
+        );
+      }
+      if (!mounted) return;
+      FocusManager.instance.primaryFocus?.unfocus();
+      await WidgetsBinding.instance.endOfFrame;
+      if (mounted) Navigator.pop(context, true);
+    } catch (error) {
+      if (mounted) {
+        setState(() => _saving = false);
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    }
   }
+
+  static String _categorySlug(String category) => category
+      .toLowerCase()
+      .replaceAll('&', '')
+      .replaceAll(RegExp(r'\s+'), '-')
+      .replaceAll(RegExp(r'-+'), '-');
 
   @override
   Widget build(BuildContext context) {
@@ -87,9 +129,9 @@ class _AskQuestionScreenState extends State<AskQuestionScreen> {
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
         ),
         titleSpacing: 0,
-        title: const Text(
-          'Ask the community',
-          style: TextStyle(
+        title: Text(
+          _editing ? 'Edit question' : 'Ask the community',
+          style: const TextStyle(
             fontFamily: 'serif',
             fontSize: 22,
             fontWeight: FontWeight.w600,
@@ -176,10 +218,10 @@ class _AskQuestionScreenState extends State<AskQuestionScreen> {
             child: ListView.separated(
               key: const ValueKey('question-place-options'),
               scrollDirection: Axis.horizontal,
-              itemCount: _places.length,
+              itemCount: _availablePlaces.length,
               separatorBuilder: (_, _) => const SizedBox(width: 7),
               itemBuilder: (context, index) {
-                final place = _places[index];
+                final place = _availablePlaces[index];
                 return _SelectionChip(
                   label: place,
                   selected: _place == place,
@@ -224,7 +266,7 @@ class _AskQuestionScreenState extends State<AskQuestionScreen> {
                   height: 44,
                   child: FilledButton(
                     key: const ValueKey('post-question-button'),
-                    onPressed: _canPost ? _postQuestion : null,
+                    onPressed: _canPost && !_saving ? _postQuestion : null,
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColors.brown,
                       disabledBackgroundColor: const Color(0xFFE7D9C6),
@@ -232,16 +274,26 @@ class _AskQuestionScreenState extends State<AskQuestionScreen> {
                       foregroundColor: Colors.white,
                       shape: const StadiumBorder(),
                     ),
-                    child: const Text(
-                      'Post question',
-                      style: TextStyle(fontWeight: FontWeight.w700),
-                    ),
+                    child: _saving
+                        ? const SizedBox.square(
+                            dimension: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            _editing ? 'Save changes' : 'Post question',
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
                   ),
                 ),
                 const SizedBox(height: 5),
                 Text(
                   _canPost
-                      ? 'Ready to share with the community'
+                      ? _editing
+                            ? 'Ready to save your changes'
+                            : 'Ready to share with the community'
                       : 'Write a little more to post',
                   style: const TextStyle(color: Color(0xFFA38F84), fontSize: 9),
                 ),
