@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../capsule/domain/capsule_model.dart';
+import '../../capsule/data/capsule_service.dart';
 
 /// Form used to collect the details for a new time capsule.
 class CreateCapsuleScreen extends StatefulWidget {
@@ -14,8 +16,10 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final CapsuleService _capsuleService = CapsuleService();
   String _type = 'Family';
   bool _hasCoverPhoto = false;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -29,14 +33,43 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
     setState(() => _hasCoverPhoto = true);
   }
 
-  void _createCapsule() {
+  Future<void> _createCapsule() async {
     if (!_formKey.currentState!.validate()) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${_titleController.text.trim()} capsule created'),
-        behavior: SnackBarBehavior.floating,
-      ),
+    if (_isLoading) return;
+
+    setState(() => _isLoading = true);
+
+    final capsule = CapsuleModel(
+      title: _titleController.text.trim(),
+      description: _descriptionController.text.trim(),
+      category: _type,
+      type: _type,
+      coverImageUrl: _hasCoverPhoto ? 'assets/images/login_image.jpg' : null,
     );
+
+    final error = await _capsuleService.createCapsule(capsule);
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (error == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${_titleController.text.trim()} capsule created successfully!'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.green[800],
+        ),
+      );
+      Navigator.maybePop(context, true);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.red[800],
+        ),
+      );
+    }
   }
 
   @override
@@ -120,7 +153,7 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
             SizedBox(
               height: 50,
               child: FilledButton(
-                onPressed: _createCapsule,
+                onPressed: _isLoading ? null : _createCapsule,
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.brown,
                   foregroundColor: Colors.white,
@@ -129,17 +162,26 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
                     borderRadius: BorderRadius.circular(11),
                   ),
                 ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.auto_awesome_outlined, size: 17),
-                    SizedBox(width: 8),
-                    Text(
-                      'Create Capsule',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-                    ),
-                  ],
-                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.auto_awesome_outlined, size: 17),
+                          SizedBox(width: 8),
+                          Text(
+                            'Create Capsule',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                          ),
+                        ],
+                      ),
               ),
             ),
           ],

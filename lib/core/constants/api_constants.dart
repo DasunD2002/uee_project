@@ -1,11 +1,19 @@
 import 'package:flutter/foundation.dart';
 
 class ApiConstants {
-  static const String _configuredBaseUrl = String.fromEnvironment('API_BASE_URL');
-  
+  static const String _configuredBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+  );
+
   static String get baseUrl {
-    // Strictly override launch.json arguments for Android Emulator
-    return 'http://10.0.2.2:8080';
+    if (_configuredBaseUrl.isNotEmpty) {
+      return _configuredBaseUrl;
+    }
+    if (kIsWeb) {
+      return 'http://localhost:8081';
+    }
+    // Android Emulator connects to host machine at 10.0.2.2:8081
+    return 'http://10.0.2.2:8081';
   }
 
   // Supabase Configuration
@@ -13,7 +21,7 @@ class ApiConstants {
     'SUPABASE_URL',
     defaultValue: 'https://olapumiaskfkaqtsmynv.supabase.co',
   );
-  
+
   static const String supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
     defaultValue: 'sb_publishable_8dC2ToDUE-Xx92jsWQ2NCw_oRyCIkG7',

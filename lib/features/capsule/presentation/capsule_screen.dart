@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/app_colors.dart';
 import '../../../core/navigation/primary_navigation.dart';
 import '../../explorer/presentation/widgets/explorer_footer.dart';
 import '../../home/presentation/widgets/home_drawer.dart';
+import '../domain/capsule_model.dart';
+import '../data/capsule_service.dart';
 import 'widgets/capsule_prompt_card.dart';
 import 'widgets/capsule_tile.dart';
 
@@ -16,8 +17,40 @@ const _kBorder  = Color(0xFFEEDFD9);
 const _kPeach   = Color(0xFFFFE8DA);
 
 /// Dashboard reached from the Capsule item in the primary navigation.
-class CapsuleScreen extends StatelessWidget {
+class CapsuleScreen extends StatefulWidget {
   const CapsuleScreen({super.key});
+
+  @override
+  State<CapsuleScreen> createState() => _CapsuleScreenState();
+}
+
+class _CapsuleScreenState extends State<CapsuleScreen> {
+  final CapsuleService _capsuleService = CapsuleService();
+  List<CapsuleModel> _capsules = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCapsules();
+  }
+
+  Future<void> _loadCapsules() async {
+    setState(() => _isLoading = true);
+    final list = await _capsuleService.getCapsules();
+    if (!mounted) return;
+    setState(() {
+      _capsules = list;
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _navigateToCreate() async {
+    final res = await Navigator.pushNamed(context, '/create-capsule');
+    if (res == true) {
+      _loadCapsules();
+    }
+  }
 
   void _onNavSelected(BuildContext context, int index) {
     navigateToPrimaryDestination(context, index, currentIndex: 3);
@@ -60,8 +93,8 @@ class CapsuleScreen extends StatelessWidget {
             const SizedBox(width: 4),
           ],
           // Thin bottom divider instead of shadow
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(1),
+          bottom: const PreferredSize(
+            preferredSize: Size.fromHeight(1),
             child: Divider(height: 1, color: _kBorder),
           ),
         ),
@@ -93,13 +126,12 @@ class CapsuleScreen extends StatelessWidget {
               const SizedBox(height: 26),
 
               // ── Stat chips row ────────────────────────────────────────────
-              const _StatRow(),
+              _StatRow(capsuleCount: _capsules.length),
               const SizedBox(height: 24),
 
               // ── Prompt / hero card ────────────────────────────────────────
               CapsulePromptCard(
-                onCreate: () =>
-                    Navigator.pushNamed(context, '/create-capsule'),
+                onCreate: _navigateToCreate,
               ),
               const SizedBox(height: 28),
 
@@ -116,37 +148,47 @@ class CapsuleScreen extends StatelessWidget {
                       letterSpacing: .7,
                     ),
                   ),
-                  GestureDetector(
-                    onTap: () =>
-                        Navigator.pushNamed(context, '/family-receipt'),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 9, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: _kPeach,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFDDB69E)),
-                      ),
-                      child: const Text(
-                        '1 protected',
-                        style: TextStyle(
-                          color: _kBrown,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                        ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 9, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _kPeach,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFDDB69E)),
+                    ),
+                    child: Text(
+                      '${_capsules.length} protected',
+                      style: const TextStyle(
+                        color: _kBrown,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
-              const CapsuleTile(),
+
+              if (_isLoading)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: CircularProgressIndicator(color: _kBrown),
+                  ),
+                )
+              else if (_capsules.isEmpty)
+                _EmptyStateHint(onTap: _navigateToCreate)
+              else ...[
+                for (final c in _capsules) ...[
+                  CapsuleTile(capsule: c, onRefresh: _loadCapsules),
+                  const SizedBox(height: 12),
+                ],
+              ],
               const SizedBox(height: 14),
 
               // ── Empty state hint ──────────────────────────────────────────
               _EmptyStateHint(
-                onTap: () =>
-                    Navigator.pushNamed(context, '/create-capsule'),
+                onTap: _navigateToCreate,
               ),
             ],
           ),
@@ -161,30 +203,31 @@ class CapsuleScreen extends StatelessWidget {
 // ── Stat chips ────────────────────────────────────────────────────────────────
 
 class _StatRow extends StatelessWidget {
-  const _StatRow();
+  const _StatRow({this.capsuleCount = 1});
+  final int capsuleCount;
 
   @override
   Widget build(BuildContext context) => Row(
         children: [
           _StatChip(
             icon: Icons.lock_clock_outlined,
-            value: '01',
+            value: capsuleCount < 10 ? '0$capsuleCount' : '$capsuleCount',
             label: 'Capsules',
             bg: const Color(0xFFFFECDE),
           ),
           const SizedBox(width: 10),
-          _StatChip(
+          const _StatChip(
             icon: Icons.favorite_border_rounded,
             value: '12',
             label: 'Memories',
-            bg: const Color(0xFFE4EFEA),
+            bg: Color(0xFFE4EFEA),
           ),
           const SizedBox(width: 10),
-          _StatChip(
+          const _StatChip(
             icon: Icons.calendar_month_outlined,
             value: '24',
             label: 'Months left',
-            bg: const Color(0xFFF0EBF8),
+            bg: Color(0xFFF0EBF8),
           ),
         ],
       );
@@ -203,96 +246,77 @@ class _StatChip extends StatelessWidget {
   final Color bg;
 
   @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: 17, color: const Color(0xFF5E3A30)),
-            const SizedBox(height: 10),
-            Text(
-              value,
-              style: const TextStyle(
-                color: Color(0xFF38251F),
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                height: 1,
+  Widget build(BuildContext context) => Expanded(
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 8),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, size: 20, color: _kBrown),
+              const SizedBox(height: 6),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: _kDeep,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                  height: 1.1,
+                ),
               ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: const TextStyle(
-                  color: Color(0xFF7A5E55), fontSize: 9.5),
-            ),
-          ],
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: _kMuted,
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
-    );
-  }
+      );
 }
 
-// ── Empty state hint ──────────────────────────────────────────────────────────
+// ── Empty state dashed hint ───────────────────────────────────────────────────
 
 class _EmptyStateHint extends StatelessWidget {
   const _EmptyStateHint({required this.onTap});
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _kBorder, style: BorderStyle.solid),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: _kPeach,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(Icons.add_rounded,
-                  color: _kBrown, size: 20),
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          decoration: BoxDecoration(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: const Color(0xFFDFCFC9),
+              style: BorderStyle.solid,
             ),
-            const SizedBox(width: 13),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Start another capsule',
-                    style: TextStyle(
-                      color: _kDeep,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'Preserve a new story for the future',
-                    style: TextStyle(color: _kMuted, fontSize: 11),
-                  ),
-                ],
+          ),
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.add_circle_outline_rounded,
+                  color: _kBrown, size: 16),
+              SizedBox(width: 8),
+              Text(
+                'Seal another time capsule',
+                style: TextStyle(
+                  color: _kBrown,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-            const Icon(Icons.arrow_forward_ios_rounded,
-                size: 13, color: Color(0xFFBBA9A2)),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
-  }
+      );
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../domain/capsule_model.dart';
 
 // ── Local colour tokens (mirrors app palette) ─────────────────────────────────
 const _kBrown   = Color(0xFF84321F);
@@ -10,7 +11,9 @@ const _kBorder  = Color(0xFFEEDFD9);
 /// Tappable card representing a single time capsule in the vault list.
 /// Tapping navigates to [/family-receipt].
 class CapsuleTile extends StatefulWidget {
-  const CapsuleTile({super.key});
+  const CapsuleTile({super.key, this.capsule, this.onRefresh});
+  final CapsuleModel? capsule;
+  final VoidCallback? onRefresh;
 
   @override
   State<CapsuleTile> createState() => _CapsuleTileState();
@@ -33,14 +36,29 @@ class _CapsuleTileState extends State<CapsuleTile>
 
   @override
   Widget build(BuildContext context) {
+    final title = widget.capsule?.title.isNotEmpty == true
+        ? widget.capsule!.title
+        : 'Family recipes';
+    final dateStr = widget.capsule?.unlockDate != null
+        ? 'Locked until ${widget.capsule!.unlockDate}'
+        : 'Locked until April 12, 2026';
+    final typeBadge = widget.capsule?.type?.toUpperCase() ?? 'LOCKED';
+
     return Semantics(
       button: true,
-      label: 'Open Family Recipe capsule',
+      label: 'Open $title capsule',
       child: GestureDetector(
         onTapDown: (_) => _press.forward(),
-        onTapUp: (_) {
+        onTapUp: (_) async {
           _press.reverse();
-          Navigator.pushNamed(context, '/family-receipt');
+          final res = await Navigator.pushNamed(
+            context,
+            '/family-receipt',
+            arguments: widget.capsule,
+          );
+          if (res == true && widget.onRefresh != null) {
+            widget.onRefresh!();
+          }
         },
         onTapCancel: () => _press.reverse(),
         child: AnimatedBuilder(
@@ -80,15 +98,15 @@ class _CapsuleTileState extends State<CapsuleTile>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // LOCKED chip
+                      // LOCKED / TYPE chip
                       Row(
                         children: [
                           const Icon(Icons.lock_outline_rounded,
                               size: 11, color: _kBrown),
                           const SizedBox(width: 4),
-                          const Text(
-                            'LOCKED',
-                            style: TextStyle(
+                          Text(
+                            typeBadge,
+                            style: const TextStyle(
                               color: _kBrown,
                               fontSize: 8.5,
                               fontWeight: FontWeight.w800,
@@ -98,9 +116,11 @@ class _CapsuleTileState extends State<CapsuleTile>
                         ],
                       ),
                       const SizedBox(height: 4),
-                      const Text(
-                        'Family recipes',
-                        style: TextStyle(
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
                           color: _kDeep,
                           fontFamily: 'serif',
                           fontSize: 14.5,
@@ -108,9 +128,11 @@ class _CapsuleTileState extends State<CapsuleTile>
                         ),
                       ),
                       const SizedBox(height: 3),
-                      const Text(
-                        'Locked until April 12, 2026',
-                        style: TextStyle(color: _kMuted, fontSize: 10.5),
+                      Text(
+                        dateStr,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: _kMuted, fontSize: 10.5),
                       ),
                     ],
                   ),

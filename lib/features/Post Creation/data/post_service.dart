@@ -12,6 +12,9 @@ class PostService {
     _mockPosts.clear();
   }
 
+  static int mockPostsLength() => _mockPosts.length;
+  static List<String> mockPostsTitles() => _mockPosts.map((p) => p.title).toList();
+
   Future<String?> createPost(UserPost post, String mediaUrl, List<String> proofUrls) async {
     if (isTestEnvironment) {
       _mockPosts.add(post);

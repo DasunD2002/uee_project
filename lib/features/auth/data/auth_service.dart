@@ -7,15 +7,15 @@ class AuthService {
 
   Future<String?> login(String email, String password) async {
     try {
-      final response = await _apiService.post('/auth/login', body: {
-        'email': email,
-        'password': password,
-      });
+      final response = await _apiService.post(
+        '/auth/login',
+        body: {'email': email, 'password': password},
+      );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
-        final token = data['data']['token'];
-        
+        final token = data['data']?['token'];
+
         if (token != null) {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('jwt_token', token);
@@ -23,11 +23,22 @@ class AuthService {
         }
         return 'Invalid response format';
       } else {
-        final data = jsonDecode(response.body);
-        return data['errorDescription'] ?? 'Login failed';
+        try {
+          final data = jsonDecode(response.body);
+          if (data is Map && data['errorDescription'] != null) {
+            return data['errorDescription'] as String;
+          }
+          if (data is Map && data['message'] != null) {
+            return data['message'] as String;
+          }
+        } catch (_) {}
+
+        if (response.statusCode == 401) {
+          return 'Invalid email or password';
+        }
+        return 'Login failed (${response.statusCode})';
       }
     } catch (e) {
-      print('Network error in login: $e');
       return 'Network error: $e';
     }
   }

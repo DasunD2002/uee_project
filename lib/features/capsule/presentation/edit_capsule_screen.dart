@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../domain/capsule_model.dart';
+import '../data/capsule_service.dart';
 
 // ---------------------------------------------------------------------------
 // Colour tokens local to this screen
@@ -26,13 +28,34 @@ class EditCapsuleScreen extends StatefulWidget {
 }
 
 class _EditCapsuleScreenState extends State<EditCapsuleScreen> {
+  final _capsuleService  = CapsuleService();
   final _titleCtrl       = TextEditingController(text: "Grandson's 18th Birthday");
   final _descCtrl        = TextEditingController();
   final _unlockDateCtrl  = TextEditingController(text: 'June 10, 2027');
   String  _category      = 'Family';
   bool    _allowContribs = true;
+  String? _capsuleId;
+  CapsuleModel? _originalCapsule;
+  bool    _isLoading     = false;
 
   static const _categories = ['Personal', 'Family', 'Community'];
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is CapsuleModel) {
+      _originalCapsule = args;
+      _capsuleId = args.id;
+      _titleCtrl.text = args.title;
+      _descCtrl.text = args.description;
+      _category = args.category;
+      if (args.unlockDate != null) _unlockDateCtrl.text = args.unlockDate!;
+      if (args.allowContributors != null) _allowContribs = args.allowContributors!;
+    } else if (args is String) {
+      _capsuleId = args;
+    }
+  }
 
   @override
   void dispose() {
@@ -44,11 +67,28 @@ class _EditCapsuleScreenState extends State<EditCapsuleScreen> {
 
   // ── Date picker ──────────────────────────────────────────────────────────
   Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final hasMemories = _originalCapsule != null && _originalCapsule!.memories.isNotEmpty;
+    final originalDate = _originalCapsule?.parsedUnlockDate;
+
+    DateTime firstDate = now.add(const Duration(days: 1));
+    if (hasMemories && originalDate != null && originalDate.isAfter(firstDate)) {
+      firstDate = originalDate;
+    }
+
+    DateTime initial = _originalCapsule?.parsedUnlockDate ?? DateTime(2027, 6, 10);
+    if (initial.isBefore(firstDate)) {
+      initial = firstDate;
+    }
+
     final picked = await showDatePicker(
       context: context,
-      initialDate: DateTime(2027, 6, 10),
-      firstDate: DateTime.now(),
+      initialDate: initial,
+      firstDate: firstDate,
       lastDate: DateTime(2050),
+      helpText: hasMemories
+          ? 'SELECT FUTURE DATE (SEALED MEMORIES CANNOT OPEN EARLIER)'
+          : 'SELECT UNLOCK DATE',
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
           colorScheme: const ColorScheme.light(
@@ -72,16 +112,78 @@ class _EditCapsuleScreenState extends State<EditCapsuleScreen> {
   }
 
   // ── Save ─────────────────────────────────────────────────────────────────
-  void _save() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Capsule updated successfully'),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: _kBrown,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      ),
+  Future<void> _save() async {
+    if (_isLoading) return;
+    final id = _capsuleId ?? 'sample_id';
+
+    final updated = (_originalCapsule ?? CapsuleModel(
+      id: id,
+      title: _titleCtrl.text.trim(),
+      description: _descCtrl.text.trim(),
+    )).copyWith(
+      id: id,
+      title: _titleCtrl.text.trim(),
+      description: _descCtrl.text.trim(),
+      category: _category,
+      type: _category,
+      unlockDate: _unlockDateCtrl.text.trim(),
+      allowContributors: _allowContribs,
     );
+
+    // Validation: unlock date must be in future
+    final targetDate = updated.parsedUnlockDate;
+    if (targetDate == null || targetDate.isBefore(DateTime.now())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Unlock date must be in the future.'),
+          backgroundColor: Colors.red[800],
+        ),
+      );
+      return;
+    }
+
+    // Validation: cannot move date earlier if memories exist
+    if (_originalCapsule != null && _originalCapsule!.memories.isNotEmpty) {
+      final origDate = _originalCapsule!.parsedUnlockDate;
+      if (origDate != null && targetDate.isBefore(origDate)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Cannot move unlock date earlier because this capsule contains sealed memories.'),
+            backgroundColor: Colors.red[800],
+          ),
+        );
+        return;
+      }
+    }
+
+    setState(() => _isLoading = true);
+    final error = await _capsuleService.updateCapsule(id, updated);
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (error == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Capsule updated successfully'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.green[800],
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        ),
+      );
+      Navigator.pop(context, updated);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.red[800],
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        ),
+      );
+    }
   }
 
   // ── Delete confirmation ──────────────────────────────────────────────────
@@ -90,9 +192,35 @@ class _EditCapsuleScreenState extends State<EditCapsuleScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => _DeleteSheet(
-        onDelete: () {
+        onDelete: () async {
           Navigator.pop(context); // close sheet
-          Navigator.pop(context); // go back
+          final id = _capsuleId ?? 'sample_id';
+          
+          final error = await _capsuleService.deleteCapsule(id);
+          if (!mounted) return;
+
+          if (error == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Capsule deleted successfully'),
+                behavior: SnackBarBehavior.floating,
+                backgroundColor: Colors.green[800],
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              ),
+            );
+            Navigator.maybePop(context, true);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(error),
+                behavior: SnackBarBehavior.floating,
+                backgroundColor: Colors.red[800],
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              ),
+            );
+          }
         },
       ),
     );
@@ -514,7 +642,7 @@ class _ToggleRow extends StatelessWidget {
         Switch(
           value: value,
           onChanged: onChanged,
-          activeColor: Colors.white,
+          activeThumbColor: Colors.white,
           activeTrackColor: AppColors.brown,
           inactiveThumbColor: Colors.white,
           inactiveTrackColor: _kBorder,

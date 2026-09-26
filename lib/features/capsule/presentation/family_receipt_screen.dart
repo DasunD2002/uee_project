@@ -1,9 +1,19 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../explorer/presentation/widgets/explorer_footer.dart';
-import 'add_memory_screen.dart';
+import '../../../core/services/notification_service.dart';
+import '../data/capsule_service.dart';
+import '../domain/capsule_memory.dart';
+import '../domain/capsule_model.dart';
+import 'widgets/add_memory_picker_sheet.dart';
+import 'widgets/contributor_sheet.dart';
+import 'widgets/memory_viewer_sheet.dart';
+import 'widgets/voice_note_recorder_sheet.dart';
 
 // ── Local colour tokens ──────────────────────────────────────────────────────
 const _kBrown     = Color(0xFF84321F);
@@ -23,6 +33,45 @@ class FamilyReceiptScreen extends StatefulWidget {
 
 class _FamilyReceiptScreenState extends State<FamilyReceiptScreen>
     with TickerProviderStateMixin {
+  final CapsuleService _capsuleService = CapsuleService();
+  CapsuleModel? _capsule;
+  Timer? _countdownTicker;
+
+  @override
+  void initState() {
+    super.initState();
+    _countdownTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted && _capsule != null) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is CapsuleModel && _capsule == null) {
+      _capsule = args;
+      _reloadCapsule();
+    }
+  }
+
+  Future<void> _reloadCapsule() async {
+    if (_capsule?.id == null) return;
+    final updated = await _capsuleService.getCapsuleById(_capsule!.id!);
+    if (updated != null && mounted) {
+      setState(() => _capsule = updated);
+      if (updated.parsedUnlockDate != null) {
+        NotificationService().scheduleCapsuleUnlock(
+          capsuleId: updated.id ?? 'capsule',
+          title: updated.title,
+          unlockDate: updated.parsedUnlockDate!,
+        );
+      }
+    }
+  }
+
   // Glow pulse on the primary CTA
   late final AnimationController _glowCtrl = AnimationController(
     vsync: this,
@@ -42,141 +91,354 @@ class _FamilyReceiptScreenState extends State<FamilyReceiptScreen>
 
   @override
   void dispose() {
+    _countdownTicker?.cancel();
     _glowCtrl.dispose();
     super.dispose();
   }
 
+  void _onCardTap(CapsuleMemory memory) {
+    if (_capsule?.isLocked() == true) {
+      MemoryViewer.showSealedSheet(
+        context,
+        unlockDate: _capsule?.formattedUnlockDate ?? 'Future Date',
+        countdownString: _capsule?.countdownString,
+      );
+    } else {
+      MemoryViewer.show(context, memory);
+    }
+  }
+
+  Future<void> _onAddMemory() async {
+    if (_capsule?.isUnlocked() == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This capsule is unlocked! Adding memories is disabled.')),
+      );
+      return;
+    }
+
+    final newMemory = await AddMemoryPickerSheet.show(context);
+    if (newMemory != null && mounted) {
+      final updated = await _capsuleService.addMemory(_capsule?.id ?? '', newMemory);
+      if (updated != null && mounted) {
+        setState(() => _capsule = updated);
+      } else if (mounted) {
+        setState(() {
+          _capsule = _capsule!.copyWith(
+            memories: [newMemory, ..._capsule!.memories],
+          );
+        });
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Memory sealed into your capsule ✦')),
+        );
+      }
+    }
+  }
+
+  Future<void> _onVoiceNote() async {
+    if (_capsule?.isUnlocked() == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This capsule is unlocked! Adding memories is disabled.')),
+      );
+      return;
+    }
+
+    final voiceMemory = await VoiceNoteRecorderSheet.show(context);
+    if (voiceMemory != null && mounted) {
+      final updated = await _capsuleService.addMemory(_capsule?.id ?? '', voiceMemory);
+      if (updated != null && mounted) {
+        setState(() => _capsule = updated);
+      } else if (mounted) {
+        setState(() {
+          _capsule = _capsule!.copyWith(
+            memories: [voiceMemory, ..._capsule!.memories],
+          );
+        });
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Voice note sealed into your capsule ✦')),
+        );
+      }
+    }
+  }
+
+  void _shareCapsule(BuildContext context) {
+    if (_capsule == null) return;
+    final title = _capsule!.title.isNotEmpty ? _capsule!.title : 'Family Recipe';
+    final date = _capsule!.formattedUnlockDate;
+    final link = 'https://rootly.app/capsule/${_capsule!.id ?? "family"}';
+    SharePlus.instance.share(
+      ShareParams(
+        text: "Preserving precious memories in my Time Capsule '$title' on Rootly! It unlocks on $date.\nJoin here: $link",
+        subject: "Time Capsule: $title",
+      ),
+    );
+  }
+
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) {
+    final memories = (_capsule?.memories.isNotEmpty == true)
+        ? _capsule!.memories
+        : CapsuleService.defaultMemories();
+
+    final mem0 = memories.isNotEmpty ? memories[0] : null;
+    final mem1 = memories.length > 1 ? memories[1] : null;
+    final mem2 = memories.length > 2 ? memories[2] : null;
+    final memVideo = memories.firstWhere(
+      (m) => m.type == MemoryType.video,
+      orElse: () => memories.isNotEmpty ? memories[0] : CapsuleMemory(
+        id: 'mock_vid',
+        type: MemoryType.video,
+        content: 'assets/images/gal_vihara.png',
+        title: 'Watch Family Video',
+        addedBy: 'Uncle',
+        createdAt: DateTime.now(),
+      ),
+    );
+    final memLetter = memories.firstWhere(
+      (m) => m.type == MemoryType.letter,
+      orElse: () => CapsuleMemory(
+        id: 'mock_let',
+        type: MemoryType.letter,
+        content: 'A letter for you',
+        title: 'A letter for you',
+        addedBy: 'Grandma',
+        createdAt: DateTime.now(),
+      ),
+    );
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFFFF8EF),
+      appBar: AppBar(
         backgroundColor: const Color(0xFFFFF8EF),
-        appBar: AppBar(
-          backgroundColor: const Color(0xFFFFF8EF),
-          foregroundColor: _kBrown,
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          leading: IconButton(
-            tooltip: 'Back to capsules',
-            onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 19),
-          ),
-          title: const Text(
-            'Your capsule',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-          ),
-          centerTitle: true,
-          actions: [
-            IconButton(
-              tooltip: 'Share capsule',
-              onPressed: () => _showShareSheet(context),
-              icon: const Icon(Icons.ios_share_rounded, size: 20),
-            ),
-            const SizedBox(width: 4),
-          ],
+        foregroundColor: _kBrown,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: IconButton(
+          tooltip: 'Back to capsules',
+          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 19),
         ),
-        body: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(28, 10, 28, 28),
-            child: Column(
-              children: [
-                // ── Title ─────────────────────────────────────────────────
-                const Text(
-                  'Family Recipe',
-                  style: TextStyle(
-                    color: _kBrown,
-                    fontFamily: 'serif',
-                    fontSize: 21,
-                    fontWeight: FontWeight.w700,
+        title: const Text(
+          'Your capsule',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        ),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            tooltip: 'Edit capsule',
+            onPressed: () async {
+              final result = await Navigator.pushNamed(
+                context,
+                '/edit-capsule',
+                arguments: _capsule,
+              );
+              if (!mounted) return;
+              if (result is CapsuleModel) {
+                setState(() => _capsule = result);
+              } else if (result == true) {
+                _reloadCapsule();
+              }
+            },
+            icon: const Icon(Icons.edit_outlined, size: 20),
+          ),
+          IconButton(
+            tooltip: 'Share capsule',
+            onPressed: () => _shareCapsule(context),
+            icon: const Icon(Icons.ios_share_rounded, size: 20),
+          ),
+          const SizedBox(width: 4),
+        ],
+      ),
+      body: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(28, 10, 28, 28),
+          child: Column(
+            children: [
+              // ── Title ─────────────────────────────────────────────────
+              Text(
+                _capsule?.title.isNotEmpty == true
+                    ? _capsule!.title
+                    : 'Family Recipe',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: _kBrown,
+                  fontFamily: 'serif',
+                  fontSize: 21,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              if (_capsule?.description.isNotEmpty == true)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    _capsule!.description,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: _kMuted, fontSize: 11),
                   ),
                 ),
-                const SizedBox(height: 8),
+              const SizedBox(height: 8),
 
-                // ── Unlock status badge ────────────────────────────────────
-                const _UnlockBadge(),
-                const SizedBox(height: 10),
+              // ── Unlock status badge ────────────────────────────────────
+              _UnlockBadge(capsule: _capsule),
 
-                // ── Contributor avatars + memory counter ───────────────────
-                const _MetaRow(),
-                const SizedBox(height: 18),
-
-                // ── Polaroid scatter ───────────────────────────────────────
-                Expanded(
-                  child: Center(
-                    child: Stack(
-                      alignment: Alignment.center,
+              if (kDebugMode) ...[
+                const SizedBox(height: 6),
+                InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () async {
+                    if (_capsule == null) return;
+                    final updated = await _capsuleService.toggleDebugUnlock(_capsule!.id ?? '');
+                    if (updated != null && mounted) {
+                      setState(() => _capsule = updated);
+                    } else if (mounted) {
+                      setState(() {
+                        _capsule = _capsule!.copyWith(isDebugUnlocked: !_capsule!.isDebugUnlocked);
+                      });
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _capsule?.isUnlocked() == true
+                          ? const Color(0xFFE8F5E9)
+                          : const Color(0xFFFFF3E0),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _capsule?.isUnlocked() == true
+                            ? Colors.green
+                            : Colors.orange,
+                        width: 1.2,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        _MemoryCard(
-                          alignment: const Alignment(-.72, -.72),
-                          angle: -.04,
-                          image: 'assets/images/login_image.jpg',
-                          caption: 'Aachchi te ka',
-                          elevation: 1,
+                        Icon(
+                          _capsule?.isUnlocked() == true
+                              ? Icons.lock_open_rounded
+                              : Icons.lock_clock_rounded,
+                          size: 11,
+                          color: _capsule?.isUnlocked() == true
+                              ? Colors.green[800]
+                              : Colors.orange[900],
                         ),
-                        _MemoryCard(
-                          alignment: const Alignment(.72, -.58),
-                          angle: .08,
-                          image: 'assets/images/gal_vihara.png',
-                          caption: 'The family table',
-                          elevation: 2,
-                        ),
-                        _MemoryCard(
-                          alignment: const Alignment(-.62, .62),
-                          angle: .03,
-                          image: 'assets/images/mask_carver.png',
-                          caption: 'Her blessing',
-                          elevation: 2,
-                        ),
-                        _LetterCard(),
-                        // ── Video Polaroid ─────────────────────────────────
-                        _AnimatedVideoCard(
-                          alignment: const Alignment(.10, -.05),
-                          angle: -.02,
-                          image: 'assets/images/gal_vihara.png',
+                        const SizedBox(width: 5),
+                        Text(
+                          _capsule?.isUnlocked() == true
+                              ? 'DEV: UNLOCKED (Tap to Lock)'
+                              : 'DEV: LOCKED (Tap to Unlock)',
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.bold,
+                            color: _capsule?.isUnlocked() == true
+                                ? Colors.green[800]
+                                : Colors.orange[900],
+                          ),
                         ),
                       ],
                     ),
                   ),
                 ),
-
-                // ── Action buttons row ─────────────────────────────────────
-                const SizedBox(height: 12),
-                _ActionButtonsRow(
-                  onAddMemory: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const AddMemoryScreen(),
-                    ),
-                  ),
-                  onVoiceNote: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const AddMemoryScreen(),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-
-                // ── Primary CTA with glow ──────────────────────────────────
-                _GlowCTA(
-                  glowCtrl: _glowCtrl,
-                  onPressed: () =>
-                      Navigator.pushNamed(context, '/family-memories'),
-                ),
               ],
-            ),
+              const SizedBox(height: 10),
+
+              // ── Contributor avatars + memory counter ───────────────────
+              _MetaRow(
+                capsule: _capsule,
+                onInvite: () {
+                  if (_capsule == null) return;
+                  ContributorSheet.show(
+                    context,
+                    capsule: _capsule!,
+                    onCapsuleUpdated: (updated) => setState(() => _capsule = updated),
+                  );
+                },
+              ),
+              const SizedBox(height: 18),
+
+              // ── Polaroid scatter ───────────────────────────────────────
+              Expanded(
+                child: Center(
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      if (mem0 != null)
+                        _MemoryCard(
+                          alignment: const Alignment(-.72, -.72),
+                          angle: -.04,
+                          image: mem0.content.isNotEmpty ? mem0.content : 'assets/images/login_image.jpg',
+                          caption: mem0.caption ?? mem0.title ?? 'Aachchi te ka',
+                          elevation: 1,
+                          onTap: () => _onCardTap(mem0),
+                        ),
+                      if (mem1 != null)
+                        _MemoryCard(
+                          alignment: const Alignment(.72, -.58),
+                          angle: .08,
+                          image: mem1.content.isNotEmpty ? mem1.content : 'assets/images/gal_vihara.png',
+                          caption: mem1.caption ?? mem1.title ?? 'The family table',
+                          elevation: 2,
+                          onTap: () => _onCardTap(mem1),
+                        ),
+                      if (mem2 != null)
+                        _MemoryCard(
+                          alignment: const Alignment(-.62, .62),
+                          angle: .03,
+                          image: mem2.content.isNotEmpty ? mem2.content : 'assets/images/mask_carver.png',
+                          caption: mem2.caption ?? mem2.title ?? 'Her blessing',
+                          elevation: 2,
+                          onTap: () => _onCardTap(mem2),
+                        ),
+                      _LetterCard(
+                        onTap: () => _onCardTap(memLetter),
+                      ),
+                      // ── Video Polaroid ─────────────────────────────────
+                      _AnimatedVideoCard(
+                        alignment: const Alignment(.10, -.05),
+                        angle: -.02,
+                        image: memVideo.content.isNotEmpty ? memVideo.content : 'assets/images/gal_vihara.png',
+                        onTap: () => _onCardTap(memVideo),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // ── Action buttons row ─────────────────────────────────────
+              const SizedBox(height: 12),
+              _ActionButtonsRow(
+                isLocked: _capsule?.isLocked() ?? true,
+                onAddMemory: _onAddMemory,
+                onVoiceNote: _onVoiceNote,
+              ),
+              const SizedBox(height: 10),
+
+              // ── Primary CTA with glow ──────────────────────────────────
+              _GlowCTA(
+                glowCtrl: _glowCtrl,
+                onPressed: () async {
+                  await Navigator.pushNamed(
+                    context,
+                    '/family-memories',
+                    arguments: _capsule,
+                  );
+                  _reloadCapsule();
+                },
+              ),
+            ],
           ),
         ),
-        bottomNavigationBar: ExplorerFooter(
-          selectedIndex: 3,
-          onSelected: (index) => _onNavSelected(context, index),
-        ),
-      );
-
-  void _showShareSheet(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const _ShareSheet(),
+      ),
+      bottomNavigationBar: ExplorerFooter(
+        selectedIndex: 3,
+        onSelected: (index) => _onNavSelected(context, index),
+      ),
     );
   }
 }
@@ -187,9 +449,11 @@ class _ActionButtonsRow extends StatelessWidget {
   const _ActionButtonsRow({
     required this.onAddMemory,
     required this.onVoiceNote,
+    this.isLocked = true,
   });
   final VoidCallback onAddMemory;
   final VoidCallback onVoiceNote;
+  final bool isLocked;
 
   @override
   Widget build(BuildContext context) => Row(
@@ -198,18 +462,19 @@ class _ActionButtonsRow extends StatelessWidget {
             child: SizedBox(
               height: 44,
               child: OutlinedButton.icon(
-                onPressed: onAddMemory,
+                onPressed: isLocked ? onAddMemory : null,
                 icon: const Icon(Icons.add_rounded, size: 17),
-                label: const Text(
-                  'Add Memory',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                label: Text(
+                  isLocked ? 'Add Memory' : 'Capsule Opened',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                 ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: _kBrown,
-                  side: const BorderSide(color: _kPeachBd, width: 1.3),
+                  disabledForegroundColor: _kMuted,
+                  side: BorderSide(color: isLocked ? _kPeachBd : _kBorder, width: 1.3),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10)),
-                  backgroundColor: _kPeach,
+                  backgroundColor: isLocked ? _kPeach : const Color(0xFFF7F2EE),
                 ),
               ),
             ),
@@ -219,18 +484,19 @@ class _ActionButtonsRow extends StatelessWidget {
             child: SizedBox(
               height: 44,
               child: OutlinedButton.icon(
-                onPressed: onVoiceNote,
+                onPressed: isLocked ? onVoiceNote : null,
                 icon: const Icon(Icons.mic_none_rounded, size: 17),
-                label: const Text(
-                  'Voice Note',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                label: Text(
+                  isLocked ? 'Voice Note' : 'Sealed',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                 ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: _kBrown,
-                  side: const BorderSide(color: _kPeachBd, width: 1.3),
+                  disabledForegroundColor: _kMuted,
+                  side: BorderSide(color: isLocked ? _kPeachBd : _kBorder, width: 1.3),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10)),
-                  backgroundColor: const Color(0xFFFFF8F0),
+                  backgroundColor: isLocked ? const Color(0xFFFFF8F0) : const Color(0xFFF7F2EE),
                 ),
               ),
             ),
@@ -287,7 +553,8 @@ class _GlowCTA extends StatelessWidget {
 // ── Unlock badge ──────────────────────────────────────────────────────────────
 
 class _UnlockBadge extends StatefulWidget {
-  const _UnlockBadge();
+  const _UnlockBadge({this.capsule});
+  final CapsuleModel? capsule;
 
   @override
   State<_UnlockBadge> createState() => _UnlockBadgeState();
@@ -338,6 +605,9 @@ class _UnlockBadgeState extends State<_UnlockBadge>
 
   @override
   Widget build(BuildContext context) {
+    final isUnlocked = widget.capsule?.isUnlocked() == true;
+    final displayDate = widget.capsule?.formattedUnlockDate ?? 'April 14, 2027';
+
     return GestureDetector(
       onTap: () {
         _wobble.forward(from: 0);
@@ -353,20 +623,25 @@ class _UnlockBadgeState extends State<_UnlockBadge>
           padding:
               const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFECDB),
+            color: isUnlocked ? const Color(0xFFE8F5E9) : const Color(0xFFFFECDB),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFE8C5A8)),
+            border: Border.all(color: isUnlocked ? Colors.green.shade400 : const Color(0xFFE8C5A8)),
           ),
-          child: const Row(
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.lock_outline_rounded,
-                  size: 12, color: _kBrown),
-              SizedBox(width: 5),
+              Icon(
+                isUnlocked ? Icons.lock_open_rounded : Icons.lock_outline_rounded,
+                size: 12,
+                color: isUnlocked ? Colors.green.shade800 : _kBrown,
+              ),
+              const SizedBox(width: 5),
               Text(
-                'Unlocks on April 14, 2027',
+                isUnlocked
+                    ? '✦ Unlocked · Tap to view ✦'
+                    : 'Unlocks on $displayDate (${widget.capsule?.countdownString ?? ""})',
                 style: TextStyle(
-                  color: _kBrown,
+                  color: isUnlocked ? Colors.green.shade800 : _kBrown,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                 ),
@@ -382,7 +657,7 @@ class _UnlockBadgeState extends State<_UnlockBadge>
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (_) => const _CountdownSheet(),
+      builder: (_) => _CountdownSheet(capsule: widget.capsule),
     );
   }
 }
@@ -390,7 +665,8 @@ class _UnlockBadgeState extends State<_UnlockBadge>
 // ── Countdown sheet ───────────────────────────────────────────────────────────
 
 class _CountdownSheet extends StatefulWidget {
-  const _CountdownSheet();
+  const _CountdownSheet({this.capsule});
+  final CapsuleModel? capsule;
 
   @override
   State<_CountdownSheet> createState() => _CountdownSheetState();
@@ -410,7 +686,8 @@ class _CountdownSheetState extends State<_CountdownSheet> {
   }
 
   Duration _calcRemaining() {
-    final target = DateTime(2027, 4, 14);
+    if (widget.capsule?.isUnlocked() == true) return Duration.zero;
+    final target = widget.capsule?.parsedUnlockDate ?? DateTime(2027, 4, 14);
     final diff = target.difference(DateTime.now());
     return diff.isNegative ? Duration.zero : diff;
   }
@@ -423,6 +700,8 @@ class _CountdownSheetState extends State<_CountdownSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final isUnlocked = widget.capsule?.isUnlocked() == true;
+    final displayDate = widget.capsule?.formattedUnlockDate ?? 'April 14, 2027';
     final d = _remaining.inDays;
     final h = _remaining.inHours % 24;
     final m = _remaining.inMinutes % 60;
@@ -447,11 +726,15 @@ class _CountdownSheetState extends State<_CountdownSheet> {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          const Icon(Icons.lock_outline_rounded, color: _kBrown, size: 32),
+          Icon(
+            isUnlocked ? Icons.lock_open_rounded : Icons.lock_outline_rounded,
+            color: isUnlocked ? Colors.green.shade800 : _kBrown,
+            size: 32,
+          ),
           const SizedBox(height: 8),
-          const Text(
-            'Sealed Until April 14, 2027',
-            style: TextStyle(
+          Text(
+            isUnlocked ? 'Capsule is Unlocked!' : 'Sealed Until $displayDate',
+            style: const TextStyle(
               color: _kBrownDeep,
               fontSize: 17,
               fontWeight: FontWeight.w700,
@@ -459,37 +742,48 @@ class _CountdownSheetState extends State<_CountdownSheet> {
             ),
           ),
           const SizedBox(height: 5),
-          const Text(
-            'This capsule will open in…',
-            style: TextStyle(color: _kMuted, fontSize: 12),
+          Text(
+            isUnlocked
+                ? 'All memories inside are now available to view.'
+                : 'This capsule will open in…',
+            style: const TextStyle(color: _kMuted, fontSize: 12),
           ),
           const SizedBox(height: 22),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _CountUnit(value: d, label: 'Days'),
-              _CountSep(),
-              _CountUnit(value: h, label: 'Hrs'),
-              _CountSep(),
-              _CountUnit(value: m, label: 'Min'),
-              _CountSep(),
-              _CountUnit(value: s, label: 'Sec'),
-            ],
-          ),
-          const SizedBox(height: 24),
+          if (!isUnlocked) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _CountUnit(value: d, label: 'Days'),
+                _CountSep(),
+                _CountUnit(value: h, label: 'Hrs'),
+                _CountSep(),
+                _CountUnit(value: m, label: 'Min'),
+                _CountSep(),
+                _CountUnit(value: s, label: 'Sec'),
+              ],
+            ),
+            const SizedBox(height: 24),
+          ],
           SizedBox(
             width: double.infinity,
             height: 44,
             child: FilledButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                Navigator.pop(context);
+                if (isUnlocked) {
+                  Navigator.pushNamed(context, '/family-memories', arguments: widget.capsule);
+                }
+              },
               style: FilledButton.styleFrom(
                 backgroundColor: _kBrown,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('Got it',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
+              child: Text(
+                isUnlocked ? 'View Your Memories' : 'Got it',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
             ),
           ),
         ],
@@ -552,242 +846,100 @@ class _CountSep extends StatelessWidget {
 // ── Meta row (contributor avatars + memory counter + invite) ─────────────────
 
 class _MetaRow extends StatelessWidget {
-  const _MetaRow();
+  const _MetaRow({this.capsule, this.onInvite});
+  final CapsuleModel? capsule;
+  final VoidCallback? onInvite;
 
   static const _avatarColors = [
     Color(0xFFD4A89A),
     Color(0xFF9BC4B2),
     Color(0xFFA8BDD4),
+    Color(0xFFE2B084),
   ];
 
   @override
-  Widget build(BuildContext context) => Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          SizedBox(
-            width: 52,
-            height: 22,
-            child: Stack(
-              children: [
-                for (var i = 0; i < _avatarColors.length; i++)
-                  Positioned(
-                    left: i * 16.0,
-                    child: Container(
-                      width: 22,
-                      height: 22,
-                      decoration: BoxDecoration(
-                        color: _avatarColors[i],
-                        shape: BoxShape.circle,
-                        border:
-                            Border.all(color: Colors.white, width: 1.5),
-                      ),
+  Widget build(BuildContext context) {
+    final contributors = capsule?.contributors.isNotEmpty == true
+        ? capsule!.contributors
+        : ['Grandma', 'Uncle', 'You'];
+    final count = capsule?.memories.isNotEmpty == true ? capsule!.memories.length : 4;
+
+    String contributorText;
+    if (contributors.length == 1) {
+      contributorText = 'Added by ${contributors[0]}';
+    } else if (contributors.length == 2) {
+      contributorText = 'Added by ${contributors[0]} & ${contributors[1]}';
+    } else {
+      contributorText = 'Added by ${contributors.take(2).join(", ")} & You';
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        SizedBox(
+          width: (contributors.take(3).length * 16.0) + 8,
+          height: 22,
+          child: Stack(
+            children: [
+              for (var i = 0; i < contributors.take(3).length; i++)
+                Positioned(
+                  left: i * 16.0,
+                  child: Container(
+                    width: 22,
+                    height: 22,
+                    decoration: BoxDecoration(
+                      color: _avatarColors[i % _avatarColors.length],
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 1.5),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      contributors[i].isNotEmpty ? contributors[i][0].toUpperCase() : '?',
+                      style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold),
                     ),
                   ),
-              ],
-            ),
+                ),
+            ],
           ),
-          const SizedBox(width: 6),
-          const Flexible(
-            child: Text(
-              'Added by Grandma, Uncle & You',
-              style: TextStyle(color: _kMuted, fontSize: 11),
-              overflow: TextOverflow.ellipsis,
-            ),
+        ),
+        const SizedBox(width: 6),
+        Flexible(
+          child: Text(
+            contributorText,
+            style: const TextStyle(color: _kMuted, fontSize: 11),
+            overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(width: 6),
-          // ── Invite button ────────────────────────────────────────────
-          GestureDetector(
-            onTap: () => _showInviteSheet(context),
-            child: Container(
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                border: Border.all(
-                    color: _kBrown.withAlpha(120),
-                    width: 1.3),
-                boxShadow: const [
-                  BoxShadow(
-                      color: Color(0x15000000),
-                      blurRadius: 4,
-                      offset: Offset(0, 2)),
-                ],
-              ),
-              child: const Icon(Icons.person_add_rounded,
-                  size: 11, color: _kBrown),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        ),
+        const SizedBox(width: 6),
+        GestureDetector(
+          onTap: onInvite,
+          child: Container(
+            width: 22,
+            height: 22,
             decoration: BoxDecoration(
-              color: _kBrown,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Text(
-              '4 Memories',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 9.5,
-                  fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
-      );
-
-  void _showInviteSheet(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const _ShareSheet(),
-    );
-  }
-}
-
-// ── Share / Invite sheet ─────────────────────────────────────────────────────
-
-class _ShareSheet extends StatelessWidget {
-  const _ShareSheet();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFFFDF8F4),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 36),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 20),
-              decoration: BoxDecoration(
-                color: const Color(0xFFD9C4BC),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const Text(
-            'Invite Family Members',
-            style: TextStyle(
-              color: _kBrownDeep,
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
-              fontFamily: 'serif',
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Share this capsule with loved ones',
-            style: TextStyle(color: _kMuted, fontSize: 12),
-          ),
-          const SizedBox(height: 20),
-          // Invite options
-          _InviteOption(
-            icon: Icons.link_rounded,
-            label: 'Copy invite link',
-            sublabel: 'rootly.app/capsule/FamilyRecipe',
-            onTap: () => Navigator.pop(context),
-          ),
-          const SizedBox(height: 10),
-          _InviteOption(
-            icon: Icons.mail_outline_rounded,
-            label: 'Invite via Email',
-            sublabel: 'Send a link to their inbox',
-            onTap: () => Navigator.pop(context),
-          ),
-          const SizedBox(height: 10),
-          _InviteOption(
-            icon: Icons.message_outlined,
-            label: 'Invite via Message',
-            sublabel: 'Share through SMS or WhatsApp',
-            onTap: () => Navigator.pop(context),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            height: 44,
-            child: OutlinedButton(
-              onPressed: () => Navigator.pop(context),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: _kBrown,
-                side: const BorderSide(color: _kPeachBd),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
-              child: const Text('Cancel',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InviteOption extends StatelessWidget {
-  const _InviteOption({
-    required this.icon,
-    required this.label,
-    required this.sublabel,
-    required this.onTap,
-  });
-  final IconData icon;
-  final String label;
-  final String sublabel;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: _kBorder),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFECDB),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: _kBrown, size: 18),
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label,
-                    style: const TextStyle(
-                      color: _kBrownDeep,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    )),
-                Text(sublabel,
-                    style: const TextStyle(
-                        color: _kMuted, fontSize: 10.5)),
+              color: Colors.white,
+              shape: BoxShape.circle,
+              border: Border.all(color: _kBrown.withAlpha(120), width: 1.3),
+              boxShadow: const [
+                BoxShadow(color: Color(0x15000000), blurRadius: 4, offset: Offset(0, 2)),
               ],
             ),
-            const Spacer(),
-            const Icon(Icons.chevron_right_rounded,
-                color: _kMuted, size: 18),
-          ],
+            child: const Icon(Icons.person_add_rounded, size: 11, color: _kBrown),
+          ),
         ),
-      ),
+        const SizedBox(width: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: _kBrown,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(
+            '$count Memories',
+            style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.w700),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -799,10 +951,12 @@ class _AnimatedVideoCard extends StatefulWidget {
     required this.alignment,
     required this.angle,
     required this.image,
+    this.onTap,
   });
   final Alignment alignment;
   final double angle;
   final String image;
+  final VoidCallback? onTap;
 
   @override
   State<_AnimatedVideoCard> createState() => _AnimatedVideoCardState();
@@ -839,7 +993,7 @@ class _AnimatedVideoCardState extends State<_AnimatedVideoCard>
         child: Transform.rotate(
           angle: widget.angle,
           child: GestureDetector(
-            onTap: () => _openVideoPlayer(context),
+            onTap: widget.onTap ?? () => _openVideoPlayer(context),
             child: Container(
               width: 115,
               padding: const EdgeInsets.all(7),
@@ -1252,65 +1406,83 @@ class _MemoryCard extends StatelessWidget {
     required this.image,
     required this.caption,
     this.elevation = 1,
+    this.onTap,
   });
   final Alignment alignment;
   final double angle;
   final String image;
   final String caption;
   final int elevation;
+  final VoidCallback? onTap;
+
+  Widget _buildImage(String path) {
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return Image.network(path, height: 94, width: double.infinity, fit: BoxFit.cover);
+    } else if (path.startsWith('assets/')) {
+      return Image.asset(path, height: 94, width: double.infinity, fit: BoxFit.cover);
+    } else {
+      try {
+        final f = File(path);
+        if (f.existsSync()) {
+          return Image.file(f, height: 94, width: double.infinity, fit: BoxFit.cover);
+        }
+      } catch (_) {}
+      return Image.asset('assets/images/login_image.jpg', height: 94, width: double.infinity, fit: BoxFit.cover);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Align(
       alignment: alignment,
-      child: Transform(
-        transform: Matrix4.identity()
-          ..setEntry(3, 2, 0.001)
-          ..rotateZ(angle)
-          ..rotateX(angle * .4),
-        alignment: FractionalOffset.center,
-        child: Container(
-          width: 108,
-          padding: const EdgeInsets.all(7),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(9),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0x2A4D3022),
-                blurRadius: 8 + elevation * 6.0,
-                offset: Offset(0, 3 + elevation * 2.0),
-              ),
-              BoxShadow(
-                color: const Color(0x124D3022),
-                blurRadius: 4,
-                offset: const Offset(2, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(5),
-                child: Image.asset(
-                  image,
-                  height: 94,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Transform(
+          transform: Matrix4.identity()
+            ..setEntry(3, 2, 0.001)
+            ..rotateZ(angle)
+            ..rotateX(angle * .4),
+          alignment: FractionalOffset.center,
+          child: Container(
+            width: 108,
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(9),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0x2A4D3022),
+                  blurRadius: 8 + elevation * 6.0,
+                  offset: Offset(0, 3 + elevation * 2.0),
                 ),
-              ),
-              const SizedBox(height: 7),
-              Text(
-                caption,
-                style: const TextStyle(
-                  color: _kBrown,
-                  fontFamily: 'serif',
-                  fontSize: 10,
-                  fontStyle: FontStyle.italic,
+                BoxShadow(
+                  color: const Color(0x124D3022),
+                  blurRadius: 4,
+                  offset: const Offset(2, 2),
                 ),
-              ),
-            ],
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(5),
+                  child: _buildImage(image),
+                ),
+                const SizedBox(height: 7),
+                Text(
+                  caption,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: _kBrown,
+                    fontFamily: 'serif',
+                    fontSize: 10,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1321,42 +1493,48 @@ class _MemoryCard extends StatelessWidget {
 // ── Letter card ───────────────────────────────────────────────────────────────
 
 class _LetterCard extends StatelessWidget {
+  const _LetterCard({this.onTap});
+  final VoidCallback? onTap;
+
   @override
   Widget build(BuildContext context) => Align(
         alignment: const Alignment(.63, .64),
-        child: Container(
-          width: 106,
-          height: 115,
-          padding: const EdgeInsets.all(11),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(9),
-            boxShadow: const [
-              BoxShadow(
-                  color: Color(0x2A4D3022),
-                  blurRadius: 14,
-                  offset: Offset(0, 6)),
-              BoxShadow(
-                  color: Color(0x104D3022),
-                  blurRadius: 4,
-                  offset: Offset(2, 2)),
-            ],
-          ),
-          child: const Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.mail_outline_rounded,
-                  color: Color(0xFFC17B4F), size: 30),
-              SizedBox(height: 20),
-              Text(
-                'A letter for you',
-                style: TextStyle(
-                  color: _kBrown,
-                  fontFamily: 'serif',
-                  fontSize: 10,
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            width: 106,
+            height: 115,
+            padding: const EdgeInsets.all(11),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(9),
+              boxShadow: const [
+                BoxShadow(
+                    color: Color(0x2A4D3022),
+                    blurRadius: 14,
+                    offset: Offset(0, 6)),
+                BoxShadow(
+                    color: Color(0x104D3022),
+                    blurRadius: 4,
+                    offset: Offset(2, 2)),
+              ],
+            ),
+            child: const Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.mail_outline_rounded,
+                    color: Color(0xFFC17B4F), size: 30),
+                SizedBox(height: 20),
+                Text(
+                  'A letter for you',
+                  style: TextStyle(
+                    color: _kBrown,
+                    fontFamily: 'serif',
+                    fontSize: 10,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       );

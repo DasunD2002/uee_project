@@ -11,39 +11,68 @@ if (-not (Test-Path -LiteralPath $adbPath)) {
 }
 
 $projectPath = Split-Path -Parent $PSScriptRoot
+
+# 1. Device Resolution: check physical USB phone, then running emulator, or launch Pixel_7
 if (-not $DeviceId.Trim()) {
-    $serial = & $adbPath -d get-serialno
-    if ($LASTEXITCODE -ne 0 -or -not $serial -or $serial.Trim() -eq 'unknown') {
-        throw 'Connect one USB Android phone, or pass -DeviceId with the serial from adb devices.'
+    $rawDevices = & $adbPath devices
+    $onlineDevices = $rawDevices | Where-Object { $_ -match '^([^\s]+)\s+device$' } | ForEach-Object { $matches[1] }
+    
+    if ($onlineDevices) {
+        $DeviceId = ($onlineDevices | Select-Object -First 1).Trim()
+    } else {
+        Write-Host "No active Android device found. Launching Pixel_7 emulator..."
+        flutter emulators --launch Pixel_7
+        Write-Host "Waiting for Android emulator to boot..."
+        & $adbPath wait-for-device
+        Start-Sleep -Seconds 5
+        $rawDevices = & $adbPath devices
+        $onlineDevices = $rawDevices | Where-Object { $_ -match '^([^\s]+)\s+device$' } | ForEach-Object { $matches[1] }
+        if ($onlineDevices) {
+            $DeviceId = ($onlineDevices | Select-Object -First 1).Trim()
+        } else {
+            $DeviceId = 'emulator-5554'
+        }
     }
-    $DeviceId = $serial.Trim()
 }
+
 $adbArguments = @('-s', $DeviceId.Trim())
 $deviceState = & $adbPath @adbArguments get-state
 if ($LASTEXITCODE -ne 0 -or -not $deviceState -or $deviceState.Trim() -ne 'device') {
-    throw "Phone $DeviceId is unavailable. Connect USB and authorize USB debugging on the phone."
+    throw "Device $DeviceId is unavailable. Ensure it is authorized and online."
 }
 
-try {
-    $categories = Invoke-RestMethod -Uri 'http://127.0.0.1:8080/api/v1/explore/categories' -TimeoutSec 10
-    if (-not $categories -or -not $categories[0].id) {
-        throw 'The server did not return Explore categories.'
+# 2. Detect Backend Port (8081 for Rootly, or fallback to 8080)
+$backendPort = 8081
+$backendResponding = $false
+foreach ($port in @(8081, 8080)) {
+    try {
+        $res = Invoke-WebRequest -Uri "http://127.0.0.1:$port/api/v1/explore/categories" -TimeoutSec 3 -UseBasicParsing -ErrorAction SilentlyContinue
+        if ($res -and $res.StatusCode -lt 500) {
+            $backendPort = $port
+            $backendResponding = $true
+            break
+        }
+    } catch {
+        # Try next port
     }
-} catch {
-    throw "Rootly backend is not responding at http://127.0.0.1:8080. Start Rootly_Backend and retry. $($_.Exception.Message)"
 }
 
-& $adbPath @adbArguments reverse tcp:8080 tcp:8080
-if ($LASTEXITCODE -ne 0) {
-    throw 'Could not forward the phone port 8080 to the Rootly backend.'
+if (-not $backendResponding) {
+    Write-Host "Notice: Rootly backend did not respond to /explore/categories on 8081 or 8080. Using port $backendPort."
 }
 
-Write-Host "Phone $DeviceId is connected to Rootly at http://127.0.0.1:8080 through USB."
+# 3. Reverse Port Forwarding
+& $adbPath @adbArguments reverse "tcp:$backendPort" "tcp:$backendPort"
+if ($backendPort -ne 8080) {
+    & $adbPath @adbArguments reverse tcp:8080 "tcp:$backendPort"
+}
+
+Write-Host "Device $DeviceId is connected to Rootly at port $backendPort."
 if ($PrepareOnly) {
     return
 }
 
-# Prefer the SDK configured by this project over whichever Flutter is on PATH.
+# 4. Resolve Flutter SDK
 $flutterPath = $null
 $localPropertiesPath = Join-Path $projectPath 'android\local.properties'
 if (Test-Path -LiteralPath $localPropertiesPath) {
@@ -58,16 +87,16 @@ if (-not $flutterPath -or -not (Test-Path -LiteralPath $flutterPath)) {
     $flutterPath = (Get-Command flutter -ErrorAction Stop).Source
 }
 
+$isEmulator = $DeviceId.Trim() -match 'emulator'
+$hostIp = if ($isEmulator) { '10.0.2.2' } else { '127.0.0.1' }
+
 $flutterArguments = @(
     'run',
     '--debug',
     '-d', $DeviceId.Trim(),
-    '--dart-define=API_BASE_URL=http://127.0.0.1:8080'
+    "--dart-define=API_BASE_URL=http://${hostIp}:$backendPort"
 )
 
-# Flutter's batch scripts expand PATH without quoting it. An ampersand in an
-# unrelated entry can become a command separator. Limit this workaround to
-# this launcher process, preserving the user's stored PATH.
 $originalPath = $env:Path
 $runExitCode = 1
 Push-Location $projectPath
