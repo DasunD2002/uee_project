@@ -31,6 +31,10 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Rootly uses the microphone to type English words for translation.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Rootly converts spoken English into text for translation.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

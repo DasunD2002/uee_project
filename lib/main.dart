@@ -20,7 +20,6 @@ import 'features/explorer/presentation/sri_lanka_3d_map_screen.dart';
 import 'features/home/presentation/home_screen.dart';
 import 'features/splash/presentation/splash_screen.dart';
 import 'features/Profile/presentation/profile_screen.dart';
-import 'features/questions/domain/question.dart';
 import 'features/questions/presentation/ask_question_screen.dart';
 import 'features/questions/presentation/question_detail_screen.dart';
 import 'features/questions/presentation/questions_screen.dart';
@@ -80,9 +79,7 @@ class RootlyApp extends StatelessWidget {
       '/province-map': (_) => const SriLanka3DMapScreen(),
       '/questions': (_) => const QuestionsScreen(),
       '/question-detail': (context) => QuestionDetailScreen(
-        question:
-            ModalRoute.of(context)?.settings.arguments as Question? ??
-            sampleQuestions.first,
+        questionId: ModalRoute.of(context)!.settings.arguments! as String,
       ),
       '/ask-question': (_) => const AskQuestionScreen(),
       '/notifications': (_) => const NotificationsScreen(),

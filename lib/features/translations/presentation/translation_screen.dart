@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -5,11 +7,19 @@ import '../../../core/navigation/primary_navigation.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../explorer/presentation/widgets/explorer_footer.dart';
 import '../../home/presentation/widgets/home_drawer.dart';
-import '../data/translation_repository.dart';
+import '../data/english_speech_service.dart';
+import '../data/translation_service.dart';
 import '../domain/translation_entry.dart';
 
 class TranslationScreen extends StatefulWidget {
-  const TranslationScreen({super.key});
+  const TranslationScreen({
+    super.key,
+    this.translationService,
+    this.speechService,
+  });
+
+  final TranslationService? translationService;
+  final EnglishSpeechService? speechService;
 
   @override
   State<TranslationScreen> createState() => _TranslationScreenState();
@@ -23,53 +33,171 @@ class _TranslationScreenState extends State<TranslationScreen> {
     'Directions',
   ];
 
-  final _repository = const TranslationRepository();
   final _controller = TextEditingController(text: 'stupa');
-  final _favourites = <String>{'Stupa', 'Please'};
-  final _recentWords = <String>['Stupa', 'Please', 'Where', 'Water'];
+  final _favourites = <String>{};
+  final _recentEntries = <TranslationEntry>[];
+  late final TranslationService _translationService;
+  late final EnglishSpeechService _speechService;
+  Timer? _lookupDebounce;
+  int _lookupRequest = 0;
+  int _glossaryRequest = 0;
   bool _fromEnglish = true;
   bool _pageBookmarked = false;
   String _category = 'Temple';
   TranslationEntry? _entry;
+  List<TranslationEntry> _glossaryEntries = const [];
+  bool _lookupLoading = true;
+  bool _glossaryLoading = true;
+  String? _lookupError;
+  String? _glossaryError;
+  bool _speechInitialized = false;
+  bool _speechInitializing = false;
+  bool _listening = false;
+  bool _speechHasResult = false;
+  bool _disposing = false;
 
   @override
   void initState() {
     super.initState();
-    _entry = _repository.find('stupa', fromEnglish: true);
+    _translationService = widget.translationService ?? ApiTranslationService();
+    _speechService = widget.speechService ?? DeviceEnglishSpeechService();
+    _performLookup('stupa');
+    _loadGlossary();
   }
 
   @override
   void dispose() {
+    _disposing = true;
+    _lookupDebounce?.cancel();
+    if (_speechInitialized) unawaited(_speechService.cancel());
     _controller.dispose();
     super.dispose();
   }
 
-  void _lookup(String value, {bool remember = false}) {
-    final entry = _repository.find(value, fromEnglish: _fromEnglish);
-    setState(() => _entry = entry);
-    if (remember && entry != null) _remember(entry);
+  void _queueLookup(String value) {
+    _lookupDebounce?.cancel();
+    final text = value.trim();
+    final request = ++_lookupRequest;
+    if (text.isEmpty) {
+      setState(() {
+        _entry = null;
+        _lookupLoading = false;
+        _lookupError = null;
+      });
+      return;
+    }
+    setState(() {
+      _entry = null;
+      _lookupLoading = true;
+      _lookupError = null;
+    });
+    _lookupDebounce = Timer(
+      const Duration(milliseconds: 350),
+      () => _performLookup(text, request: request),
+    );
   }
 
-  void _remember(TranslationEntry entry) {
+  Future<void> _performLookup(
+    String value, {
+    bool remember = false,
+    int? request,
+  }) async {
+    _lookupDebounce?.cancel();
+    final text = value.trim();
+    if (text.isEmpty) {
+      _clearInput();
+      return;
+    }
+    final currentRequest = request ?? ++_lookupRequest;
+    if (mounted) {
+      setState(() {
+        _lookupLoading = true;
+        _lookupError = null;
+      });
+    }
+    try {
+      final entry = await _translationService.lookup(
+        text: text,
+        sourceLanguage: _fromEnglish ? 'en' : 'si',
+        targetLanguage: _fromEnglish ? 'si' : 'en',
+      );
+      if (!mounted || currentRequest != _lookupRequest) return;
+      setState(() {
+        _entry = entry;
+        _lookupLoading = false;
+        _lookupError = null;
+        if (remember) _rememberWithoutRebuild(entry);
+      });
+    } catch (error) {
+      if (!mounted || currentRequest != _lookupRequest) return;
+      setState(() {
+        _entry = null;
+        _lookupLoading = false;
+        _lookupError = error.toString();
+      });
+    }
+  }
+
+  Future<void> _loadGlossary() async {
+    final currentRequest = ++_glossaryRequest;
     setState(() {
-      _recentWords
-        ..remove(entry.english)
-        ..insert(0, entry.english);
-      if (_recentWords.length > 6) _recentWords.removeLast();
+      _glossaryLoading = true;
+      _glossaryError = null;
     });
+    try {
+      final page = await _translationService.getGlossary(
+        category: _category,
+        size: 4,
+      );
+      if (!mounted || currentRequest != _glossaryRequest) return;
+      setState(() {
+        _glossaryEntries = page.items;
+        _glossaryLoading = false;
+      });
+    } catch (error) {
+      if (!mounted || currentRequest != _glossaryRequest) return;
+      setState(() {
+        _glossaryEntries = const [];
+        _glossaryLoading = false;
+        _glossaryError = error.toString();
+      });
+    }
+  }
+
+  void _selectCategory(String category) {
+    if (_category == category) return;
+    setState(() => _category = category);
+    _loadGlossary();
+  }
+
+  void _rememberWithoutRebuild(TranslationEntry entry) {
+    _recentEntries
+      ..removeWhere((value) => _entryKey(value) == _entryKey(entry))
+      ..insert(0, entry);
+    if (_recentEntries.length > 6) _recentEntries.removeLast();
   }
 
   void _selectEntry(TranslationEntry entry) {
+    _lookupDebounce?.cancel();
+    _lookupRequest++;
     final input = _fromEnglish ? entry.english : entry.sinhala;
     _controller
       ..text = input
       ..selection = TextSelection.collapsed(offset: input.length);
-    setState(() => _entry = entry);
-    _remember(entry);
+    setState(() {
+      _entry = entry;
+      _lookupLoading = false;
+      _lookupError = null;
+      _rememberWithoutRebuild(entry);
+    });
   }
 
   void _swapLanguages() {
+    _stopVoiceInput();
+    _lookupDebounce?.cancel();
+    _lookupRequest++;
     final entry = _entry;
+    final pendingText = _controller.text.trim();
     setState(() {
       _fromEnglish = !_fromEnglish;
       if (entry == null) return;
@@ -79,21 +207,133 @@ class _TranslationScreenState extends State<TranslationScreen> {
         ..selection = TextSelection.collapsed(offset: input.length);
       _entry = entry;
     });
+    if (entry == null && pendingText.isNotEmpty) {
+      _performLookup(pendingText);
+    }
   }
 
   void _clearInput() {
+    _stopVoiceInput();
+    _lookupDebounce?.cancel();
+    _lookupRequest++;
     _controller.clear();
-    setState(() => _entry = null);
+    setState(() {
+      _entry = null;
+      _lookupLoading = false;
+      _lookupError = null;
+    });
   }
 
   void _toggleFavourite() {
     final entry = _entry;
     if (entry == null) return;
+    final key = _entryKey(entry);
     setState(() {
-      if (!_favourites.add(entry.english)) {
-        _favourites.remove(entry.english);
+      if (!_favourites.add(key)) {
+        _favourites.remove(key);
       }
     });
+  }
+
+  String _entryKey(TranslationEntry entry) =>
+      entry.id.isNotEmpty ? entry.id : entry.english.toLowerCase();
+
+  Future<void> _toggleVoiceInput() async {
+    if (!_fromEnglish) {
+      _showMessage('Voice input is available for English words only');
+      return;
+    }
+    if (_speechInitializing) return;
+    if (_listening || _speechService.isListening) {
+      await _speechService.stop();
+      if (mounted && !_disposing) setState(() => _listening = false);
+      return;
+    }
+
+    setState(() => _speechInitializing = true);
+    try {
+      if (!_speechInitialized) {
+        _speechInitialized = await _speechService.initialize(
+          onListeningChanged: (listening) {
+            if (mounted && !_disposing) {
+              setState(() => _listening = listening);
+            }
+          },
+          onError: _handleSpeechError,
+        );
+      }
+      if (!_speechInitialized) {
+        _showMessage(
+          'Speech recognition is unavailable or microphone permission was denied',
+        );
+        return;
+      }
+      _speechHasResult = false;
+      await _speechService.listen(onResult: _handleSpeechResult);
+    } catch (_) {
+      if (mounted && !_disposing) {
+        _showMessage('Voice input could not start. Please try again.');
+      }
+    } finally {
+      if (mounted && !_disposing) {
+        setState(() => _speechInitializing = false);
+      }
+    }
+  }
+
+  void _handleSpeechResult(String value, bool finalResult) {
+    if (!mounted || _disposing) return;
+    final recognized = value.trim();
+    if (recognized.isEmpty) return;
+    _speechHasResult = true;
+    final text = recognized.length > 120
+        ? recognized.substring(0, 120)
+        : recognized;
+    _controller
+      ..text = text
+      ..selection = TextSelection.collapsed(offset: text.length);
+    if (finalResult) {
+      _performLookup(text, remember: true);
+    } else {
+      _queueLookup(text);
+    }
+  }
+
+  void _handleSpeechError(String message) {
+    if (!mounted || _disposing) return;
+    final normalized = message.toLowerCase();
+    final noSpeechDetected =
+        normalized.contains('speech_timeout') ||
+        normalized.contains('no_match');
+    setState(() {
+      _listening = false;
+      _speechInitializing = false;
+    });
+
+    if (noSpeechDetected && _speechHasResult) return;
+    if (noSpeechDetected) {
+      _showMessage('No speech was detected. Tap the microphone and try again.');
+    } else if (normalized.contains('permission')) {
+      _showMessage('Microphone permission is required for voice input.');
+    } else if (normalized.contains('network')) {
+      _showMessage(
+        'Speech recognition needs a working internet connection. Please try again.',
+      );
+    } else if (normalized.contains('audio')) {
+      _showMessage('The microphone could not be accessed. Please try again.');
+    } else if (normalized.contains('busy')) {
+      _showMessage('Speech recognition is busy. Wait a moment and try again.');
+    } else {
+      _showMessage('Voice input could not complete. Please try again.');
+    }
+  }
+
+  void _stopVoiceInput() {
+    if (!_speechInitialized || (!_listening && !_speechService.isListening)) {
+      return;
+    }
+    unawaited(_speechService.stop());
+    if (mounted && !_disposing) setState(() => _listening = false);
   }
 
   void _copyTranslation() {
@@ -187,17 +427,21 @@ class _TranslationScreenState extends State<TranslationScreen> {
           _TranslationInput(
             controller: _controller,
             fromEnglish: _fromEnglish,
-            onChanged: _lookup,
-            onSubmitted: (value) => _lookup(value, remember: true),
+            onChanged: _queueLookup,
+            onSubmitted: (value) => _performLookup(value, remember: true),
             onClear: _clearInput,
-            onMicrophone: () => _showMessage('Voice input is ready'),
+            listening: _listening,
+            microphoneBusy: _speechInitializing,
+            onMicrophone: _toggleVoiceInput,
             onScan: () => _showMessage('Text scanner is ready'),
           ),
           const SizedBox(height: 14),
           _TranslationResult(
             entry: entry,
             fromEnglish: _fromEnglish,
-            favourite: entry != null && _favourites.contains(entry.english),
+            loading: _lookupLoading,
+            error: _lookupError,
+            favourite: entry != null && _favourites.contains(_entryKey(entry)),
             onSpeak: () => _showMessage('Playing pronunciation'),
             onCopy: _copyTranslation,
             onFavourite: _toggleFavourite,
@@ -219,7 +463,7 @@ class _TranslationScreenState extends State<TranslationScreen> {
                   label: Text(category),
                   selected: category == _category,
                   showCheckmark: false,
-                  onSelected: (_) => setState(() => _category = category),
+                  onSelected: (_) => _selectCategory(category),
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   visualDensity: VisualDensity.compact,
                   backgroundColor: Colors.white,
@@ -240,28 +484,38 @@ class _TranslationScreenState extends State<TranslationScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          _GlossaryList(
-            entries: _repository.entriesForCategory(_category),
-            onSelected: _selectEntry,
-          ),
+          if (_glossaryLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_glossaryError != null)
+            _TranslationError(message: _glossaryError!, onRetry: _loadGlossary)
+          else
+            _GlossaryList(entries: _glossaryEntries, onSelected: _selectEntry),
           const SizedBox(height: 14),
           const _SectionTitle('Recent lookups'),
           const SizedBox(height: 8),
-          for (final word in _recentWords) ...[
-            _RecentLookup(
-              entry: TranslationRepository.entries.firstWhere(
-                (entry) => entry.english == word,
+          if (_recentEntries.isEmpty)
+            const Text(
+              'Your successful lookups will appear here.',
+              style: TextStyle(color: Color(0xFF8C786E), fontSize: 11),
+            )
+          else
+            for (final recentEntry in _recentEntries) ...[
+              _RecentLookup(
+                entry: recentEntry,
+                favourite: _favourites.contains(_entryKey(recentEntry)),
+                onTap: _selectEntry,
+                onFavourite: (entry) => setState(() {
+                  final key = _entryKey(entry);
+                  if (!_favourites.add(key)) {
+                    _favourites.remove(key);
+                  }
+                }),
               ),
-              favourite: _favourites.contains(word),
-              onTap: _selectEntry,
-              onFavourite: (entry) => setState(() {
-                if (!_favourites.add(entry.english)) {
-                  _favourites.remove(entry.english);
-                }
-              }),
-            ),
-            const SizedBox(height: 7),
-          ],
+              const SizedBox(height: 7),
+            ],
         ],
       ),
       bottomNavigationBar: ExplorerFooter(
@@ -357,6 +611,8 @@ class _TranslationInput extends StatelessWidget {
     required this.onChanged,
     required this.onSubmitted,
     required this.onClear,
+    required this.listening,
+    required this.microphoneBusy,
     required this.onMicrophone,
     required this.onScan,
   });
@@ -366,6 +622,8 @@ class _TranslationInput extends StatelessWidget {
   final ValueChanged<String> onChanged;
   final ValueChanged<String> onSubmitted;
   final VoidCallback onClear;
+  final bool listening;
+  final bool microphoneBusy;
   final VoidCallback onMicrophone;
   final VoidCallback onScan;
 
@@ -421,12 +679,13 @@ class _TranslationInput extends StatelessWidget {
         Row(
           children: [
             IconButton(
-              tooltip: 'Voice input',
-              onPressed: onMicrophone,
+              key: const ValueKey('translation-voice-input'),
+              tooltip: listening ? 'Stop voice input' : 'Voice input',
+              onPressed: microphoneBusy ? null : onMicrophone,
               visualDensity: VisualDensity.compact,
-              icon: const Icon(
-                Icons.mic_none_rounded,
-                color: Color(0xFF8D7569),
+              icon: Icon(
+                listening ? Icons.stop_circle_outlined : Icons.mic_none_rounded,
+                color: listening ? AppColors.brown : const Color(0xFF8D7569),
                 size: 18,
               ),
             ),
@@ -457,6 +716,8 @@ class _TranslationResult extends StatelessWidget {
   const _TranslationResult({
     required this.entry,
     required this.fromEnglish,
+    required this.loading,
+    required this.error,
     required this.favourite,
     required this.onSpeak,
     required this.onCopy,
@@ -465,6 +726,8 @@ class _TranslationResult extends StatelessWidget {
 
   final TranslationEntry? entry;
   final bool fromEnglish;
+  final bool loading;
+  final String? error;
   final bool favourite;
   final VoidCallback onSpeak;
   final VoidCallback onCopy;
@@ -480,7 +743,32 @@ class _TranslationResult extends StatelessWidget {
         color: const Color(0xFF7E2E1B),
         borderRadius: BorderRadius.circular(16),
       ),
-      child: value == null
+      child: loading
+          ? const Center(child: CircularProgressIndicator(color: Colors.white))
+          : error != null
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Translation unavailable',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontFamily: 'serif',
+                    fontSize: 24,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  error!,
+                  style: const TextStyle(
+                    color: Color(0xFFFFDCC8),
+                    fontSize: 11,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            )
+          : value == null
           ? const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -576,6 +864,34 @@ class _ResultButton extends StatelessWidget {
     ),
     visualDensity: VisualDensity.compact,
     icon: Icon(icon, size: 18),
+  );
+}
+
+class _TranslationError extends StatelessWidget {
+  const _TranslationError({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      border: Border.all(color: const Color(0xFFE7D7CC)),
+      borderRadius: BorderRadius.circular(14),
+    ),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            message,
+            style: const TextStyle(color: Color(0xFF8C4A3A), fontSize: 11),
+          ),
+        ),
+        TextButton(onPressed: onRetry, child: const Text('Retry')),
+      ],
+    ),
   );
 }
 
