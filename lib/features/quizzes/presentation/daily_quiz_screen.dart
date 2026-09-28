@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/navigation/primary_navigation.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../explorer/presentation/widgets/explorer_footer.dart';
-import '../domain/quiz_progress_store.dart';
+import '../data/quiz_service.dart';
+import '../domain/quiz.dart';
 
 const _quizBackground = Colors.white;
 const _quizSurface = Color(0xFFFFFCF8);
@@ -11,176 +14,318 @@ const _quizPeach = Color(0xFFFFEBD8);
 const _quizLine = Color(0xFFEBDACB);
 const _quizMuted = Color(0xFF8C766B);
 
+enum _FeedbackTone { success, warning, error }
+
 class DailyQuizScreen extends StatefulWidget {
-  const DailyQuizScreen({super.key});
+  const DailyQuizScreen({super.key, this.quizService, this.initialSession});
+
+  final QuizService? quizService;
+  final QuizSession? initialSession;
 
   @override
   State<DailyQuizScreen> createState() => _DailyQuizScreenState();
 }
 
 class _DailyQuizScreenState extends State<DailyQuizScreen> {
-  final progress = QuizProgressStore.instance;
-  final builderLetters = const ['P', 'S', 'A', 'T', 'U'];
-  final fillLetters = const ['G', 'I', 'R', 'A', 'Y', 'I', 'N'];
-
-  late int stage;
-  final List<int> builderSelection = [];
-  final List<int> fillSelection = [];
+  late final QuizService _quizService;
+  QuizSession? _session;
+  Timer? _timer;
+  int _remainingSeconds = 30;
+  List<int?> _builderSlots = [];
+  List<int?> _fillSlots = [];
+  final List<int> _builderPlacementOrder = [];
+  final List<int> _fillPlacementOrder = [];
   int? meaningSelection;
   String? feedback;
-  bool transitioning = false;
+  _FeedbackTone? _feedbackTone;
+  bool _loading = true;
+  bool _submitting = false;
+  bool _handlingTimeout = false;
 
   @override
   void initState() {
     super.initState();
-    stage = progress.completedSteps.clamp(0, 2);
+    _quizService = widget.quizService ?? ApiQuizService();
+    final initial = widget.initialSession;
+    if (initial == null) {
+      _loadSession();
+    } else {
+      _applySession(initial);
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   void _navigate(int index) => navigateToPrimaryDestination(context, index);
 
-  Future<void> _completeStage() async {
-    if (transitioning) return;
-    transitioning = true;
-    final scores = [40, 70, 100];
-    progress.completeStep(step: stage + 1, score: scores[stage]);
-    setState(() => feedback = 'Correct!');
-    await Future<void>.delayed(const Duration(milliseconds: 450));
-    if (!mounted) return;
-    if (stage == 2) {
-      Navigator.pop(context, progress.score);
-      return;
+  Future<void> _loadSession() async {
+    try {
+      final session = await _quizService.startOrResume();
+      if (mounted) _applySession(session);
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          feedback = error.toString();
+          _feedbackTone = _FeedbackTone.error;
+        });
+      }
     }
-    setState(() {
-      stage += 1;
-      feedback = null;
-      transitioning = false;
-    });
   }
 
-  Future<void> _addBuilderLetter(int index) async {
-    if (transitioning || builderSelection.contains(index)) return;
+  void _applySession(QuizSession session) {
+    _timer?.cancel();
+    final question = session.question;
     setState(() {
-      builderSelection.add(index);
+      _session = session;
+      _loading = false;
+      _submitting = false;
+      _handlingTimeout = false;
+      meaningSelection = null;
       feedback = null;
+      _feedbackTone = null;
+      _builderSlots = List<int?>.filled(question?.targetLength ?? 0, null);
+      _fillSlots = List<int?>.filled(
+        question?.blankPositions.length ?? 0,
+        null,
+      );
+      _builderPlacementOrder.clear();
+      _fillPlacementOrder.clear();
     });
-    if (builderSelection.length != builderLetters.length) return;
-    final answer = builderSelection.map((i) => builderLetters[i]).join();
-    if (answer == 'STUPA') {
-      await _completeStage();
-    } else {
-      setState(() => feedback = 'Not quite — undo a letter and try again.');
+    if (question != null) _startTimer(question.deadlineAt);
+  }
+
+  void _startTimer(DateTime deadline) {
+    void update() {
+      if (!mounted) return;
+      final milliseconds = deadline
+          .difference(DateTime.now().toUtc())
+          .inMilliseconds;
+      final remaining = milliseconds <= 0 ? 0 : (milliseconds / 1000).ceil();
+      if (remaining != _remainingSeconds) {
+        setState(() => _remainingSeconds = remaining);
+      }
+      if (remaining == 0 && !_handlingTimeout && !_submitting) {
+        _handlingTimeout = true;
+        unawaited(_submitAnswer(null));
+      }
     }
+
+    update();
+    _timer = Timer.periodic(const Duration(milliseconds: 250), (_) => update());
+  }
+
+  Future<void> _submitAnswer(String? answer) async {
+    final session = _session;
+    final question = session?.question;
+    if (_submitting || session == null || question == null) return;
+    setState(() => _submitting = true);
+    try {
+      final result = await _quizService.submitAnswer(
+        sessionId: session.id,
+        questionId: question.id,
+        answer: answer,
+        timedOut: answer == null,
+      );
+      if (!mounted) return;
+      setState(() {
+        feedback = result.feedback;
+        _feedbackTone = result.correct
+            ? _FeedbackTone.success
+            : _FeedbackTone.warning;
+      });
+      if (!result.correct && !result.timedOut) {
+        setState(() => _submitting = false);
+        return;
+      }
+      _timer?.cancel();
+      await Future<void>.delayed(const Duration(milliseconds: 550));
+      if (!mounted) return;
+      if (result.completed) {
+        Navigator.pop(context, result.session.totalScore);
+      } else {
+        _applySession(result.session);
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          feedback = error.toString();
+          _feedbackTone = _FeedbackTone.error;
+          _submitting = false;
+          _handlingTimeout = false;
+        });
+      }
+    }
+  }
+
+  void _placeBuilderLetter(int slot, int letterIndex) {
+    if (_submitting || slot < 0 || slot >= _builderSlots.length) return;
+    setState(() {
+      final previousSlot = _builderSlots.indexOf(letterIndex);
+      if (previousSlot >= 0) _builderSlots[previousSlot] = null;
+      _builderSlots[slot] = letterIndex;
+      _builderPlacementOrder
+        ..remove(slot)
+        ..add(slot);
+      feedback = null;
+      _feedbackTone = null;
+    });
+    if (_builderSlots.every((value) => value != null)) {
+      final letters = _session!.question!.letters;
+      _submitAnswer(_builderSlots.map((index) => letters[index!]).join());
+    }
+  }
+
+  void _addBuilderLetter(int index) {
+    final slot = _builderSlots.indexOf(null);
+    if (slot >= 0) _placeBuilderLetter(slot, index);
+  }
+
+  void _removeBuilderSlot(int slot) {
+    if (_submitting || _builderSlots[slot] == null) return;
+    setState(() {
+      _builderSlots[slot] = null;
+      _builderPlacementOrder.remove(slot);
+      feedback = null;
+      _feedbackTone = null;
+    });
   }
 
   void _undoBuilder() {
-    if (transitioning || builderSelection.isEmpty) return;
-    setState(() {
-      builderSelection.removeLast();
-      feedback = null;
-    });
+    if (_submitting || _builderPlacementOrder.isEmpty) return;
+    _removeBuilderSlot(_builderPlacementOrder.last);
   }
 
-  Future<void> _chooseMeaning(int index) async {
-    if (transitioning) return;
+  void _chooseMeaning(int index) {
+    final question = _session?.question;
+    if (_submitting || question == null) return;
     setState(() {
       meaningSelection = index;
-      feedback = index == 0 ? null : 'That is not it — try another answer.';
+      feedback = null;
+      _feedbackTone = null;
     });
-    if (index == 0) await _completeStage();
+    _submitAnswer(question.options[index]);
   }
 
-  Future<void> _addFillLetter(int index) async {
-    if (transitioning || fillSelection.contains(index)) return;
+  void _placeFillLetter(int slot, int letterIndex) {
+    if (_submitting || slot < 0 || slot >= _fillSlots.length) return;
     setState(() {
-      fillSelection.add(index);
+      final previousSlot = _fillSlots.indexOf(letterIndex);
+      if (previousSlot >= 0) _fillSlots[previousSlot] = null;
+      _fillSlots[slot] = letterIndex;
+      _fillPlacementOrder
+        ..remove(slot)
+        ..add(slot);
       feedback = null;
+      _feedbackTone = null;
     });
-    if (fillSelection.length != 3) return;
-    final answer = fillSelection.map((i) => fillLetters[i]).join();
-    if (answer == 'GRY') {
-      await _completeStage();
-    } else {
-      setState(() => feedback = 'Check the spelling and undo the last letter.');
+    if (_fillSlots.every((value) => value != null)) {
+      final letters = _session!.question!.letters;
+      _submitAnswer(_fillSlots.map((index) => letters[index!]).join());
     }
   }
 
-  void _undoFill() {
-    if (transitioning || fillSelection.isEmpty) return;
+  void _addFillLetter(int index) {
+    final slot = _fillSlots.indexOf(null);
+    if (slot >= 0) _placeFillLetter(slot, index);
+  }
+
+  void _removeFillSlot(int slot) {
+    if (_submitting || _fillSlots[slot] == null) return;
     setState(() {
-      fillSelection.removeLast();
+      _fillSlots[slot] = null;
+      _fillPlacementOrder.remove(slot);
       feedback = null;
+      _feedbackTone = null;
     });
   }
 
+  void _undoFill() {
+    if (_submitting || _fillPlacementOrder.isEmpty) return;
+    _removeFillSlot(_fillPlacementOrder.last);
+  }
+
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: _quizBackground,
-    bottomNavigationBar: ExplorerFooter(
-      selectedIndex: null,
-      onSelected: _navigate,
-    ),
-    body: SafeArea(
-      bottom: false,
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 620),
-          child: Column(
-            children: [
-              _QuizProgressHeader(
-                stage: stage,
-                onClose: () => Navigator.maybePop(context),
-              ),
-              const Divider(height: 1, color: _quizLine),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(23, 17, 23, 32),
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 220),
-                    child: switch (stage) {
-                      0 => _buildWordBuilder(),
-                      1 => _buildMeaningMatch(),
-                      _ => _buildFillLetters(),
-                    },
+  Widget build(BuildContext context) {
+    final session = _session;
+    final question = session?.question;
+    return Scaffold(
+      backgroundColor: _quizBackground,
+      bottomNavigationBar: ExplorerFooter(
+        selectedIndex: null,
+        onSelected: _navigate,
+      ),
+      body: SafeArea(
+        bottom: false,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 620),
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : question == null
+                ? _QuizLoadError(message: feedback, onRetry: _loadSession)
+                : Column(
+                    children: [
+                      _QuizProgressHeader(
+                        stage: session!.currentStage,
+                        remainingSeconds: _remainingSeconds,
+                        score: session.totalScore,
+                        onClose: () => Navigator.maybePop(context),
+                      ),
+                      const Divider(height: 1, color: _quizLine),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(23, 17, 23, 32),
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 220),
+                            child: switch (question.type) {
+                              QuizType.wordBuilder => _buildWordBuilder(
+                                question,
+                              ),
+                              QuizType.meaningMatch => _buildMeaningMatch(
+                                question,
+                              ),
+                              QuizType.fillLetters => _buildFillLetters(
+                                question,
+                              ),
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ),
-            ],
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 
-  Widget _buildWordBuilder() => Column(
+  Widget _buildWordBuilder(QuizQuestion question) => Column(
     key: const ValueKey('word-builder-stage'),
     children: [
-      const _Clue(text: 'Dome-shaped monument enshrining a relic'),
+      _Clue(text: question.prompt),
       const SizedBox(height: 24),
-      DragTarget<int>(
+      Wrap(
         key: const Key('word-builder-drop-zone'),
-        onWillAcceptWithDetails: (details) =>
-            !builderSelection.contains(details.data),
-        onAcceptWithDetails: (details) => _addBuilderLetter(details.data),
-        builder: (context, candidates, rejected) => AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.all(5),
-          decoration: BoxDecoration(
-            color: candidates.isEmpty ? Colors.transparent : _quizPeach,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 7,
-            children: [
-              for (var i = 0; i < builderLetters.length; i++)
-                _LetterSlot(
-                  letter: i < builderSelection.length
-                      ? builderLetters[builderSelection[i]]
-                      : null,
-                ),
-            ],
-          ),
-        ),
+        alignment: WrapAlignment.center,
+        spacing: 7,
+        runSpacing: 7,
+        children: [
+          for (var slot = 0; slot < _builderSlots.length; slot++)
+            _LetterDropSlot(
+              key: Key('builder-slot-$slot'),
+              letter: _builderSlots[slot] == null
+                  ? null
+                  : question.letters[_builderSlots[slot]!],
+              enabled: !_submitting,
+              onAccept: (letterIndex) => _placeBuilderLetter(slot, letterIndex),
+              onClear: () => _removeBuilderSlot(slot),
+            ),
+        ],
       ),
       const SizedBox(height: 29),
       Wrap(
@@ -188,12 +333,12 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
         spacing: 10,
         runSpacing: 10,
         children: [
-          for (var i = 0; i < builderLetters.length; i++)
+          for (var i = 0; i < question.letters.length; i++)
             _DraggableLetter(
-              key: Key('builder-letter-${builderLetters[i]}'),
+              key: Key('builder-letter-${question.letters[i]}-$i'),
               index: i,
-              letter: builderLetters[i],
-              used: builderSelection.contains(i),
+              letter: question.letters[i],
+              used: _builderSlots.contains(i),
               onTap: () => _addBuilderLetter(i),
             ),
         ],
@@ -201,20 +346,14 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
       const SizedBox(height: 25),
       _UndoButton(
         key: const Key('builder-undo'),
-        enabled: builderSelection.isNotEmpty && !transitioning,
+        enabled: _builderSlots.any((value) => value != null) && !_submitting,
         onPressed: _undoBuilder,
       ),
-      _Feedback(message: feedback),
+      _Feedback(message: feedback, tone: _feedbackTone),
     ],
   );
 
-  Widget _buildMeaningMatch() {
-    const options = [
-      'A dome-shaped relic monument',
-      'A monastery kitchen',
-      'A royal bathing pool',
-      'A carved gateway stone',
-    ];
+  Widget _buildMeaningMatch(QuizQuestion question) {
     return Column(
       key: const ValueKey('meaning-match-stage'),
       children: [
@@ -226,9 +365,9 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
             border: Border.all(color: _quizLine),
             borderRadius: BorderRadius.circular(16),
           ),
-          child: const Column(
+          child: Column(
             children: [
-              Text(
+              const Text(
                 'WHAT DOES THIS MEAN?',
                 style: TextStyle(
                   color: _quizMuted,
@@ -237,10 +376,10 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                   fontSize: 11,
                 ),
               ),
-              SizedBox(height: 52),
+              const SizedBox(height: 52),
               Text(
-                'dāgaba',
-                style: TextStyle(
+                question.displayWord,
+                style: const TextStyle(
                   color: AppColors.brown,
                   fontStyle: FontStyle.italic,
                   fontSize: 15,
@@ -250,60 +389,65 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        for (var i = 0; i < options.length; i++) ...[
+        for (var i = 0; i < question.options.length; i++) ...[
           _MeaningOption(
             key: Key('meaning-option-$i'),
             letter: String.fromCharCode(65 + i),
-            text: options[i],
+            text: question.options[i],
             selected: meaningSelection == i,
-            isWrong: meaningSelection == i && i != 0,
+            isWrong:
+                meaningSelection == i &&
+                feedback != null &&
+                _feedbackTone == _FeedbackTone.warning,
             onTap: () => _chooseMeaning(i),
           ),
-          if (i != options.length - 1) const SizedBox(height: 10),
+          if (i != question.options.length - 1) const SizedBox(height: 10),
         ],
-        _Feedback(message: feedback),
+        _Feedback(message: feedback, tone: _feedbackTone),
       ],
     );
   }
 
-  Widget _buildFillLetters() {
-    const target = 'SIGIRIYA';
-    const blankPositions = [2, 4, 6];
+  Widget _buildFillLetters(QuizQuestion question) {
+    final characters = question.displayWord.characters.toList();
     return Column(
       key: const ValueKey('fill-letters-stage'),
       children: [
-        const _Clue(text: 'The rock fortress with the lion’s paws'),
+        _Clue(text: question.prompt),
         const SizedBox(height: 24),
-        DragTarget<int>(
+        Wrap(
           key: const Key('fill-letters-drop-zone'),
-          onWillAcceptWithDetails: (details) =>
-              !fillSelection.contains(details.data),
-          onAcceptWithDetails: (details) => _addFillLetter(details.data),
-          builder: (context, candidates, rejected) => AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            padding: const EdgeInsets.all(5),
-            decoration: BoxDecoration(
-              color: candidates.isEmpty ? Colors.transparent : _quizPeach,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 5,
-              runSpacing: 7,
-              children: [
-                for (var position = 0; position < target.length; position++)
-                  _LetterSlot(
-                    dashed: false,
-                    letter: blankPositions.contains(position)
-                        ? _fillLetterForPosition(
-                            blankPositions.indexOf(position),
-                          )
-                        : target[position],
-                    muted: !blankPositions.contains(position),
+          alignment: WrapAlignment.center,
+          spacing: 5,
+          runSpacing: 7,
+          children: [
+            for (var position = 0; position < characters.length; position++)
+              if (question.blankPositions.contains(position))
+                _LetterDropSlot(
+                  key: Key('fill-slot-$position'),
+                  letter:
+                      _fillSlots[question.blankPositions.indexOf(position)] ==
+                          null
+                      ? null
+                      : question.letters[_fillSlots[question.blankPositions
+                            .indexOf(position)]!],
+                  enabled: !_submitting,
+                  dashed: false,
+                  onAccept: (letterIndex) => _placeFillLetter(
+                    question.blankPositions.indexOf(position),
+                    letterIndex,
                   ),
-              ],
-            ),
-          ),
+                  onClear: () => _removeFillSlot(
+                    question.blankPositions.indexOf(position),
+                  ),
+                )
+              else
+                _LetterSlot(
+                  dashed: false,
+                  letter: characters[position],
+                  muted: true,
+                ),
+          ],
         ),
         const SizedBox(height: 25),
         Wrap(
@@ -311,12 +455,12 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
           spacing: 8,
           runSpacing: 10,
           children: [
-            for (var i = 0; i < fillLetters.length; i++)
+            for (var i = 0; i < question.letters.length; i++)
               _DraggableLetter(
-                key: Key('fill-letter-${fillLetters[i]}-$i'),
+                key: Key('fill-letter-${question.letters[i]}-$i'),
                 index: i,
-                letter: fillLetters[i],
-                used: fillSelection.contains(i),
+                letter: question.letters[i],
+                used: _fillSlots.contains(i),
                 onTap: () => _addFillLetter(i),
                 compact: true,
               ),
@@ -325,23 +469,50 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
         const SizedBox(height: 25),
         _UndoButton(
           key: const Key('fill-undo'),
-          enabled: fillSelection.isNotEmpty && !transitioning,
+          enabled: _fillSlots.any((value) => value != null) && !_submitting,
           onPressed: _undoFill,
         ),
-        _Feedback(message: feedback),
+        _Feedback(message: feedback, tone: _feedbackTone),
       ],
     );
   }
+}
 
-  String? _fillLetterForPosition(int blankIndex) {
-    if (blankIndex >= fillSelection.length) return null;
-    return fillLetters[fillSelection[blankIndex]];
-  }
+class _QuizLoadError extends StatelessWidget {
+  const _QuizLoadError({required this.message, required this.onRetry});
+
+  final String? message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            message ?? 'The quiz could not be loaded.',
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          FilledButton(onPressed: onRetry, child: const Text('Retry')),
+        ],
+      ),
+    ),
+  );
 }
 
 class _QuizProgressHeader extends StatelessWidget {
-  const _QuizProgressHeader({required this.stage, required this.onClose});
+  const _QuizProgressHeader({
+    required this.stage,
+    required this.remainingSeconds,
+    required this.score,
+    required this.onClose,
+  });
   final int stage;
+  final int remainingSeconds;
+  final int score;
   final VoidCallback onClose;
 
   static const titles = ['WORD BUILDER', 'MEANING MATCH', 'FILL THE LETTERS'];
@@ -376,16 +547,31 @@ class _QuizProgressHeader extends StatelessWidget {
               if (i != 2) const SizedBox(width: 11),
             ],
             const SizedBox(width: 11),
-            SizedBox(
-              width: 26,
-              child: Text(
-                '$stage/3',
-                textAlign: TextAlign.right,
-                style: const TextStyle(
-                  color: _quizMuted,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
+            Container(
+              key: const Key('quiz-countdown'),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              decoration: BoxDecoration(
+                color: remainingSeconds <= 5
+                    ? const Color(0xFFFFE1D9)
+                    : _quizPeach,
+                borderRadius: BorderRadius.circular(99),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.timer_outlined, size: 14),
+                  const SizedBox(width: 3),
+                  Text(
+                    '${remainingSeconds}s',
+                    style: TextStyle(
+                      color: remainingSeconds <= 5
+                          ? const Color(0xFFB23A24)
+                          : AppColors.brown,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -395,14 +581,24 @@ class _QuizProgressHeader extends StatelessWidget {
           alignment: Alignment.centerLeft,
           child: Padding(
             padding: const EdgeInsets.only(left: 5),
-            child: Text(
-              titles[stage],
-              style: const TextStyle(
-                color: AppColors.brown,
-                fontWeight: FontWeight.w800,
-                fontSize: 11,
-                letterSpacing: 1.5,
-              ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    titles[stage.clamp(0, 2)],
+                    style: const TextStyle(
+                      color: AppColors.brown,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 11,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                ),
+                Text(
+                  '$stage/3 · $score XP',
+                  style: const TextStyle(color: _quizMuted, fontSize: 11),
+                ),
+              ],
             ),
           ),
         ),
@@ -464,6 +660,44 @@ class _LetterSlot extends StatelessWidget {
         color: muted ? _quizMuted : const Color(0xFF3A2821),
         fontFamily: 'Georgia',
         fontSize: 21,
+      ),
+    ),
+  );
+}
+
+class _LetterDropSlot extends StatelessWidget {
+  const _LetterDropSlot({
+    super.key,
+    required this.letter,
+    required this.enabled,
+    required this.onAccept,
+    required this.onClear,
+    this.dashed = true,
+  });
+
+  final String? letter;
+  final bool enabled;
+  final ValueChanged<int> onAccept;
+  final VoidCallback onClear;
+  final bool dashed;
+
+  @override
+  Widget build(BuildContext context) => DragTarget<int>(
+    onWillAcceptWithDetails: (_) => enabled,
+    onAcceptWithDetails: (details) => onAccept(details.data),
+    builder: (context, candidates, rejected) => AnimatedContainer(
+      duration: const Duration(milliseconds: 140),
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: candidates.isEmpty ? Colors.transparent : _quizPeach,
+        borderRadius: BorderRadius.circular(13),
+        border: candidates.isEmpty
+            ? null
+            : Border.all(color: AppColors.brown, width: 1.5),
+      ),
+      child: GestureDetector(
+        onTap: letter == null || !enabled ? null : onClear,
+        child: _LetterSlot(letter: letter, dashed: dashed),
       ),
     ),
   );
@@ -613,26 +847,67 @@ class _MeaningOption extends StatelessWidget {
 }
 
 class _Feedback extends StatelessWidget {
-  const _Feedback({required this.message});
+  const _Feedback({required this.message, required this.tone});
   final String? message;
+  final _FeedbackTone? tone;
 
   @override
   Widget build(BuildContext context) => AnimatedSwitcher(
     duration: const Duration(milliseconds: 150),
     child: message == null
         ? const SizedBox(key: ValueKey('no-feedback'), height: 14)
-        : Padding(
-            key: ValueKey(message),
-            padding: const EdgeInsets.only(top: 14),
-            child: Text(
-              message!,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: message == 'Correct!'
-                    ? const Color(0xFF34713D)
-                    : AppColors.brown,
-                fontWeight: FontWeight.w700,
+        : Container(
+            key: Key('quiz-feedback-${tone?.name ?? 'warning'}'),
+            width: double.infinity,
+            margin: const EdgeInsets.only(top: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            decoration: BoxDecoration(
+              color: switch (tone) {
+                _FeedbackTone.success => const Color(0xFFE6F5E9),
+                _FeedbackTone.error => const Color(0xFFFFE9E5),
+                _ => const Color(0xFFFFF1DE),
+              },
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: switch (tone) {
+                  _FeedbackTone.success => const Color(0xFF9CCDA5),
+                  _FeedbackTone.error => const Color(0xFFE7A69A),
+                  _ => const Color(0xFFE7C794),
+                },
               ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  switch (tone) {
+                    _FeedbackTone.success => Icons.check_circle_outline,
+                    _FeedbackTone.error => Icons.error_outline,
+                    _ => Icons.refresh,
+                  },
+                  size: 18,
+                  color: switch (tone) {
+                    _FeedbackTone.success => const Color(0xFF34713D),
+                    _FeedbackTone.error => const Color(0xFFB34735),
+                    _ => AppColors.brown,
+                  },
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    message!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: switch (tone) {
+                        _FeedbackTone.success => const Color(0xFF34713D),
+                        _FeedbackTone.error => const Color(0xFFB34735),
+                        _ => AppColors.brown,
+                      },
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
   );
