@@ -4,8 +4,11 @@ class ApiConstants {
   static const String _configuredBaseUrl = String.fromEnvironment('API_BASE_URL');
   
   static String get baseUrl {
-    // Strictly override launch.json arguments for Android Emulator
-    return 'http://10.0.2.2:8080';
+    if (_configuredBaseUrl.isNotEmpty) {
+      return _configuredBaseUrl;
+    }
+    // Fallback for local physical device testing using the machine's local IP
+    return 'http://10.187.192.30:8080';
   }
 
   // Supabase Configuration
