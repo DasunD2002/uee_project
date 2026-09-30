@@ -2,6 +2,7 @@ import '../edit_profile_screen.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 import '../../domain/profile_photo_service.dart';
+import '../../data/user_service.dart';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,54 +16,69 @@ class ProfileHeader extends StatefulWidget {
 }
 
 class _ProfileHeaderState extends State<ProfileHeader> {
-  Uint8List? avatar, cover;
-  Map<String, String> details = {
-    'name': 'Amaya Wickrama',
-    'handle': '@amaya.heritage',
-    'bio':
-        'Archivist documenting the temples, textiles\nand oral histories of the central highlands.',
-    'location': 'Kandy, Sri Lanka',
+  final UserService _userService = UserService();
+  String? avatarUrl, coverUrl;
+  int followers = 0;
+  int following = 0;
+
+  Map<String, dynamic> details = {
+    'name': '',
+    'handle': '',
+    'bio': '',
+    'location': '',
   };
-  Future<void> editDetails() async {
-    final result = await Navigator.push<Map<String, String>>(
-      context,
-      MaterialPageRoute(builder: (_) => EditProfileScreen(details: details)),
-    );
-    if (result != null && mounted) {
-      setState(() => details = result);
-      await loadPhotos();
-    }
-  }
 
   bool loading = true, picking = false;
 
   @override
   void initState() {
     super.initState();
-    loadPhotos();
+    loadData();
   }
 
-  Future<void> loadPhotos() async {
+  Future<void> loadData() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final storedDetails = prefs.getString('profile.details');
-      final loadedDetails = storedDetails == null
-          ? null
-          : Map<String, String>.from(jsonDecode(storedDetails) as Map);
-      final storedAvatar = prefs.getString('profile.avatar');
-      final storedCover = prefs.getString('profile.cover');
+      final data = await _userService.getUserProfile();
+      if (data == null) return;
       if (!mounted) return;
       setState(() {
-        if (loadedDetails != null) details = {...details, ...loadedDetails};
-        avatar = storedAvatar == null ? null : base64Decode(storedAvatar);
-        cover = storedCover == null ? null : base64Decode(storedCover);
+        details['name'] = data['name'] ?? '';
+        details['handle'] = data['handle'] ?? '';
+        details['bio'] = data['bio'] ?? '';
+        details['location'] = data['district'] ?? '';
+        avatarUrl = data['photoUrl'];
+        coverUrl = data['coverUrl'];
+        followers = data['followerCount'] ?? 0;
+        following = data['followingCount'] ?? 0;
       });
     } catch (_) {
       if (mounted) {
-        message('Saved photos could not be loaded. You can choose them again.');
+        message('Failed to load profile data.');
       }
     } finally {
       if (mounted) setState(() => loading = false);
+    }
+  }
+
+  Future<void> editDetails() async {
+    final result = await Navigator.push<Map<String, String>>(
+      context,
+      MaterialPageRoute(builder: (_) => EditProfileScreen(details: Map<String, String>.from(details))),
+    );
+    if (result != null && mounted) {
+      setState(() => loading = true);
+      final success = await _userService.updateUserProfile({
+        'name': result['name'],
+        'handle': result['handle'],
+        'bio': result['bio'],
+        'district': result['location'],
+      });
+      if (success) {
+        await loadData();
+      } else {
+        setState(() => loading = false);
+        message('Failed to update profile.');
+      }
     }
   }
 
@@ -75,26 +91,32 @@ class _ProfileHeaderState extends State<ProfileHeader> {
     try {
       final bytes = await pickProfilePhoto(isCover: isCover);
       if (bytes == null) return;
-      final encoded = base64Encode(bytes);
+      
       final prefs = await SharedPreferences.getInstance();
-      final saved = await prefs.setString(
-        isCover ? 'profile.cover' : 'profile.avatar',
-        encoded,
+      final userId = prefs.getString('user_id');
+      if (userId == null) throw StateError('Not logged in');
+
+      final url = await uploadProfilePhoto(bytes, userId, isCover: isCover);
+      
+      final success = await _userService.updateUserProfile(
+        isCover ? {'coverUrl': url} : {'photoUrl': url},
       );
-      if (!saved) throw StateError('Could not save photo');
+      
+      if (!success) throw StateError('Could not save photo URL');
+
       if (!mounted) return;
       setState(() {
         if (isCover) {
-          cover = bytes;
+          coverUrl = url;
         } else {
-          avatar = bytes;
+          avatarUrl = url;
         }
       });
       message(isCover ? 'Cover photo updated.' : 'Profile photo updated.');
     } catch (_) {
       if (mounted) {
         message(
-          'Could not update the photo. Please choose a valid JPG or PNG and try again.',
+          'Could not update the photo. Please try again.',
         );
       }
     } finally {
@@ -108,15 +130,15 @@ class _ProfileHeaderState extends State<ProfileHeader> {
       Stack(
         children: [
           Positioned.fill(
-            child: cover == null
+            child: coverUrl == null
                 ? Image.asset(
                     'assets/images/login_image.jpg',
-                    key: const ValueKey('profile-cover'),
+                    key: const ValueKey('profile-cover-placeholder'),
                     fit: BoxFit.cover,
                   )
-                : Image.memory(
-                    cover!,
-                    key: const ValueKey('profile-cover'),
+                : Image.network(
+                    coverUrl!,
+                    key: const ValueKey('profile-cover-network'),
                     fit: BoxFit.cover,
                   ),
           ),
@@ -141,7 +163,7 @@ class _ProfileHeaderState extends State<ProfileHeader> {
               child: Column(
                 children: [
                   Stack(
-                    children: [
+                     children: [
                       Container(
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
@@ -149,11 +171,12 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                         ),
                         child: CircleAvatar(
                           radius: 52,
-                          backgroundImage: avatar == null
-                              ? const AssetImage(
-                                  'assets/images/profile_avatar.png',
-                                )
-                              : MemoryImage(avatar!),
+                          backgroundImage: avatarUrl == null
+                              ? null
+                              : NetworkImage(avatarUrl!),
+                          child: avatarUrl == null
+                              ? const Icon(Icons.person, size: 52, color: Colors.grey)
+                              : null,
                         ),
                       ),
                       Positioned(
@@ -178,32 +201,32 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                   ),
                   const SizedBox(height: 14),
                   Text(
-                    details['name']!,
-                    style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold),
+                    details['name'] ?? '',
+                    style: const TextStyle(fontSize: 23, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 5),
                   Text(
-                    details['handle']!,
-                    style: TextStyle(fontWeight: FontWeight.w600),
+                    details['handle'] ?? '',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    details['bio']!,
+                    details['bio'] ?? '',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14, height: 1.6),
+                    style: const TextStyle(fontSize: 14, height: 1.6),
                   ),
                   const SizedBox(height: 4),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.location_on_outlined,
                         color: AppColors.brown,
                         size: 17,
                       ),
                       Text(
-                        details['location']!,
-                        style: TextStyle(
+                        details['location'] ?? '',
+                        style: const TextStyle(
                           color: AppColors.brown,
                           fontWeight: FontWeight.w600,
                         ),
@@ -266,9 +289,9 @@ class _ProfileHeaderState extends State<ProfileHeader> {
             children: [
               _Stat('${widget.postCount}', 'Posts'),
               const VerticalDivider(width: 1, color: Color(0xFFF3E8E2)),
-              const _Stat('12.4k', 'Followers'),
+              _Stat('$followers', 'Followers'),
               const VerticalDivider(width: 1, color: Color(0xFFF3E8E2)),
-              const _Stat('286', 'Following'),
+              _Stat('$following', 'Following'),
             ],
           ),
         ),

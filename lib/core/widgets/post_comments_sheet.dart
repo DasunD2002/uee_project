@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
 import '../../features/Post Creation/domain/user_post.dart';
+import '../../features/Profile/data/user_service.dart';
 
 class PostCommentsSheet extends StatefulWidget {
   const PostCommentsSheet({
@@ -128,11 +129,14 @@ class _PostCommentsSheetState extends State<PostCommentsSheet> {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Row(
               children: [
-                const CircleAvatar(
+                CircleAvatar(
                   radius: 18,
-                  backgroundImage: AssetImage(
-                    'assets/images/profile_avatar.png',
-                  ),
+                  backgroundImage: UserService.cachedPhotoUrl != null && UserService.cachedPhotoUrl!.startsWith('http')
+                      ? NetworkImage(UserService.cachedPhotoUrl!)
+                      : null,
+                  child: UserService.cachedPhotoUrl != null && UserService.cachedPhotoUrl!.startsWith('http')
+                      ? null
+                      : const Icon(Icons.person, size: 24, color: Colors.grey),
                 ),
                 const SizedBox(width: 10),
                 Expanded(

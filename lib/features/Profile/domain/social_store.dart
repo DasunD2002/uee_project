@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import '../../notifications/presentation/widgets/notification_item_tile.dart';
 
 class SavedStory {
   const SavedStory({
@@ -55,7 +57,8 @@ class SocialStore extends ChangeNotifier {
   final Map<String, String> reports = {};
   final Map<String, List<String>> comments = {};
   final Set<String> likedPosts = {};
-  bool isSaved(String id) => collections.any((c) => c.stories.containsKey(id));
+  final Set<String> savedPosts = {};
+  bool isSaved(String id) => savedPosts.contains(id);
   SavedCollection addCollection(String name) {
     final existing = collections.where(
       (c) => c.name.toLowerCase() == name.trim().toLowerCase(),
@@ -76,5 +79,85 @@ class SocialStore extends ChangeNotifier {
       }
     }
     notifyListeners();
+  }
+
+  final List<NotificationItemData> notifications = [
+    const NotificationItemData(
+      id: 'mock_like_1',
+      title: 'Dinesh liked your post',
+      subtitle: 'Your post received a new like.',
+      timeAgo: '1m ago',
+      icon: Icons.favorite,
+      isUnread: true,
+    ),
+    const NotificationItemData(
+      id: 'mock_follow_1',
+      title: 'Amaya started following you',
+      subtitle: 'You have a new follower!',
+      timeAgo: '5m ago',
+      icon: Icons.person_add,
+      isUnread: true,
+    ),
+    const NotificationItemData(
+      id: 'today_1',
+      title: 'Kumari Devi added a photo to the Family Capsule',
+      subtitle: 'New memory shared in "Sinhala New Year 2024"',
+      timeAgo: '2h ago',
+      avatarAsset: '',
+      avatarUrl:
+          'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80',
+      isUnread: true,
+    ),
+    const NotificationItemData(
+      id: 'today_2',
+      title: 'System: Weekly Digest is ready',
+      subtitle: "Review your family's archival activity from this past week.",
+      timeAgo: '5h ago',
+      icon: Icons.article_outlined,
+      isUnread: false,
+    ),
+    const NotificationItemData(
+      id: 'yesterday_1',
+      title: "Saman Kumara left an audio note on Grandson's 18th Birthday",
+      subtitle: '"Wishing you all the best on your journey ahead..."',
+      timeAgo: 'Yesterday',
+      avatarAsset: '',
+      avatarUrl:
+          'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+      isUnread: false,
+    ),
+    const NotificationItemData(
+      id: 'yesterday_2',
+      title: 'Vault Update: Security Check Completed',
+      subtitle:
+          'Your digital heirlooms remain securely sealed and backed up.',
+      timeAgo: 'Yesterday',
+      icon: Icons.verified_user_outlined,
+      isUnread: false,
+    ),
+  ];
+
+  int get unreadNotificationCount => notifications.where((n) => n.isUnread).length;
+
+  void addNotification(NotificationItemData n) {
+    notifications.insert(0, n);
+    notifyListeners();
+  }
+
+  void markAllNotificationsAsRead() {
+    for (var i = 0; i < notifications.length; i++) {
+      notifications[i] = notifications[i].copyWith(isUnread: false);
+    }
+    notifyListeners();
+  }
+
+  void markNotificationAsRead(String id) {
+    for (var i = 0; i < notifications.length; i++) {
+      if (notifications[i].id == id) {
+        notifications[i] = notifications[i].copyWith(isUnread: false);
+        notifyListeners();
+        break;
+      }
+    }
   }
 }

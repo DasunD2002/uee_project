@@ -2,7 +2,10 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../../core/services/api_service.dart';
+import '../../Profile/domain/social_store.dart';
+import 'package:flutter/material.dart';
 import '../domain/user_post.dart';
+import '../../notifications/presentation/widgets/notification_item_tile.dart';
 
 class PostService {
   final ApiService _apiService = ApiService();
@@ -31,6 +34,16 @@ class PostService {
       });
 
       if (response.statusCode == 201 || response.statusCode == 200) {
+        SocialStore.instance.addNotification(
+          NotificationItemData(
+            id: DateTime.now().toString(),
+            title: 'Post created',
+            subtitle: 'Your post was successfully published.',
+            timeAgo: 'Just now',
+            icon: Icons.check_circle_outline,
+            isUnread: true,
+          ),
+        );
         return null; // Success
       }
       final data = jsonDecode(response.body);
@@ -60,6 +73,16 @@ class PostService {
       });
 
       if (response.statusCode == 200) {
+        SocialStore.instance.addNotification(
+          NotificationItemData(
+            id: DateTime.now().toString(),
+            title: 'Post updated',
+            subtitle: 'Your post was successfully updated.',
+            timeAgo: 'Just now',
+            icon: Icons.edit_outlined,
+            isUnread: true,
+          ),
+        );
         return null; // Success
       }
       final data = jsonDecode(response.body);
@@ -77,6 +100,16 @@ class PostService {
     try {
       final response = await _apiService.delete('/posts/$postId');
       if (response.statusCode == 200) {
+        SocialStore.instance.addNotification(
+          NotificationItemData(
+            id: DateTime.now().toString(),
+            title: 'Post deleted',
+            subtitle: 'Your post was removed from your profile.',
+            timeAgo: 'Just now',
+            icon: Icons.delete_outline,
+            isUnread: true,
+          ),
+        );
         return null;
       }
       final data = jsonDecode(response.body);
@@ -95,7 +128,11 @@ class PostService {
         final data = jsonDecode(response.body);
         final list = data['data'] as List?;
         if (list == null) return [];
-        return list.map((e) => UserPost.fromJson(e)).toList();
+        final posts = list.map((e) => UserPost.fromJson(e)).toList();
+        for (final p in posts) {
+          if (p.isLiked) SocialStore.instance.likedPosts.add(p.id);
+        }
+        return posts;
       }
       return [];
     } catch (e) {
@@ -113,7 +150,11 @@ class PostService {
         final data = jsonDecode(response.body);
         final list = data['data'] as List?;
         if (list == null) return [];
-        return list.map((e) => UserPost.fromJson(e)).toList();
+        final posts = list.map((e) => UserPost.fromJson(e)).toList();
+        for (final p in posts) {
+          if (p.isLiked) SocialStore.instance.likedPosts.add(p.id);
+        }
+        return posts;
       }
       return [];
     } catch (e) {
@@ -129,7 +170,11 @@ class PostService {
         final data = jsonDecode(response.body);
         final list = data['data'] as List?;
         if (list == null) return [];
-        return list.map((e) => UserPost.fromJson(e)).toList();
+        final posts = list.map((e) => UserPost.fromJson(e)).toList();
+        for (final p in posts) {
+          if (p.isLiked) SocialStore.instance.likedPosts.add(p.id);
+        }
+        return posts;
       }
       return [];
     } catch (e) {
@@ -143,6 +188,14 @@ class PostService {
       await _apiService.post('/posts/$postId/like');
     } catch (e) {
       print('Network error liking post: $e');
+    }
+  }
+
+  Future<void> savePost(String postId) async {
+    try {
+      await _apiService.post('/posts/$postId/save');
+    } catch (e) {
+      print('Network error saving post: $e');
     }
   }
 

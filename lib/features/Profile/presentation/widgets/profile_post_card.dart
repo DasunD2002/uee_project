@@ -3,9 +3,9 @@ import '../../../../core/widgets/feed_post_card.dart';
 import '../../../Post Creation/domain/user_post.dart';
 
 class ProfilePostCard extends StatelessWidget {
-  const ProfilePostCard({super.key, required this.post, required this.onEdit});
+  const ProfilePostCard({super.key, required this.post, this.onEdit, this.onDelete});
   final UserPost post;
-  final VoidCallback onEdit;
+  final VoidCallback? onEdit, onDelete;
   @override
   Widget build(BuildContext context) => FeedPostCard(
     postId: post.id,
@@ -65,7 +65,8 @@ class ProfilePostCard extends StatelessWidget {
     time: post.isDraft ? 'Draft' : (post.createdAt != null ? '${DateTime.now().difference(post.createdAt!).inHours}h' : 'now'),
     author: post.authorName,
     handle: post.authorHandle,
-    avatar: post.authorPhoto ?? 'assets/images/profile_avatar.png',
+    avatar: post.authorPhoto ?? '',
     onEdit: onEdit,
+    onDelete: onDelete,
   );
 }

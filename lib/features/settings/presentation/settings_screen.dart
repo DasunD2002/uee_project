@@ -10,7 +10,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  String language = 'English';
   bool notifications = true, activity = true, loading = true;
   @override
   void initState() {
@@ -23,7 +22,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final prefs = await SharedPreferences.getInstance();
       if (!mounted) return;
       setState(() {
-        language = prefs.getString('settings.language') ?? 'English';
         notifications = prefs.getBool('settings.notifications') ?? true;
         activity = prefs.getBool('settings.activity') ?? true;
       });
@@ -41,7 +39,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (!ok) throw StateError('Save failed');
       if (!mounted) return;
       setState(() {
-        if (key == 'settings.language') language = value as String;
         if (key == 'settings.notifications') notifications = value as bool;
         if (key == 'settings.activity') activity = value as bool;
       });
@@ -59,8 +56,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: const Color(0xFFFAF8F6),
-    drawer: const HomeDrawer(selectedSection: 'Settings'),
     appBar: AppBar(
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back),
+        onPressed: () => Navigator.pushNamed(context, '/profile'),
+      ),
       title: const Text('Settings'),
       backgroundColor: const Color(0xFFFAF8F6),
     ),
@@ -110,38 +110,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 22),
             const _Section('PREFERENCES'),
-            Card(
-              color: Colors.white,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: DropdownButtonFormField<String>(
-                  key: ValueKey(language),
-                  initialValue: language,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Preferred language',
-                    prefixIcon: Icon(Icons.translate),
-                    border: OutlineInputBorder(),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'English', child: Text('English')),
-                    DropdownMenuItem(
-                      value: 'Sinhala',
-                      child: Text('සිංහල · Sinhala'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'Tamil',
-                      child: Text('தமிழ் · Tamil'),
-                    ),
-                  ],
-                  onChanged: loading
-                      ? null
-                      : (v) {
-                          if (v != null) update('settings.language', v);
-                        },
-                ),
-              ),
-            ),
             Card(
               color: Colors.white,
               child: Column(

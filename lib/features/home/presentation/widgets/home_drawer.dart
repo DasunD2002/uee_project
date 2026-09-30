@@ -1,12 +1,36 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../Profile/data/user_service.dart';
 
-class HomeDrawer extends StatelessWidget {
+class HomeDrawer extends StatefulWidget {
   const HomeDrawer({super.key, this.selectedSection});
   final String? selectedSection;
 
+  @override
+  State<HomeDrawer> createState() => _HomeDrawerState();
+}
+
+class _HomeDrawerState extends State<HomeDrawer> {
+  final UserService _userService = UserService();
+  Map<String, dynamic>? _userProfile;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchProfile();
+  }
+
+  Future<void> _fetchProfile() async {
+    final profile = await _userService.getUserProfile();
+    if (mounted && profile != null) {
+      setState(() {
+        _userProfile = profile;
+      });
+    }
+  }
+
   String? activeSection(BuildContext context) =>
-      selectedSection ??
+      widget.selectedSection ??
       const {
         '/home': 'Home',
         '/explorer': 'Explore Places',
@@ -50,10 +74,15 @@ class HomeDrawer extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 12, 10, 12),
             child: Row(
               children: [
-                const CircleAvatar(
+                CircleAvatar(
                   radius: 25,
-                  backgroundColor: Color(0xFFFFD8BD),
-                  child: Icon(Icons.person, size: 31, color: AppColors.brown),
+                  backgroundColor: const Color(0xFFFFD8BD),
+                  backgroundImage: _userProfile?['photoUrl'] != null
+                      ? NetworkImage(_userProfile!['photoUrl'])
+                      : null,
+                  child: _userProfile?['photoUrl'] == null
+                      ? const Icon(Icons.person, size: 31, color: AppColors.brown)
+                      : null,
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -62,22 +91,22 @@ class HomeDrawer extends StatelessWidget {
                       Navigator.pop(context);
                       Navigator.pushNamed(context, '/profile');
                     },
-                    child: const Column(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Amaya Wickrama',
-                          style: TextStyle(
+                          _userProfile?['name'] ?? 'Loading...',
+                          style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w700,
                             fontSize: 13,
                           ),
                         ),
                         Text(
-                          'Kandy',
-                          style: TextStyle(color: Colors.white70, fontSize: 9),
+                          _userProfile?['district'] ?? '',
+                          style: const TextStyle(color: Colors.white70, fontSize: 9),
                         ),
-                        Text(
+                        const Text(
                           'View Profile',
                           style: TextStyle(color: Colors.white70, fontSize: 9),
                         ),
