@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/auth_widgets.dart';
+import '../../../core/services/api_service.dart';
+import '../../Profile/data/user_service.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key, this.isReset = false});
@@ -24,13 +27,41 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     super.dispose();
   }
 
-  void save() {
+  void save() async {
     if (!form.currentState!.validate()) return;
-    showMessage(
-      context,
-      'Password form completed in demo mode. No account password was changed.',
-    );
-    Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
+
+    if (!widget.isReset) {
+      if (password.text != confirm.text) {
+        showMessage(context, 'New passwords do not match.');
+        return;
+      }
+
+      final userId = UserService.cachedUserId;
+      if (userId == null) {
+        showMessage(context, 'User not logged in.');
+        return;
+      }
+
+      final response = await ApiService().put(
+        '/users/$userId/password',
+        body: {'currentPassword': current.text, 'newPassword': password.text},
+      );
+
+      if (!mounted) return;
+      if (response.statusCode == 200) {
+        showMessage(context, 'Password changed successfully!');
+        Navigator.pop(context);
+      } else {
+        try {
+          final data = jsonDecode(response.body);
+          showMessage(context, data['message'] ?? 'Failed to change password.');
+        } catch (_) {
+          showMessage(context, 'Failed to change password.');
+        }
+      }
+    } else {
+      showMessage(context, 'Password reset is not yet implemented.');
+    }
   }
 
   @override
@@ -133,7 +164,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 ),
                 const SizedBox(height: 20),
                 const Text(
-                  'Preview only. Password changes require a connected account service.',
+                  'Next time onwords you should use your new password to Login.',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 12, color: Color(0xFF71655F)),
                 ),

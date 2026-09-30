@@ -1,5 +1,8 @@
 import 'package:flutter/foundation.dart';
 
+import 'dart:io';
+import 'host_ip.dart';
+
 class ApiConstants {
   static const String _configuredBaseUrl = String.fromEnvironment('API_BASE_URL');
   
@@ -7,8 +10,9 @@ class ApiConstants {
     if (_configuredBaseUrl.isNotEmpty) {
       return _configuredBaseUrl;
     }
-    // Fallback for local physical device testing using the machine's local IP
-    return 'http://10.187.192.30:8080';
+    
+    // Dynamic universal IP fetched at launch time via the pre-launch task
+    return 'http://$hostIp:8080';
   }
 
   // Supabase Configuration

@@ -151,9 +151,7 @@ void main() {
     await tester.tap(find.text('Save as Draft'));
     await tester.pumpAndSettle();
     
-    print('MOCK POSTS COUNT: ${PostService.mockPostsLength()}');
-    print('POSTS TITLES: ${PostService.mockPostsTitles()}');
-    
+    // print removed
     expect(find.text('A new draft'), findsOneWidget);
     await tester.pump(const Duration(seconds: 5));
     await tester.scrollUntilVisible(

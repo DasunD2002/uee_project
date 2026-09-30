@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../Post Creation/domain/user_post.dart';
 import '../../../../core/widgets/feed_post_card.dart';
 import '../../../Profile/presentation/public_profile_screen.dart';
+import '../../../Profile/data/user_service.dart';
 
 class StoryCard extends StatelessWidget {
   const StoryCard({
@@ -16,10 +17,14 @@ class StoryCard extends StatelessWidget {
     required this.comments,
     this.author = 'Amaya',
     this.handle = '@amaya.heritage',
+    this.authorId = '',
+    this.authorPhoto,
     this.time = '6h',
     this.postComments = const [],
   });
   final String postId;
+  final String? authorPhoto;
+  final String authorId;
   final List<UserComment> postComments;
   final String category,
       imagePath,
@@ -34,25 +39,29 @@ class StoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => FeedPostCard(
     postId: postId,
-    onAuthorTap: () => Navigator.push(
-      context,
-      MaterialPageRoute<void>(
-        builder: (_) => PublicProfileScreen(
-          author: author,
-          handle: handle,
-          avatar: author == 'Dinesh'
-              ? 'assets/images/dinesh_avatar.png'
-              : 'assets/images/profile_avatar.png',
-          image: imagePath,
-          title: title,
-          location: location,
-          description: description,
-          category: category,
-          likes: likes,
-          comments: comments,
-        ),
-      ),
-    ),
+    onAuthorTap: () {
+      if (authorId == UserService.cachedUserId) {
+        Navigator.pushNamed(context, '/profile');
+      } else {
+        Navigator.push(
+          context,
+          MaterialPageRoute<void>(
+            builder: (_) => PublicProfileScreen(
+              author: author,
+              handle: handle,
+              avatar: authorPhoto ?? '',
+              image: imagePath,
+              title: title,
+              location: location,
+              description: description,
+              category: category,
+              likes: likes,
+              comments: comments,
+            ),
+          ),
+        );
+      }
+    },
     media: imagePath.toLowerCase().endsWith('.mp4')
         ? Container(
             color: const Color(0xFFFFF5EC),
@@ -68,10 +77,9 @@ class StoryCard extends StatelessWidget {
     likes: likes,
     comments: comments,
     author: author,
-    avatar: author == 'Dinesh'
-        ? 'assets/images/dinesh_avatar.png'
-        : 'assets/images/profile_avatar.png',
+    avatar: authorPhoto ?? '',
     handle: handle,
+    authorId: authorId,
     time: time,
     postComments: postComments,
   );

@@ -23,15 +23,17 @@ class UserPost {
     this.disableComments = false,
     this.isPrivate = false,
     this.isDraft = false,
+    this.isLiked = false,
     this.authorName = 'Unknown User',
     this.authorHandle = '@unknown',
+    this.authorId = '',
     this.authorPhoto,
     this.createdAt,
     this.likeCount = 0,
     this.commentCount = 0,
     this.comments = const [],
   });
-  final String id, title, story, category, place, district, language, asset, authorName, authorHandle;
+  final String id, title, story, category, place, district, language, asset, authorName, authorHandle, authorId;
   final String? authorPhoto;
   final DateTime? createdAt;
   final int likeCount, commentCount;
@@ -39,7 +41,7 @@ class UserPost {
   final PostMedia? cover;
   final List<PostMedia> proofs;
   final List<UserComment> comments;
-  final bool disableComments, isPrivate, isDraft;
+  final bool disableComments, isPrivate, isDraft, isLiked;
 
   factory UserPost.fromJson(Map<String, dynamic> json) {
     String p = 'Unknown';
@@ -65,6 +67,8 @@ class UserPost {
       authorName: json['authorName'] ?? 'Unknown User',
       authorHandle: json['authorHandle'] ?? '@unknown',
       authorPhoto: json['authorPhoto'],
+      authorId: json['userId'] ?? '',
+      isLiked: json['isLiked'] ?? false,
       createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt']) : null,
       likeCount: json['likeCount'] ?? 0,
       commentCount: json['commentCount'] ?? 0,

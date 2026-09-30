@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../explorer/presentation/widgets/explorer_footer.dart';
 import 'widgets/notification_item_tile.dart';
+import '../../Profile/domain/social_store.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -10,66 +11,8 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  late List<NotificationItemData> todayNotifications;
-  late List<NotificationItemData> yesterdayNotifications;
-
-  @override
-  void initState() {
-    super.initState();
-    todayNotifications = [
-      const NotificationItemData(
-        id: 'today_1',
-        title: 'Kumari Devi added a photo to the Family Capsule',
-        subtitle: 'New memory shared in "Sinhala New Year 2024"',
-        timeAgo: '2h ago',
-        avatarAsset: 'assets/images/profile_avatar.png',
-        avatarUrl:
-            'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80',
-        isUnread: true,
-      ),
-      const NotificationItemData(
-        id: 'today_2',
-        title: 'System: Weekly Digest is ready',
-        subtitle: "Review your family's archival activity from this past week.",
-        timeAgo: '5h ago',
-        icon: Icons.article_outlined,
-        isUnread: false,
-      ),
-    ];
-
-    yesterdayNotifications = [
-      const NotificationItemData(
-        id: 'yesterday_1',
-        title: "Saman Kumara left an audio note on Grandson's 18th Birthday",
-        subtitle: '"Wishing you all the best on your journey ahead..."',
-        timeAgo: 'Yesterday',
-        avatarAsset: 'assets/images/dinesh_avatar.png',
-        avatarUrl:
-            'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-        isUnread: false,
-      ),
-      const NotificationItemData(
-        id: 'yesterday_2',
-        title: 'Vault Update: Security Check Completed',
-        subtitle:
-            'Your digital heirlooms remain securely sealed and backed up.',
-        timeAgo: 'Yesterday',
-        icon: Icons.verified_user_outlined,
-        isUnread: false,
-      ),
-    ];
-  }
-
   void _markAllAsRead() {
-    setState(() {
-      todayNotifications = todayNotifications
-          .map((item) => item.copyWith(isUnread: false))
-          .toList();
-      yesterdayNotifications = yesterdayNotifications
-          .map((item) => item.copyWith(isUnread: false))
-          .toList();
-    });
-
+    SocialStore.instance.markAllNotificationsAsRead();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('All notifications marked as read'),
@@ -78,24 +21,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  void _toggleItemRead(String id, bool isToday) {
-    setState(() {
-      if (isToday) {
-        todayNotifications = todayNotifications.map((item) {
-          if (item.id == id) {
-            return item.copyWith(isUnread: false);
-          }
-          return item;
-        }).toList();
-      } else {
-        yesterdayNotifications = yesterdayNotifications.map((item) {
-          if (item.id == id) {
-            return item.copyWith(isUnread: false);
-          }
-          return item;
-        }).toList();
-      }
-    });
+  void _toggleItemRead(String id) {
+    SocialStore.instance.markNotificationAsRead(id);
   }
 
   void _onTabSelected(int index) {
@@ -157,24 +84,32 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSection(
-              title: 'Today',
-              items: todayNotifications,
-              isToday: true,
+      body: ListenableBuilder(
+        listenable: SocialStore.instance,
+        builder: (context, _) {
+          final today = SocialStore.instance.notifications.where((n) => n.timeAgo != 'Yesterday').toList();
+          final yesterday = SocialStore.instance.notifications.where((n) => n.timeAgo == 'Yesterday').toList();
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (today.isNotEmpty) ...[
+                  _buildSection(
+                    title: 'Today',
+                    items: today,
+                  ),
+                  const SizedBox(height: 24),
+                ],
+                if (yesterday.isNotEmpty)
+                  _buildSection(
+                    title: 'Yesterday',
+                    items: yesterday,
+                  ),
+              ],
             ),
-            const SizedBox(height: 24),
-            _buildSection(
-              title: 'Yesterday',
-              items: yesterdayNotifications,
-              isToday: false,
-            ),
-          ],
-        ),
+          );
+        },
       ),
       bottomNavigationBar: ExplorerFooter(
         selectedIndex: null,
@@ -186,7 +121,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget _buildSection({
     required String title,
     required List<NotificationItemData> items,
-    required bool isToday,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -219,7 +153,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               for (int i = 0; i < items.length; i++) ...[
                 NotificationItemTile(
                   data: items[i],
-                  onTap: () => _toggleItemRead(items[i].id, isToday),
+                  onTap: () => _toggleItemRead(items[i].id),
                 ),
                 if (i < items.length - 1)
                   const Divider(

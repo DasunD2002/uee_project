@@ -33,7 +33,6 @@ final _posts = <UserPost>[
     asset: 'assets/images/mask_carver.png',
   ),
 ];
-final _collections = SocialStore.instance.collections;
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key, this.showSavedPosts = false});
@@ -152,7 +151,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: ListView(
             children: [
               ProfileHeader(
-                postCount: 46 + _posts.where((p) => !p.isDraft).length,
+                postCount: _posts.where((p) => !p.isDraft).length,
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(
@@ -208,138 +207,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
               ),
-              if (!saved) ...[
-                if (_posts.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(30),
-                    child: Text(
-                      'Your stories will appear here. Create your first post.',
-                    ),
-                  ),
-                for (final post in _posts)
-                  ProfilePostCard(
-                    key: ValueKey(post.id),
-                    post: post,
-                    onEdit: () => edit(post),
-                  ),
-              ] else ...[
+              if (_posts.isEmpty)
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(19, 0, 19, 16),
+                  padding: const EdgeInsets.all(30),
                   child: Text(
-                    '${_collections.length} collections · ${_collections.fold<int>(0, (sum, c) => sum + c.count)} saved stories',
-                    style: const TextStyle(color: Color(0xFF95857F)),
+                    saved
+                        ? 'Your saved stories will appear here.'
+                        : 'Your stories will appear here. Create your first post.',
                   ),
                 ),
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 18),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 13,
-                    crossAxisSpacing: 13,
-                    mainAxisExtent: 180,
-                  ),
-                  itemCount: _collections.length,
-                  itemBuilder: (context, index) {
-                    final collection = _collections[index];
-                    return Card(
-                      margin: EdgeInsets.zero,
-                      color: Colors.white,
-                      elevation: 1,
-                      clipBehavior: Clip.antiAlias,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(17),
-                        side: const BorderSide(color: Color(0xFFF0DDD4)),
-                      ),
-                      child: InkWell(
-                        onTap: () => showModalBottomSheet<void>(
-                          context: context,
-                          builder: (_) => Padding(
-                            padding: const EdgeInsets.all(28),
-                            child: SingleChildScrollView(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    collection.name,
-                                    style: const TextStyle(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    collection.count == 0
-                                        ? 'No stories saved in this collection yet.'
-                                        : '${collection.count} saved stories · Preview collection',
-                                  ),
-                                  for (final story in collection.stories.values)
-                                    ListTile(
-                                      title: Text(story.title),
-                                      subtitle: Text(story.author),
-                                      onTap: () => showDialog<void>(
-                                        context: context,
-                                        builder: (context) => AlertDialog(
-                                          title: Text(story.title),
-                                          content: SingleChildScrollView(
-                                            child: Text(story.description),
-                                          ),
-                                          actions: [
-                                            TextButton(
-                                              onPressed: () =>
-                                                  Navigator.pop(context),
-                                              child: const Text('Close'),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  const SizedBox(height: 20),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Image.asset(
-                              'assets/images/${collection.image}.png',
-                              height: 112,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(12, 11, 8, 5),
-                              child: Text(
-                                collection.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.only(left: 12),
-                              child: Text(
-                                '${collection.count} stories',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFF95857F),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
+              for (final post in _posts)
+                ProfilePostCard(
+                  key: ValueKey(post.id),
+                  post: post,
+                  onEdit: saved ? null : () => edit(post),
+                  onDelete: saved ? null : () async {
+                    final error = await PostService().deletePost(post.id);
+                    if (!mounted) return;
+                    if (error == null) {
+                      _fetchPosts();
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Post deleted')));
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+                    }
                   },
                 ),
-                const SizedBox(height: 80),
-              ],
+
             ],
           ),
         ),

@@ -19,6 +19,10 @@ class AuthService {
         if (token != null) {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('jwt_token', token);
+          final userId = data['data']['id'];
+          if (userId != null) {
+            await prefs.setString('user_id', userId);
+          }
           return null; // Success
         }
         return 'Invalid response format';
@@ -49,5 +53,6 @@ class AuthService {
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('jwt_token');
+    await prefs.remove('user_id');
   }
 }

@@ -2,6 +2,8 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'dart:convert';
 import 'package:file_selector/file_selector.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/constants/api_constants.dart';
 
 Future<Uint8List?> pickProfilePhoto({bool isCover = false}) async {
   final file = await openFile(
@@ -45,4 +47,18 @@ Future<Uint8List?> pickProfilePhoto({bool isCover = false}) async {
   } finally {
     codec.dispose();
   }
+}
+
+Future<String> uploadProfilePhoto(Uint8List bytes, String userId, {bool isCover = false}) async {
+  final supabase = Supabase.instance.client;
+  final bucket = ApiConstants.supabaseBucketName;
+  final fileName = '${userId}_${isCover ? "cover" : "avatar"}_${DateTime.now().millisecondsSinceEpoch}.png';
+  
+  await supabase.storage.from(bucket).uploadBinary(
+    'profiles/$fileName',
+    bytes,
+    fileOptions: const FileOptions(contentType: 'image/png'),
+  );
+
+  return supabase.storage.from(bucket).getPublicUrl('profiles/$fileName');
 }

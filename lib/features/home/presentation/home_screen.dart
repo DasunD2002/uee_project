@@ -4,6 +4,8 @@ import '../../../core/navigation/primary_navigation.dart';
 import '../../explorer/presentation/widgets/explorer_footer.dart';
 import '../../Post Creation/data/post_service.dart';
 import '../../Post Creation/domain/user_post.dart';
+import '../../Profile/data/user_service.dart';
+import '../../Profile/domain/social_store.dart';
 import 'widgets/home_drawer.dart';
 import 'widgets/story_card.dart';
 
@@ -15,17 +17,49 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final searchController = TextEditingController();
+  List<UserPost>? _allPosts;
   List<UserPost>? _posts;
 
   @override
   void initState() {
     super.initState();
+    searchController.addListener(_onSearchChanged);
     _fetchPosts();
   }
 
+  void _onSearchChanged() {
+    if (searchController.text.isEmpty) {
+      _applySearch();
+    }
+  }
+
+  void _applySearch() {
+    if (_allPosts == null) return;
+    final query = searchController.text.trim().toLowerCase();
+    if (query.isEmpty) {
+      setState(() => _posts = _allPosts);
+      return;
+    }
+    setState(() {
+      _posts = _allPosts!.where((post) {
+        final title = post.title.toLowerCase();
+        final place = post.place.toLowerCase();
+        final district = post.district.toLowerCase();
+        final author = post.authorName.toLowerCase();
+        return title.contains(query) || place.contains(query) || district.contains(query) || author.contains(query);
+      }).toList();
+    });
+  }
+
   Future<void> _fetchPosts() async {
+    UserService().getUserProfile().then((_) {
+      if (mounted) setState(() {});
+    });
     final posts = await PostService().getAllPosts();
-    if (mounted) setState(() => _posts = posts);
+    if (mounted) {
+      _allPosts = posts;
+      _applySearch();
+    }
   }
 
   @override
@@ -62,16 +96,28 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       actions: [
-        IconButton(
-          tooltip: 'Notifications',
-          onPressed: () => Navigator.pushNamed(context, '/notifications'),
-          icon: const Icon(Icons.notifications_none, size: 22),
+        ListenableBuilder(
+          listenable: SocialStore.instance,
+          builder: (context, _) {
+            final count = SocialStore.instance.unreadNotificationCount;
+            final icon = const Icon(Icons.notifications_none, size: 22);
+            return IconButton(
+              tooltip: 'Notifications',
+              onPressed: () => Navigator.pushNamed(context, '/notifications'),
+              icon: count > 0
+                  ? Badge(
+                      label: Text(count.toString()),
+                      child: icon,
+                    )
+                  : icon,
+            );
+          },
         ),
       ],
     ),
     body: CustomScrollView(
       slivers: [
-        SliverToBoxAdapter(child: _SearchBar(controller: searchController)),
+        SliverToBoxAdapter(child: _SearchBar(controller: searchController, onFilterPressed: _applySearch)),
         if (_posts == null)
           const SliverFillRemaining(
             child: Center(child: CircularProgressIndicator()),
@@ -100,6 +146,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         comments: post.commentCount.toString(),
                         author: post.authorName,
                         handle: post.authorHandle,
+                        authorId: post.authorId,
+                        authorPhoto: post.authorPhoto,
                         time: post.createdAt != null 
                             ? '${DateTime.now().difference(post.createdAt!).inHours}h'
                             : 'now',
@@ -123,8 +171,9 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _SearchBar extends StatelessWidget {
-  const _SearchBar({required this.controller});
+  const _SearchBar({required this.controller, required this.onFilterPressed});
   final TextEditingController controller;
+  final VoidCallback onFilterPressed;
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.fromLTRB(10, 8, 10, 7),
@@ -135,6 +184,7 @@ class _SearchBar extends StatelessWidget {
             height: 38,
             child: TextField(
               controller: controller,
+              onSubmitted: (_) => onFilterPressed(),
               decoration: InputDecoration(
                 hintText: 'Search...',
                 hintStyle: const TextStyle(fontSize: 12),
@@ -160,7 +210,7 @@ class _SearchBar extends StatelessWidget {
           ),
           child: IconButton(
             padding: EdgeInsets.zero,
-            onPressed: () {},
+            onPressed: onFilterPressed,
             icon: const Icon(
               Icons.filter_alt_outlined,
               color: AppColors.brown,

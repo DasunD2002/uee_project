@@ -43,7 +43,9 @@ class PublicProfileScreen extends StatelessWidget {
                     children: [
                       CircleAvatar(
                         radius: 42,
-                        backgroundImage: AssetImage(avatar),
+                        backgroundImage: avatar.startsWith('http')
+                            ? NetworkImage(avatar)
+                            : AssetImage(avatar) as ImageProvider,
                       ),
                       const SizedBox(width: 24),
                       const Expanded(
@@ -59,12 +61,32 @@ class PublicProfileScreen extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  Text(
-                    author,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        author,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      FilledButton(
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('You are now following $author')),
+                          );
+                        },
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF9E4B33),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          minimumSize: const Size(80, 36),
+                        ),
+                        child: const Text('Follow', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 5),
                   Text(handle),
