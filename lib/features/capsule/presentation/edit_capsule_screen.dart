@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../domain/capsule_model.dart';
 import '../data/capsule_service.dart';
@@ -163,6 +164,11 @@ class _EditCapsuleScreenState extends State<EditCapsuleScreen> {
     setState(() => _isLoading = false);
 
     if (error == null) {
+      NotificationService().showNotification(
+        title: 'Capsule Updated 📝',
+        body: '"${updated.title}" details have been updated.',
+        icon: Icons.edit_note_rounded,
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Capsule updated successfully'),
@@ -200,6 +206,11 @@ class _EditCapsuleScreenState extends State<EditCapsuleScreen> {
           if (!mounted) return;
 
           if (error == null) {
+            NotificationService().showNotification(
+              title: 'Capsule Deleted 🗑️',
+              body: '"${_titleCtrl.text.trim()}" was removed from your vault.',
+              icon: Icons.delete_outline_rounded,
+            );
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: const Text('Capsule deleted successfully'),

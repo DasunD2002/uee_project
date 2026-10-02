@@ -1,5 +1,9 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
+import '../../../core/services/supabase_service.dart';
+import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../capsule/domain/capsule_model.dart';
 import '../../capsule/data/capsule_service.dart';
@@ -17,8 +21,11 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final CapsuleService _capsuleService = CapsuleService();
+  final SupabaseService _supabaseService = SupabaseService();
+  final ImagePicker _imagePicker = ImagePicker();
   String _type = 'Family';
-  bool _hasCoverPhoto = false;
+  XFile? _coverImageFile;
+  Uint8List? _coverImageBytes;
   bool _isLoading = false;
 
   @override
@@ -28,9 +35,135 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
     super.dispose();
   }
 
-  void _selectCoverPhoto() {
-    // The screen is ready to connect to image_picker when photo storage is added.
-    setState(() => _hasCoverPhoto = true);
+  Future<void> _selectCoverPhoto() async {
+    final source = await showModalBottomSheet<ImageSource?>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFFFDF8F5),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDCCFC9),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const Text(
+              'Add Cover Photo',
+              style: TextStyle(
+                color: AppColors.brown,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Select an image to bring your capsule to life',
+              style: TextStyle(color: Color(0xFF897C77), fontSize: 11),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              leading: const CircleAvatar(
+                backgroundColor: Color(0xFFF3EAE4),
+                child: Icon(Icons.photo_library_outlined, color: AppColors.brown, size: 20),
+              ),
+              title: const Text(
+                'Choose from Gallery',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.brown),
+              ),
+              subtitle: const Text('Pick JPG or PNG up to 10 MB', style: TextStyle(fontSize: 10, color: Color(0xFF897C77))),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+            const SizedBox(height: 4),
+            ListTile(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              leading: const CircleAvatar(
+                backgroundColor: Color(0xFFF3EAE4),
+                child: Icon(Icons.camera_alt_outlined, color: AppColors.brown, size: 20),
+              ),
+              title: const Text(
+                'Take a Photo',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.brown),
+              ),
+              subtitle: const Text('Use camera to capture now', style: TextStyle(fontSize: 10, color: Color(0xFF897C77))),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+            if (_coverImageBytes != null) ...[
+              const Divider(height: 20, color: Color(0xFFEDE2DC)),
+              ListTile(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                leading: const CircleAvatar(
+                  backgroundColor: Color(0xFFFDEDED),
+                  child: Icon(Icons.delete_outline_rounded, color: Colors.red, size: 20),
+                ),
+                title: const Text(
+                  'Remove Cover Photo',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.red),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  setState(() {
+                    _coverImageFile = null;
+                    _coverImageBytes = null;
+                  });
+                },
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+
+    if (source == null) return;
+
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: source,
+        imageQuality: 85,
+        maxWidth: 1600,
+        maxHeight: 1600,
+      );
+
+      if (picked != null) {
+        final bytes = await picked.readAsBytes();
+        if (bytes.lengthInBytes > 10 * 1024 * 1024) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Selected image exceeds 10 MB limit. Please choose a smaller image.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+
+        setState(() {
+          _coverImageFile = picked;
+          _coverImageBytes = bytes;
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to pick image: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Future<void> _createCapsule() async {
@@ -39,12 +172,29 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
 
     setState(() => _isLoading = true);
 
+    String? coverImageUrl;
+    if (_coverImageBytes != null && _coverImageFile != null) {
+      try {
+        final ext = _coverImageFile!.name.split('.').lastOrNull ?? 'jpg';
+        final path = 'capsules/${DateTime.now().millisecondsSinceEpoch}_cover.$ext';
+        final mimeType = _coverImageFile!.mimeType ?? 'image/$ext';
+        coverImageUrl = await _supabaseService.uploadBytes(
+          _coverImageBytes!,
+          path,
+          mimeType,
+        );
+      } catch (_) {
+        // If Supabase upload fails, gracefully fallback
+      }
+      coverImageUrl ??= 'assets/images/login_image.jpg';
+    }
+
     final capsule = CapsuleModel(
       title: _titleController.text.trim(),
       description: _descriptionController.text.trim(),
       category: _type,
       type: _type,
-      coverImageUrl: _hasCoverPhoto ? 'assets/images/login_image.jpg' : null,
+      coverImageUrl: coverImageUrl,
     );
 
     final error = await _capsuleService.createCapsule(capsule);
@@ -53,6 +203,11 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
     setState(() => _isLoading = false);
 
     if (error == null) {
+      NotificationService().showNotification(
+        title: 'Capsule Created! ✨',
+        body: '"${_titleController.text.trim()}" has been safely preserved in your vault.',
+        icon: Icons.lock_clock_outlined,
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${_titleController.text.trim()} capsule created successfully!'),
@@ -145,8 +300,14 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
               title: '2. Add Cover Photo',
               subtitle: 'Choose an image that brings this capsule to life.',
               child: _CoverPhotoPicker(
-                hasCoverPhoto: _hasCoverPhoto,
+                imageBytes: _coverImageBytes,
                 onTap: _selectCoverPhoto,
+                onRemove: _coverImageBytes != null
+                    ? () => setState(() {
+                        _coverImageFile = null;
+                        _coverImageBytes = null;
+                      })
+                    : null,
               ),
             ),
             const SizedBox(height: 24),
@@ -277,9 +438,15 @@ class _FormSection extends StatelessWidget {
 }
 
 class _CoverPhotoPicker extends StatelessWidget {
-  const _CoverPhotoPicker({required this.hasCoverPhoto, required this.onTap});
-  final bool hasCoverPhoto;
+  const _CoverPhotoPicker({
+    required this.imageBytes,
+    required this.onTap,
+    this.onRemove,
+  });
+
+  final Uint8List? imageBytes;
   final VoidCallback onTap;
+  final VoidCallback? onRemove;
 
   @override
   Widget build(BuildContext context) => InkWell(
@@ -292,27 +459,71 @@ class _CoverPhotoPicker extends StatelessWidget {
         borderRadius: BorderRadius.circular(11),
         border: Border.all(color: const Color(0xFFEADFD9)),
       ),
-      child: hasCoverPhoto
+      child: imageBytes != null
           ? ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Image.asset('assets/images/login_image.jpg', fit: BoxFit.cover),
-                  const Align(
+                  Image.memory(imageBytes!, fit: BoxFit.cover),
+                  Align(
                     alignment: Alignment.bottomCenter,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(color: Color(0x99000000)),
-                      child: SizedBox(
-                        height: 34,
-                        width: double.infinity,
-                        child: Center(
-                          child: Text('Tap to change cover photo',
-                              style: TextStyle(color: Colors.white, fontSize: 10)),
+                    child: Container(
+                      height: 36,
+                      width: double.infinity,
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: [
+                            Color(0xCC000000),
+                            Color(0x00000000),
+                          ],
+                        ),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      alignment: Alignment.bottomCenter,
+                      child: const Padding(
+                        padding: EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.edit_outlined, color: Colors.white, size: 12),
+                            SizedBox(width: 4),
+                            Text(
+                              'Tap to change cover photo',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
                   ),
+                  if (onRemove != null)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Material(
+                        color: Colors.black.withValues(alpha: 0.55),
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: onRemove,
+                          child: const Padding(
+                            padding: EdgeInsets.all(6),
+                            child: Icon(
+                              Icons.close,
+                              color: Colors.white,
+                              size: 15,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             )

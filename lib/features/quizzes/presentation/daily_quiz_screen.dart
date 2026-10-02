@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/navigation/primary_navigation.dart';
+import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../explorer/presentation/widgets/explorer_footer.dart';
 import '../domain/quiz_progress_store.dart';
@@ -47,6 +48,11 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
     await Future<void>.delayed(const Duration(milliseconds: 450));
     if (!mounted) return;
     if (stage == 2) {
+      NotificationService().showNotification(
+        title: 'Daily Quiz Completed! 🏆',
+        body: 'Congratulations! You completed today\'s quiz with ${progress.score} points.',
+        icon: Icons.emoji_events_outlined,
+      );
       Navigator.pop(context, progress.score);
       return;
     }

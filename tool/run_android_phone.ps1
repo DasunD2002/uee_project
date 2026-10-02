@@ -41,10 +41,10 @@ if ($LASTEXITCODE -ne 0 -or -not $deviceState -or $deviceState.Trim() -ne 'devic
     throw "Device $DeviceId is unavailable. Ensure it is authorized and online."
 }
 
-# 2. Detect Backend Port (8081 for Rootly, or fallback to 8080)
-$backendPort = 8081
+# 2. Detect Backend Port (8080 for Rootly, or fallback to 8081)
+$backendPort = 8080
 $backendResponding = $false
-foreach ($port in @(8081, 8080)) {
+foreach ($port in @(8080, 8081)) {
     try {
         $res = Invoke-WebRequest -Uri "http://127.0.0.1:$port/api/v1/explore/categories" -TimeoutSec 3 -UseBasicParsing -ErrorAction SilentlyContinue
         if ($res -and $res.StatusCode -lt 500) {

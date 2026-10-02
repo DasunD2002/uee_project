@@ -10,6 +10,7 @@ class NotificationItemData {
     this.avatarUrl,
     this.icon,
     this.isUnread = false,
+    this.timestamp,
   });
 
   final String id;
@@ -20,16 +21,50 @@ class NotificationItemData {
   final String? avatarUrl;
   final IconData? icon;
   final bool isUnread;
+  final DateTime? timestamp;
 
-  NotificationItemData copyWith({bool? isUnread}) => NotificationItemData(
+  NotificationItemData copyWith({
+    bool? isUnread,
+    String? timeAgo,
+  }) => NotificationItemData(
     id: id,
     title: title,
     subtitle: subtitle,
-    timeAgo: timeAgo,
+    timeAgo: timeAgo ?? this.timeAgo,
     avatarAsset: avatarAsset,
     avatarUrl: avatarUrl,
     icon: icon,
     isUnread: isUnread ?? this.isUnread,
+    timestamp: timestamp,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'title': title,
+    'subtitle': subtitle,
+    'timeAgo': timeAgo,
+    'avatarAsset': avatarAsset,
+    'avatarUrl': avatarUrl,
+    'iconCode': icon?.codePoint,
+    'isUnread': isUnread,
+    'timestamp': timestamp?.toIso8601String(),
+  };
+
+  factory NotificationItemData.fromJson(Map<String, dynamic> json) => NotificationItemData(
+    id: json['id'] as String? ?? '',
+    title: json['title'] as String? ?? '',
+    subtitle: json['subtitle'] as String? ?? '',
+    timeAgo: json['timeAgo'] as String? ?? 'Just now',
+    avatarAsset: json['avatarAsset'] as String?,
+    avatarUrl: json['avatarUrl'] as String?,
+    icon: json['iconCode'] != null
+        // ignore: non_const_argument_for_const_parameter
+        ? IconData(json['iconCode'] as int, fontFamily: 'MaterialIcons')
+        : null,
+    isUnread: json['isUnread'] as bool? ?? false,
+    timestamp: json['timestamp'] != null
+        ? DateTime.tryParse(json['timestamp'] as String)
+        : null,
   );
 }
 

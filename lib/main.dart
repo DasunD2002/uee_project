@@ -28,6 +28,8 @@ import 'features/translations/presentation/translation_screen.dart';
 import 'features/quizzes/presentation/daily_quiz_screen.dart';
 import 'features/quizzes/presentation/quiz_home_screen.dart';
 
+import 'core/services/notification_service.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -35,6 +37,8 @@ void main() async {
     url: ApiConstants.supabaseUrl,
     anonKey: ApiConstants.supabaseAnonKey,
   );
+
+  await NotificationService().init();
 
   runApp(const RootlyApp());
 }

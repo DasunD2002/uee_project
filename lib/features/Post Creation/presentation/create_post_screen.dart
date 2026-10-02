@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/community_app_bar.dart';
 import '../../../core/services/supabase_service.dart';
+import '../../../core/services/notification_service.dart';
 import '../../home/presentation/widgets/home_drawer.dart';
 import '../domain/user_post.dart';
 import '../data/post_service.dart';
@@ -190,6 +191,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           : await _postService.createPost(post, mediaUrl, proofUrls);
 
       if (error == null) {
+        NotificationService().showNotification(
+          title: editing ? 'Post Updated 🌟' : 'Heritage Story Shared 🌟',
+          body: '"${post.title}" has been published to the community feed.',
+          icon: Icons.auto_awesome,
+        );
         if (mounted) Navigator.pop(context, PostEditorResult(post: post));
       } else {
         message(error);
@@ -233,6 +239,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         }
       }
       if (mounted) {
+        NotificationService().showNotification(
+          title: 'Post Deleted 🗑️',
+          body: 'Your heritage post was removed.',
+          icon: Icons.delete_outline_rounded,
+        );
         setState(() => _isSaving = false);
         Navigator.pop(context, const PostEditorResult(deleted: true));
       }

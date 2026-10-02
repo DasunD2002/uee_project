@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/services/notification_service.dart';
 import '../../explorer/presentation/widgets/explorer_footer.dart';
 import 'widgets/notification_item_tile.dart';
 
@@ -10,57 +11,91 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  late List<NotificationItemData> todayNotifications;
-  late List<NotificationItemData> yesterdayNotifications;
+  List<NotificationItemData> todayNotifications = [];
+  List<NotificationItemData> yesterdayNotifications = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    todayNotifications = [
-      const NotificationItemData(
-        id: 'today_1',
-        title: 'Kumari Devi added a photo to the Family Capsule',
-        subtitle: 'New memory shared in "Sinhala New Year 2024"',
-        timeAgo: '2h ago',
-        avatarAsset: 'assets/images/profile_avatar.png',
-        avatarUrl:
-            'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80',
-        isUnread: true,
-      ),
-      const NotificationItemData(
-        id: 'today_2',
-        title: 'System: Weekly Digest is ready',
-        subtitle: "Review your family's archival activity from this past week.",
-        timeAgo: '5h ago',
-        icon: Icons.article_outlined,
-        isUnread: false,
-      ),
-    ];
-
-    yesterdayNotifications = [
-      const NotificationItemData(
-        id: 'yesterday_1',
-        title: "Saman Kumara left an audio note on Grandson's 18th Birthday",
-        subtitle: '"Wishing you all the best on your journey ahead..."',
-        timeAgo: 'Yesterday',
-        avatarAsset: 'assets/images/dinesh_avatar.png',
-        avatarUrl:
-            'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-        isUnread: false,
-      ),
-      const NotificationItemData(
-        id: 'yesterday_2',
-        title: 'Vault Update: Security Check Completed',
-        subtitle:
-            'Your digital heirlooms remain securely sealed and backed up.',
-        timeAgo: 'Yesterday',
-        icon: Icons.verified_user_outlined,
-        isUnread: false,
-      ),
-    ];
+    _loadNotifications();
   }
 
-  void _markAllAsRead() {
+  Future<void> _loadNotifications() async {
+    final dynamicItems = await NotificationService().getInAppNotifications();
+
+    if (dynamicItems.isNotEmpty) {
+      final now = DateTime.now();
+      final today = <NotificationItemData>[];
+      final earlier = <NotificationItemData>[];
+
+      for (final item in dynamicItems) {
+        if (item.timestamp != null) {
+          final diff = now.difference(item.timestamp!);
+          if (diff.inHours < 24) {
+            final timeAgoStr = diff.inMinutes < 1
+                ? 'Just now'
+                : diff.inMinutes < 60
+                    ? '${diff.inMinutes}m ago'
+                    : '${diff.inHours}h ago';
+            today.add(item.copyWith(timeAgo: timeAgoStr));
+          } else {
+            earlier.add(item.copyWith(timeAgo: 'Yesterday'));
+          }
+        } else {
+          today.add(item);
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          todayNotifications = today;
+          yesterdayNotifications = earlier.isNotEmpty
+              ? earlier
+              : [
+                  const NotificationItemData(
+                    id: 'default_vault',
+                    title: 'Vault Security: Cloud Sync Active',
+                    subtitle: 'Your memories and cultural discoveries are protected.',
+                    timeAgo: 'Yesterday',
+                    icon: Icons.verified_user_outlined,
+                    isUnread: false,
+                  ),
+                ];
+          _isLoading = false;
+        });
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          todayNotifications = [
+            const NotificationItemData(
+              id: 'welcome_1',
+              title: 'Welcome to Rootly!',
+              subtitle: 'Create your first time capsule or explore Sri Lankan heritage sites.',
+              timeAgo: 'Just now',
+              icon: Icons.auto_awesome,
+              isUnread: true,
+            ),
+          ];
+          yesterdayNotifications = [
+            const NotificationItemData(
+              id: 'default_vault',
+              title: 'Vault Status: Ready',
+              subtitle: 'Your heirloom vault is initialized and ready to preserve moments.',
+              timeAgo: 'Yesterday',
+              icon: Icons.verified_user_outlined,
+              isUnread: false,
+            ),
+          ];
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _markAllAsRead() async {
+    await NotificationService().markAllAsRead();
     setState(() {
       todayNotifications = todayNotifications
           .map((item) => item.copyWith(isUnread: false))
@@ -70,15 +105,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           .toList();
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('All notifications marked as read'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('All notifications marked as read'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
-  void _toggleItemRead(String id, bool isToday) {
+  Future<void> _toggleItemRead(String id, bool isToday) async {
+    await NotificationService().markAsRead(id);
     setState(() {
       if (isToday) {
         todayNotifications = todayNotifications.map((item) {
@@ -157,11 +195,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF84321F)),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
             _buildSection(
               title: 'Today',
               items: todayNotifications,

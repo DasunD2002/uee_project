@@ -129,6 +129,11 @@ class _FamilyReceiptScreenState extends State<FamilyReceiptScreen>
         });
       }
       if (mounted) {
+        NotificationService().showNotification(
+          title: 'Memory Sealed ✦',
+          body: 'New ${newMemory.type.displayName.toLowerCase()} preserved in "${_capsule?.title ?? 'Family Capsule'}".',
+          icon: Icons.lock_rounded,
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Memory sealed into your capsule ✦')),
         );
@@ -157,6 +162,11 @@ class _FamilyReceiptScreenState extends State<FamilyReceiptScreen>
         });
       }
       if (mounted) {
+        NotificationService().showNotification(
+          title: 'Voice Note Sealed 🎙️',
+          body: 'Voice note preserved in "${_capsule?.title ?? 'Family Capsule'}".',
+          icon: Icons.mic_rounded,
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Voice note sealed into your capsule ✦')),
         );

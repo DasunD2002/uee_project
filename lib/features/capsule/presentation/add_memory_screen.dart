@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../explorer/presentation/widgets/explorer_footer.dart';
+import '../../../core/services/notification_service.dart';
 
 // ── Palette — matches the rest of the app ────────────────────────────────────
 const _kBg       = Color(0xFFFDF8F5);   // warm off-white page background
@@ -53,6 +54,11 @@ class _AddMemoryScreenState extends State<AddMemoryScreen>
 
   void _finish() {
     HapticFeedback.mediumImpact();
+    NotificationService().showNotification(
+      title: 'Memory Sealed ✦',
+      body: 'A new memory has been safely sealed into your time capsule.',
+      icon: Icons.lock_rounded,
+    );
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
