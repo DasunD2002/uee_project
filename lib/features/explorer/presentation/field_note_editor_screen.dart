@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../data/field_notes_store.dart';
 import '../../../core/navigation/primary_navigation.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/rootly_back_button.dart';
@@ -23,10 +24,18 @@ class FieldNoteEditorScreen extends StatefulWidget {
     this.initialCategory = 'Architectural',
     this.initialText = '',
     this.isEditing = false,
+    this.noteId,
+    this.initialDate,
+    this.initialTags,
+    this.store,
   });
 
   final String province, image, initialSite, initialCategory, initialText;
   final bool isEditing;
+  final String? noteId;
+  final DateTime? initialDate;
+  final List<String>? initialTags;
+  final FieldNotesStore? store;
 
   @override
   State<FieldNoteEditorScreen> createState() => _FieldNoteEditorScreenState();
@@ -37,6 +46,10 @@ class _FieldNoteEditorScreenState extends State<FieldNoteEditorScreen> {
   late final TextEditingController siteController;
   late final TextEditingController journalController;
   late String category;
+  late DateTime date;
+  late List<String> tags;
+  late String noteId;
+  bool saving = false;
 
   @override
   void initState() {
@@ -44,6 +57,12 @@ class _FieldNoteEditorScreenState extends State<FieldNoteEditorScreen> {
     siteController = TextEditingController(text: widget.initialSite);
     journalController = TextEditingController(text: widget.initialText);
     category = widget.initialCategory;
+    date = widget.initialDate ?? DateTime.now();
+    noteId = widget.noteId ?? DateTime.now().microsecondsSinceEpoch.toString();
+    tags = [...?widget.initialTags];
+    if (widget.initialTags == null) {
+      tags.add(widget.province.replaceAll(' Province', ''));
+    }
   }
 
   @override
@@ -53,8 +72,32 @@ class _FieldNoteEditorScreenState extends State<FieldNoteEditorScreen> {
     super.dispose();
   }
 
-  void save() {
-    if (!formKey.currentState!.validate()) return;
+  Future<void> save() async {
+    if (saving || !formKey.currentState!.validate()) return;
+    setState(() => saving = true);
+    try {
+      await (widget.store ?? FieldNotesStore.instance).save(
+        FieldNote(
+          id: noteId,
+          province: widget.province,
+          site: siteController.text.trim(),
+          category: category,
+          text: journalController.text.trim(),
+          image: widget.image,
+          date: date,
+          tags: tags,
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() => saving = false);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
+      return;
+    }
+    if (!mounted) return;
     Navigator.pop(
       context,
       FieldNoteEditorResult(
@@ -143,7 +186,23 @@ class _FieldNoteEditorScreenState extends State<FieldNoteEditorScreen> {
                   children: [
                     const _FieldLabel('DATE'),
                     TextFormField(
-                      initialValue: 'Oct 12, 2024',
+                      key: ValueKey(date),
+                      initialValue: MaterialLocalizations.of(
+                        context,
+                      ).formatMediumDate(date),
+                      onTap: saving
+                          ? null
+                          : () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: date,
+                                firstDate: DateTime(1900),
+                                lastDate: DateTime.now(),
+                              );
+                              if (picked != null && mounted) {
+                                setState(() => date = picked);
+                              }
+                            },
                       readOnly: true,
                       decoration: const InputDecoration(
                         isDense: true,
@@ -196,12 +255,12 @@ class _FieldNoteEditorScreenState extends State<FieldNoteEditorScreen> {
             spacing: 7,
             runSpacing: 6,
             children: [
-              for (final tag in [
-                'Rock Carving ×',
-                '${widget.province.replaceAll(' Province', '')} ×',
-              ])
+              for (final tag in tags)
                 Chip(
                   label: Text(tag, style: const TextStyle(fontSize: 8)),
+                  onDeleted: saving
+                      ? null
+                      : () => setState(() => tags.remove(tag)),
                   backgroundColor: const Color(0xFFFFDCC2),
                   visualDensity: VisualDensity.compact,
                   side: BorderSide.none,
@@ -209,7 +268,45 @@ class _FieldNoteEditorScreenState extends State<FieldNoteEditorScreen> {
               ActionChip(
                 label: const Text('+ Add Tag', style: TextStyle(fontSize: 8)),
                 visualDensity: VisualDensity.compact,
-                onPressed: () {},
+                onPressed: saving
+                    ? null
+                    : () async {
+                        final controller = TextEditingController();
+                        final tag = await showDialog<String>(
+                          context: context,
+                          builder: (dialogContext) => AlertDialog(
+                            title: const Text('Add Tag'),
+                            content: TextField(
+                              controller: controller,
+                              maxLength: 40,
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(dialogContext),
+                                child: const Text('Cancel'),
+                              ),
+                              FilledButton(
+                                onPressed: () => Navigator.pop(
+                                  dialogContext,
+                                  controller.text.trim(),
+                                ),
+                                child: const Text('Add'),
+                              ),
+                            ],
+                          ),
+                        );
+                        // Dispose after the dialog's closing animation.
+                        Future<void>.delayed(
+                          const Duration(milliseconds: 300),
+                          controller.dispose,
+                        );
+                        if (tag != null &&
+                            tag.isNotEmpty &&
+                            mounted &&
+                            !tags.contains(tag)) {
+                          setState(() => tags.add(tag));
+                        }
+                      },
               ),
             ],
           ),
@@ -277,14 +374,18 @@ class _FieldNoteEditorScreenState extends State<FieldNoteEditorScreen> {
               const SizedBox(width: 14),
               Expanded(
                 child: FilledButton(
-                  onPressed: save,
+                  onPressed: saving ? null : save,
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.brown,
                     minimumSize: const Size.fromHeight(44),
                     shape: const RoundedRectangleBorder(),
                   ),
                   child: Text(
-                    widget.isEditing ? 'Save Entry' : 'Create Note',
+                    saving
+                        ? 'Saving...'
+                        : widget.isEditing
+                        ? 'Save Entry'
+                        : 'Create Note',
                     style: const TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,

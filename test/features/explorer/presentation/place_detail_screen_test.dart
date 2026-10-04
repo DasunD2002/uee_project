@@ -54,6 +54,11 @@ void main() {
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpAndSettle();
+    expect(find.text('Retry photo'), findsOneWidget);
+    await tester.tap(find.text('Retry photo'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('$photo:1')), findsOneWidget);
 
     expect(find.text('Historical Narrative'), findsOneWidget);
     expect(find.text(narrative), findsWidgets);

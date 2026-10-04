@@ -1,11 +1,11 @@
 import '../edit_profile_screen.dart';
 import 'dart:convert';
-import 'dart:typed_data';
+
 import '../../domain/profile_photo_service.dart';
 import '../../data/user_service.dart';
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../core/services/account_data_store.dart';
 import '../../../../core/theme/app_colors.dart';
 
 class ProfileHeader extends StatefulWidget {
@@ -63,7 +63,10 @@ class _ProfileHeaderState extends State<ProfileHeader> {
   Future<void> editDetails() async {
     final result = await Navigator.push<Map<String, String>>(
       context,
-      MaterialPageRoute(builder: (_) => EditProfileScreen(details: Map<String, String>.from(details))),
+      MaterialPageRoute(
+        builder: (_) =>
+            EditProfileScreen(details: Map<String, String>.from(details)),
+      ),
     );
     if (result != null && mounted) {
       setState(() => loading = true);
@@ -89,19 +92,19 @@ class _ProfileHeaderState extends State<ProfileHeader> {
     if (loading || picking) return;
     setState(() => picking = true);
     try {
+      final session = await AccountSession.current();
+      if (session == null) throw StateError('Not logged in');
       final bytes = await pickProfilePhoto(isCover: isCover);
       if (bytes == null) return;
-      
-      final prefs = await SharedPreferences.getInstance();
-      final userId = prefs.getString('user_id');
-      if (userId == null) throw StateError('Not logged in');
 
-      final url = await uploadProfilePhoto(bytes, userId, isCover: isCover);
-      
+      if (!await session.isCurrent) return;
+      final url = await uploadProfilePhoto(bytes, session.userId, isCover: isCover);
+      if (!await session.isCurrent) return;
+
       final success = await _userService.updateUserProfile(
-        isCover ? {'coverUrl': url} : {'photoUrl': url},
+        isCover ? {'coverUrl': url} : {'photoUrl': url}, expectedSession: session,
       );
-      
+
       if (!success) throw StateError('Could not save photo URL');
 
       if (!mounted) return;
@@ -115,13 +118,23 @@ class _ProfileHeaderState extends State<ProfileHeader> {
       message(isCover ? 'Cover photo updated.' : 'Profile photo updated.');
     } catch (_) {
       if (mounted) {
-        message(
-          'Could not update the photo. Please try again.',
-        );
+        message('Could not update the photo. Please try again.');
       }
     } finally {
       if (mounted) setState(() => picking = false);
     }
+  }
+
+  ImageProvider? imageProvider(String? source) {
+    if (source == null || source.isEmpty) return null;
+    if (source.startsWith('data:image/')) {
+      try {
+        return MemoryImage(base64Decode(source.split(',').last));
+      } catch (_) {
+        return null;
+      }
+    }
+    return NetworkImage(source);
   }
 
   @override
@@ -136,10 +149,12 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                     key: const ValueKey('profile-cover-placeholder'),
                     fit: BoxFit.cover,
                   )
-                : Image.network(
-                    coverUrl!,
-                    key: const ValueKey('profile-cover-network'),
+                : Image(
+                    image: imageProvider(coverUrl)!,
+                    key: const ValueKey('profile-cover'),
                     fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) =>
+                        const ColoredBox(color: Color(0xFFFFF7E8)),
                   ),
           ),
           Positioned.fill(
@@ -163,7 +178,7 @@ class _ProfileHeaderState extends State<ProfileHeader> {
               child: Column(
                 children: [
                   Stack(
-                     children: [
+                    children: [
                       Container(
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
@@ -171,11 +186,17 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                         ),
                         child: CircleAvatar(
                           radius: 52,
-                          backgroundImage: avatarUrl == null
+                          backgroundImage: imageProvider(avatarUrl),
+                          onBackgroundImageError:
+                              imageProvider(avatarUrl) == null
                               ? null
-                              : NetworkImage(avatarUrl!),
+                              : (_, _) {},
                           child: avatarUrl == null
-                              ? const Icon(Icons.person, size: 52, color: Colors.grey)
+                              ? const Icon(
+                                  Icons.person,
+                                  size: 52,
+                                  color: Colors.grey,
+                                )
                               : null,
                         ),
                       ),
@@ -202,7 +223,10 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                   const SizedBox(height: 14),
                   Text(
                     details['name'] ?? '',
-                    style: const TextStyle(fontSize: 23, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontSize: 23,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 5),
                   Text(
@@ -303,6 +327,18 @@ class _ProfileHeaderState extends State<ProfileHeader> {
 class _Stat extends StatelessWidget {
   const _Stat(this.value, this.label);
   final String value, label;
+  ImageProvider? imageProvider(String? source) {
+    if (source == null || source.isEmpty) return null;
+    if (source.startsWith('data:image/')) {
+      try {
+        return MemoryImage(base64Decode(source.split(',').last));
+      } catch (_) {
+        return null;
+      }
+    }
+    return NetworkImage(source);
+  }
+
   @override
   Widget build(BuildContext context) => Expanded(
     child: Column(

@@ -1,4 +1,5 @@
-import 'dart:convert';
+import 'support/mock_backend.dart';
+import 'package:uee_project/core/widgets/post_interaction_sheets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,7 +11,11 @@ import 'package:uee_project/features/home/presentation/widgets/story_card.dart';
 
 void main() {
   setUp(() {
-    SharedPreferences.setMockInitialValues({});
+    installMockBackend();
+    SharedPreferences.setMockInitialValues({
+      'user_id': 'test-user',
+      'jwt_token': 'test-token',
+    });
     final store = SocialStore.instance;
     store.collections.removeRange(6, store.collections.length);
     for (final c in store.collections) {
@@ -39,6 +44,7 @@ void main() {
               likes: '100',
               comments: '2',
               author: 'Dinesh',
+              authorId: 'test-other-user',
               handle: '@dineshcarves',
             ),
           ),
@@ -109,6 +115,17 @@ void main() {
     await feed(tester);
     await tester.tap(find.byTooltip('Save post'));
     await tester.pumpAndSettle();
+    final context = tester.element(find.byType(StoryCard));
+    final choosing = chooseSavedCollections(
+      context,
+      const SavedStory(
+        id: 'test_post_2',
+        title: 'Mask carvers',
+        author: 'Test',
+        description: 'Our traditional craft.',
+      ),
+    );
+    await tester.pumpAndSettle();
     expect(find.text('Hill Country Trails'), findsOneWidget);
     await tester.tap(find.text('Create New collection'));
     await tester.pumpAndSettle();
@@ -118,6 +135,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Done'));
     await tester.pumpAndSettle();
+    await choosing;
     final collection = SocialStore.instance.collections.last;
     expect(collection.name, 'My craft stories');
     expect(collection.stories.values.single.title, 'Mask carvers');
@@ -141,11 +159,7 @@ void main() {
     await tester.tap(find.text('Save Changes'));
     await tester.pumpAndSettle();
     expect(find.text('Amaya Perera'), findsOneWidget);
-    final prefs = await SharedPreferences.getInstance();
-    expect(
-      (jsonDecode(prefs.getString('profile.details')!) as Map)['name'],
-      'Amaya Perera',
-    );
+    expect(testProfile['name'], 'Amaya Perera');
   });
   testWidgets('auth boxes have subtle outline and a colored focused border', (
     tester,

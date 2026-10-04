@@ -24,6 +24,13 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     searchController.addListener(_onSearchChanged);
+    SocialStore.instance.load().catchError((Object error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    });
     _fetchPosts();
   }
 
@@ -46,7 +53,10 @@ class _HomeScreenState extends State<HomeScreen> {
         final place = post.place.toLowerCase();
         final district = post.district.toLowerCase();
         final author = post.authorName.toLowerCase();
-        return title.contains(query) || place.contains(query) || district.contains(query) || author.contains(query);
+        return title.contains(query) ||
+            place.contains(query) ||
+            district.contains(query) ||
+            author.contains(query);
       }).toList();
     });
   }
@@ -105,10 +115,7 @@ class _HomeScreenState extends State<HomeScreen> {
               tooltip: 'Notifications',
               onPressed: () => Navigator.pushNamed(context, '/notifications'),
               icon: count > 0
-                  ? Badge(
-                      label: Text(count.toString()),
-                      child: icon,
-                    )
+                  ? Badge(label: Text(count.toString()), child: icon)
                   : icon,
             );
           },
@@ -117,48 +124,52 @@ class _HomeScreenState extends State<HomeScreen> {
     ),
     body: CustomScrollView(
       slivers: [
-        SliverToBoxAdapter(child: _SearchBar(controller: searchController, onFilterPressed: _applySearch)),
+        SliverToBoxAdapter(
+          child: _SearchBar(
+            controller: searchController,
+            onFilterPressed: _applySearch,
+          ),
+        ),
         if (_posts == null)
           const SliverFillRemaining(
             child: Center(child: CircularProgressIndicator()),
           )
         else if (_posts!.isEmpty)
-          const SliverFillRemaining(
-            child: Center(child: Text('No posts yet.')),
-          )
+          const SliverFillRemaining(child: Center(child: Text('No posts yet.')))
         else
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(8, 2, 8, 12),
             sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final post = _posts![index];
-                  return Column(
-                    children: [
-                      StoryCard(
-                        postId: post.id,
-                        category: post.category.isEmpty ? 'General' : post.category,
-                        imagePath: post.asset.isEmpty ? 'assets/images/login_image.jpg' : post.asset,
-                        title: post.title,
-                        location: '${post.place} · ${post.district}',
-                        description: post.story,
-                        likes: post.likeCount.toString(),
-                        comments: post.commentCount.toString(),
-                        author: post.authorName,
-                        handle: post.authorHandle,
-                        authorId: post.authorId,
-                        authorPhoto: post.authorPhoto,
-                        time: post.createdAt != null 
-                            ? '${DateTime.now().difference(post.createdAt!).inHours}h'
-                            : 'now',
-                        postComments: post.comments,
-                      ),
-                      const SizedBox(height: 10),
-                    ],
-                  );
-                },
-                childCount: _posts!.length,
-              ),
+              delegate: SliverChildBuilderDelegate((context, index) {
+                final post = _posts![index];
+                return Column(
+                  children: [
+                    StoryCard(
+                      postId: post.id,
+                      category: post.category.isEmpty
+                          ? 'General'
+                          : post.category,
+                      imagePath: post.asset.isEmpty
+                          ? 'assets/images/login_image.jpg'
+                          : post.asset,
+                      title: post.title,
+                      location: '${post.place} · ${post.district}',
+                      description: post.story,
+                      likes: post.likeCount.toString(),
+                      comments: post.commentCount.toString(),
+                      author: post.authorName,
+                      handle: post.authorHandle,
+                      authorId: post.authorId,
+                      authorPhoto: post.authorPhoto,
+                      time: post.createdAt != null
+                          ? '${DateTime.now().difference(post.createdAt!).inHours}h'
+                          : 'now',
+                      postComments: post.comments,
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                );
+              }, childCount: _posts!.length),
             ),
           ),
       ],

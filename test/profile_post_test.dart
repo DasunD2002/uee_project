@@ -1,3 +1,4 @@
+import 'support/mock_backend.dart';
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:flutter/services.dart';
@@ -15,7 +16,11 @@ import 'package:uee_project/features/Post Creation/data/post_service.dart';
 
 void main() {
   setUp(() {
-    SharedPreferences.setMockInitialValues({});
+    installMockBackend();
+    SharedPreferences.setMockInitialValues({
+      'user_id': 'test-user',
+      'jwt_token': 'test-token',
+    });
     isTestEnvironment = true;
     PostService.clearMockPosts();
   });
@@ -62,6 +67,8 @@ void main() {
       data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
     );
     SharedPreferences.setMockInitialValues({
+      'user_id': 'test-user',
+      'jwt_token': 'test-token',
       'profile.avatar': encoded,
       'profile.cover': encoded,
     });
@@ -126,14 +133,14 @@ void main() {
     expect(find.text('Amaya Wickrama'), findsOneWidget);
     await tester.tap(find.text('Saved posts'));
     await tester.pumpAndSettle();
-    expect(find.text('6 collections · 102 saved stories'), findsOneWidget);
+    expect(find.text('6 collections · 0 saved stories'), findsOneWidget);
     await tester.tap(find.text('Create Collection'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'My heritage trail');
     await tester.pump();
     await tester.tap(find.text('Create'));
     await tester.pumpAndSettle();
-    expect(find.text('7 collections · 102 saved stories'), findsOneWidget);
+    expect(find.text('7 collections · 0 saved stories'), findsOneWidget);
   });
 
   testWidgets('draft returns to profile and can be edited and deleted', (
@@ -150,7 +157,7 @@ void main() {
     );
     await tester.tap(find.text('Save as Draft'));
     await tester.pumpAndSettle();
-    
+
     // print removed
     expect(find.text('A new draft'), findsOneWidget);
     await tester.pump(const Duration(seconds: 5));
@@ -178,6 +185,8 @@ void main() {
       500,
       scrollable: find.byType(Scrollable).first,
     );
+    await tester.ensureVisible(find.text('Delete Post'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Delete Post'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Delete'));

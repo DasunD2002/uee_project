@@ -91,11 +91,15 @@ class RecordingApiService extends ApiService {
   String errorDescription = 'Request failed';
 
   @override
-  Future<http.Response> get(String endpoint) => _response('GET', endpoint);
+  Future<http.Response> get(String endpoint, {String? sessionToken}) =>
+      _response('GET', endpoint);
 
   @override
-  Future<http.Response> post(String endpoint, {Map<String, dynamic>? body}) =>
-      _response('POST', endpoint, body);
+  Future<http.Response> post(
+    String endpoint, {
+    Map<String, dynamic>? body,
+    String? sessionToken,
+  }) => _response('POST', endpoint, body);
 
   Future<http.Response> _response(
     String method,

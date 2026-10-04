@@ -1,19 +1,23 @@
+import 'package:file_selector/file_selector.dart';
+import '../../../core/services/account_data_store.dart';
+import '../../../core/services/supabase_service.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../capsules/data/capsule_store.dart';
 
 // ---------------------------------------------------------------------------
 // Colour tokens local to this screen
 // ---------------------------------------------------------------------------
-const _kBg         = Color(0xFFFDF8F5);
-const _kCard       = Color(0xFFFFFFFF);
-const _kBrown      = Color(0xFF4A2E2B);
+const _kBg = Color(0xFFFDF8F5);
+const _kCard = Color(0xFFFFFFFF);
+const _kBrown = Color(0xFF4A2E2B);
 const _kBrownLight = Color(0xFF7A5147);
-const _kRose       = Color(0xFFE8B4A8);
-const _kRoseMid    = Color(0xFFF5DDD8);
-const _kMuted      = Color(0xFFB09590);
-const _kBorder     = Color(0xFFEEE0DB);
-const _kDelete     = Color(0xFFC0574A);
+const _kRose = Color(0xFFE8B4A8);
+const _kRoseMid = Color(0xFFF5DDD8);
+const _kMuted = Color(0xFFB09590);
+const _kBorder = Color(0xFFEEE0DB);
+const _kDelete = Color(0xFFC0574A);
 
 /// Screen for editing an existing time capsule.
 ///
@@ -26,11 +30,33 @@ class EditCapsuleScreen extends StatefulWidget {
 }
 
 class _EditCapsuleScreenState extends State<EditCapsuleScreen> {
-  final _titleCtrl       = TextEditingController(text: "Grandson's 18th Birthday");
-  final _descCtrl        = TextEditingController();
-  final _unlockDateCtrl  = TextEditingController(text: 'June 10, 2027');
-  String  _category      = 'Family';
-  bool    _allowContribs = true;
+  final _titleCtrl = TextEditingController(text: "Grandson's 18th Birthday");
+  final _descCtrl = TextEditingController();
+  final _unlockDateCtrl = TextEditingController(text: 'June 10, 2027');
+  String _category = 'Family';
+  bool _allowContribs = true;
+
+  DateTime? _unlockDate;
+  bool _saving = false, _uploading = false;
+  String? _coverUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    final capsule = CapsuleStore.instance.selected;
+    _titleCtrl.text = capsule?['title'] as String? ?? '';
+    _descCtrl.text = capsule?['description'] as String? ?? '';
+    _coverUrl = capsule?['coverPhotoUrl'];
+    final type = capsule?['type'] as String? ?? 'personal';
+    _category = type[0].toUpperCase() + type.substring(1);
+    _unlockDate = DateTime.tryParse(
+      capsule?['unlockCondition']?['date'] as String? ?? '',
+    );
+    _unlockDateCtrl.text = _unlockDate == null
+        ? ''
+        : _unlockDate!.toLocal().toString().split(' ').first;
+    _allowContribs = capsule?['allowContributions'] as bool? ?? true;
+  }
 
   static const _categories = ['Personal', 'Family', 'Community'];
 
@@ -46,7 +72,9 @@ class _EditCapsuleScreenState extends State<EditCapsuleScreen> {
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: DateTime(2027, 6, 10),
+      initialDate: _unlockDate != null && _unlockDate!.isAfter(DateTime.now())
+          ? _unlockDate!
+          : DateTime.now().add(const Duration(days: 1)),
       firstDate: DateTime.now(),
       lastDate: DateTime(2050),
       builder: (ctx, child) => Theme(
@@ -62,17 +90,103 @@ class _EditCapsuleScreenState extends State<EditCapsuleScreen> {
     );
     if (picked != null) {
       final months = [
-        'January','February','March','April','May','June',
-        'July','August','September','October','November','December',
+        'January',
+        'February',
+        'March',
+        'April',
+        'May',
+        'June',
+        'July',
+        'August',
+        'September',
+        'October',
+        'November',
+        'December',
       ];
       setState(() {
-        _unlockDateCtrl.text = '${months[picked.month - 1]} ${picked.day}, ${picked.year}';
+        _unlockDate = picked;
+        _unlockDateCtrl.text =
+            '${months[picked.month - 1]} ${picked.day}, ${picked.year}';
       });
     }
   }
 
+  Future<void> _changeCover() async {
+    if (_saving || _uploading) return;
+    final session = await AccountSession.current();
+    if (session == null) return;
+    try {
+      final file = await openFile(
+        acceptedTypeGroups: [
+          const XTypeGroup(
+            label: 'Images',
+            extensions: ['jpg', 'jpeg', 'png', 'webp'],
+            mimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
+            uniformTypeIdentifiers: ['public.image'],
+          ),
+        ],
+      );
+      if (file == null || !mounted) return;
+      setState(() => _uploading = true);
+      if (await file.length() > 10 * 1024 * 1024) {
+        throw StateError('Choose an image smaller than 10 MB.');
+      }
+      final extension = file.name.split('.').last.toLowerCase();
+      final mime = switch (extension) {
+        'png' => 'image/png',
+        'webp' => 'image/webp',
+        _ => 'image/jpeg',
+      };
+      final url = await SupabaseService().uploadBytes(
+        await file.readAsBytes(),
+        'capsules/${session.userId}/${DateTime.now().microsecondsSinceEpoch}.$extension',
+        mime,
+      );
+      if (mounted && await session.isCurrent) setState(() => _coverUrl = url);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
   // ── Save ─────────────────────────────────────────────────────────────────
-  void _save() {
+  Future<void> _save() async {
+    if (_saving || _uploading) return;
+    if (_titleCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Enter a title.')));
+      return;
+    }
+    _saving = true;
+    try {
+      await CapsuleStore.instance.update({
+        'title': _titleCtrl.text.trim(),
+        'description': _descCtrl.text.trim(),
+        'type': _category.toLowerCase(),
+        'privacy': CapsuleStore.instance.selected?['privacy'] ?? 'private',
+        'allowContributions': _allowContribs,
+        'coverPhotoUrl': _coverUrl,
+        'unlockCondition': _unlockDate == null
+            ? null
+            : {'type': 'date', 'date': _unlockDate!.toUtc().toIso8601String()},
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
+      return;
+    } finally {
+      _saving = false;
+    }
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Capsule updated successfully'),
@@ -90,9 +204,19 @@ class _EditCapsuleScreenState extends State<EditCapsuleScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => _DeleteSheet(
-        onDelete: () {
-          Navigator.pop(context); // close sheet
-          Navigator.pop(context); // go back
+        onDelete: () async {
+          try {
+            await CapsuleStore.instance.delete();
+            if (!mounted) return;
+            Navigator.pop(context);
+            Navigator.pop(context);
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text(e.toString())));
+            }
+          }
         },
       ),
     );
@@ -111,32 +235,33 @@ class _EditCapsuleScreenState extends State<EditCapsuleScreen> {
           children: [
             _SectionLabel('Capsule Info'),
             const SizedBox(height: 10),
-            _FieldCard(children: [
-              _InputField(
-                label: 'Capsule Title',
-                controller: _titleCtrl,
-                icon: Icons.edit_note_rounded,
-              ),
-              _Divider(),
-              _InputField(
-                label: 'Description / Note',
-                controller: _descCtrl,
-                icon: Icons.notes_rounded,
-                minLines: 3,
-                maxLines: 5,
-                hint: 'Add a personal note about this capsule…',
-              ),
-            ]),
+            _FieldCard(
+              children: [
+                _InputField(
+                  label: 'Capsule Title',
+                  controller: _titleCtrl,
+                  icon: Icons.edit_note_rounded,
+                ),
+                _Divider(),
+                _InputField(
+                  label: 'Description / Note',
+                  controller: _descCtrl,
+                  icon: Icons.notes_rounded,
+                  minLines: 3,
+                  maxLines: 5,
+                  hint: 'Add a personal note about this capsule…',
+                ),
+              ],
+            ),
 
             const SizedBox(height: 20),
             _SectionLabel('Unlock Date'),
             const SizedBox(height: 10),
-            _FieldCard(children: [
-              _DateField(
-                controller: _unlockDateCtrl,
-                onTap: _pickDate,
-              ),
-            ]),
+            _FieldCard(
+              children: [
+                _DateField(controller: _unlockDateCtrl, onTap: _pickDate),
+              ],
+            ),
 
             const SizedBox(height: 20),
             _SectionLabel('Category'),
@@ -150,19 +275,21 @@ class _EditCapsuleScreenState extends State<EditCapsuleScreen> {
             const SizedBox(height: 20),
             _SectionLabel('Cover Photo'),
             const SizedBox(height: 10),
-            const _CoverPhotoSection(),
+            _CoverPhotoSection(url: _coverUrl, onTap: _changeCover),
 
             const SizedBox(height: 20),
             _SectionLabel('Privacy & Permissions'),
             const SizedBox(height: 10),
-            _FieldCard(children: [
-              _ToggleRow(
-                icon: Icons.group_add_outlined,
-                label: 'Allow members to add contributions',
-                value: _allowContribs,
-                onChanged: (v) => setState(() => _allowContribs = v),
-              ),
-            ]),
+            _FieldCard(
+              children: [
+                _ToggleRow(
+                  icon: Icons.group_add_outlined,
+                  label: 'Allow members to add contributions',
+                  value: _allowContribs,
+                  onChanged: (v) => setState(() => _allowContribs = v),
+                ),
+              ],
+            ),
 
             const SizedBox(height: 32),
             _SaveButton(onPressed: _save),
@@ -236,19 +363,21 @@ class _FieldCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       border: Border.all(color: _kBorder),
       boxShadow: const [
-        BoxShadow(color: Color(0x0A3B1F14), blurRadius: 10, offset: Offset(0, 4)),
+        BoxShadow(
+          color: Color(0x0A3B1F14),
+          blurRadius: 10,
+          offset: Offset(0, 4),
+        ),
       ],
     ),
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: children,
-    ),
+    child: Column(mainAxisSize: MainAxisSize.min, children: children),
   );
 }
 
 class _Divider extends StatelessWidget {
   @override
-  Widget build(BuildContext context) => const Divider(height: 1, color: _kBorder, indent: 16, endIndent: 16);
+  Widget build(BuildContext context) =>
+      const Divider(height: 1, color: _kBorder, indent: 16, endIndent: 16);
 }
 
 // ── Text input ───────────────────────────────────────────────────────────────
@@ -282,7 +411,11 @@ class _InputField extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               label,
-              style: const TextStyle(color: _kMuted, fontSize: 11, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                color: _kMuted,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ),
@@ -292,7 +425,11 @@ class _InputField extends StatelessWidget {
           minLines: minLines,
           maxLines: maxLines,
           textCapitalization: TextCapitalization.sentences,
-          style: const TextStyle(color: _kBrown, fontSize: 14, fontWeight: FontWeight.w500),
+          style: const TextStyle(
+            color: _kBrown,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: const TextStyle(color: _kRose, fontSize: 13),
@@ -329,18 +466,29 @@ class _DateField extends StatelessWidget {
               color: _kRoseMid,
               borderRadius: BorderRadius.circular(9),
             ),
-            child: const Icon(Icons.lock_clock_rounded, color: AppColors.brown, size: 17),
+            child: const Icon(
+              Icons.lock_clock_rounded,
+              color: AppColors.brown,
+              size: 17,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Unlock Date', style: TextStyle(color: _kMuted, fontSize: 11, fontWeight: FontWeight.w600)),
+                const Text(
+                  'Unlock Date',
+                  style: TextStyle(
+                    color: _kMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 const SizedBox(height: 4),
                 ValueListenableBuilder<TextEditingValue>(
                   valueListenable: controller,
-                  builder: (_, val, __) => Text(
+                  builder: (_, val, _) => Text(
                     val.text.isEmpty ? 'Select a date' : val.text,
                     style: TextStyle(
                       color: val.text.isEmpty ? _kRose : _kBrown,
@@ -386,9 +534,18 @@ class _CategoryPills extends StatelessWidget {
           decoration: BoxDecoration(
             color: isSelected ? _kBrown : _kCard,
             borderRadius: BorderRadius.circular(30),
-            border: Border.all(color: isSelected ? _kBrown : _kBorder, width: isSelected ? 0 : 1),
+            border: Border.all(
+              color: isSelected ? _kBrown : _kBorder,
+              width: isSelected ? 0 : 1,
+            ),
             boxShadow: isSelected
-                ? [const BoxShadow(color: Color(0x224A2E2B), blurRadius: 8, offset: Offset(0, 3))]
+                ? [
+                    const BoxShadow(
+                      color: Color(0x224A2E2B),
+                      blurRadius: 8,
+                      offset: Offset(0, 3),
+                    ),
+                  ]
                 : [],
           ),
           child: Text(
@@ -408,7 +565,9 @@ class _CategoryPills extends StatelessWidget {
 // ── Cover photo section ──────────────────────────────────────────────────────
 
 class _CoverPhotoSection extends StatelessWidget {
-  const _CoverPhotoSection();
+  const _CoverPhotoSection({required this.url, required this.onTap});
+  final String? url;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -416,7 +575,11 @@ class _CoverPhotoSection extends StatelessWidget {
     decoration: BoxDecoration(
       borderRadius: BorderRadius.circular(16),
       boxShadow: const [
-        BoxShadow(color: Color(0x143B1F14), blurRadius: 14, offset: Offset(0, 5)),
+        BoxShadow(
+          color: Color(0x143B1F14),
+          blurRadius: 14,
+          offset: Offset(0, 5),
+        ),
       ],
     ),
     child: ClipRRect(
@@ -425,17 +588,20 @@ class _CoverPhotoSection extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           // Cover image
-          Image.asset('assets/images/login_image.jpg', fit: BoxFit.cover),
+          if (url != null && url!.isNotEmpty)
+            Image.network(
+              url!,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) =>
+                  const Icon(Icons.image_not_supported_outlined),
+            ),
           // Dark scrim
           DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [
-                  Colors.transparent,
-                  Colors.black.withAlpha(140),
-                ],
+                colors: [Colors.transparent, Colors.black.withAlpha(140)],
                 stops: const [.45, 1],
               ),
             ),
@@ -447,10 +613,13 @@ class _CoverPhotoSection extends StatelessWidget {
             right: 0,
             child: Center(
               child: InkWell(
-                onTap: () {},
+                onTap: onTap,
                 borderRadius: BorderRadius.circular(30),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 9,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withAlpha(230),
                     borderRadius: BorderRadius.circular(30),
@@ -462,7 +631,11 @@ class _CoverPhotoSection extends StatelessWidget {
                       SizedBox(width: 6),
                       Text(
                         'Change Cover Photo',
-                        style: TextStyle(color: _kBrown, fontSize: 12, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                          color: _kBrown,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ],
                   ),
@@ -508,13 +681,17 @@ class _ToggleRow extends StatelessWidget {
         Expanded(
           child: Text(
             label,
-            style: const TextStyle(color: _kBrown, fontSize: 13.5, fontWeight: FontWeight.w500),
+            style: const TextStyle(
+              color: _kBrown,
+              fontSize: 13.5,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
         Switch(
           value: value,
           onChanged: onChanged,
-          activeColor: Colors.white,
+          activeThumbColor: Colors.white,
           activeTrackColor: AppColors.brown,
           inactiveThumbColor: Colors.white,
           inactiveTrackColor: _kBorder,
@@ -548,7 +725,10 @@ class _SaveButton extends StatelessWidget {
         children: [
           Icon(Icons.check_rounded, size: 18),
           SizedBox(width: 8),
-          Text('Save Changes', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+          Text(
+            'Save Changes',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+          ),
         ],
       ),
     ),
@@ -568,7 +748,11 @@ class _DeleteLink extends StatelessWidget {
       style: TextButton.styleFrom(foregroundColor: _kDelete),
       child: const Text(
         'Delete Capsule',
-        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, decoration: TextDecoration.underline),
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          decoration: TextDecoration.underline,
+        ),
       ),
     ),
   );
@@ -598,12 +782,20 @@ class _DeleteSheet extends StatelessWidget {
             color: const Color(0xFFFCECEA),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: const Icon(Icons.delete_forever_rounded, color: _kDelete, size: 26),
+          child: const Icon(
+            Icons.delete_forever_rounded,
+            color: _kDelete,
+            size: 26,
+          ),
         ),
         const SizedBox(height: 16),
         const Text(
           'Delete Capsule?',
-          style: TextStyle(color: _kBrown, fontSize: 18, fontWeight: FontWeight.w800),
+          style: TextStyle(
+            color: _kBrown,
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+          ),
         ),
         const SizedBox(height: 8),
         const Text(
@@ -621,9 +813,14 @@ class _DeleteSheet extends StatelessWidget {
                   foregroundColor: _kBrown,
                   side: const BorderSide(color: _kBorder),
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-                child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w600)),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -634,9 +831,14 @@ class _DeleteSheet extends StatelessWidget {
                   backgroundColor: _kDelete,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-                child: const Text('Delete', style: TextStyle(fontWeight: FontWeight.w700)),
+                child: const Text(
+                  'Delete',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
               ),
             ),
           ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../Profile/data/user_service.dart';
+import '../../../auth/data/auth_service.dart';
 
 class HomeDrawer extends StatefulWidget {
   const HomeDrawer({super.key, this.selectedSection});
@@ -81,7 +82,11 @@ class _HomeDrawerState extends State<HomeDrawer> {
                       ? NetworkImage(_userProfile!['photoUrl'])
                       : null,
                   child: _userProfile?['photoUrl'] == null
-                      ? const Icon(Icons.person, size: 31, color: AppColors.brown)
+                      ? const Icon(
+                          Icons.person,
+                          size: 31,
+                          color: AppColors.brown,
+                        )
                       : null,
                 ),
                 const SizedBox(width: 10),
@@ -104,7 +109,10 @@ class _HomeDrawerState extends State<HomeDrawer> {
                         ),
                         Text(
                           _userProfile?['district'] ?? '',
-                          style: const TextStyle(color: Colors.white70, fontSize: 9),
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 9,
+                          ),
                         ),
                         const Text(
                           'View Profile',
@@ -187,6 +195,7 @@ class _HomeDrawerState extends State<HomeDrawer> {
                     onTap: () {
                       Navigator.pop(context);
                       if (i == 0) Navigator.pushNamed(context, '/saved-posts');
+                      if (i == 2) Navigator.pushNamed(context, '/capsules');
                       if (i == 3) Navigator.pushNamed(context, '/province-map');
                     },
                   ),
@@ -210,11 +219,15 @@ class _HomeDrawerState extends State<HomeDrawer> {
                 _DrawerItem(
                   icon: Icons.logout,
                   label: 'Log Out',
-                  onTap: () => Navigator.pushNamedAndRemoveUntil(
-                    context,
-                    '/login',
-                    (_) => false,
-                  ),
+                  onTap: () async {
+                    await AuthService().logout();
+                    if (!context.mounted) return;
+                    Navigator.pushNamedAndRemoveUntil(
+                      context,
+                      '/login',
+                      (_) => false,
+                    );
+                  },
                 ),
                 const SizedBox(height: 4),
                 const Text(

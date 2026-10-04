@@ -58,7 +58,7 @@ void main() {
       );
       final network =
           tester.widget<Image>(find.byType(Image)).image as NetworkImage;
-      expect(Uri.parse(network.url).queryParameters['width'], '900');
+      expect(Uri.parse(network.url).queryParameters['width'], '960');
       expect(
         Uri.decodeComponent(Uri.parse(network.url).path),
         contains('Test Photo.jpg'),

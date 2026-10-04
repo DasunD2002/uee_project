@@ -11,8 +11,31 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  void _markAllAsRead() {
+  @override
+  void initState() {
+    super.initState();
+    SocialStore.instance.load().catchError((Object e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
+    });
+  }
+
+  Future<void> _markAllAsRead() async {
     SocialStore.instance.markAllNotificationsAsRead();
+    try {
+      await SocialStore.instance.flush();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
+      return;
+    }
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('All notifications marked as read'),
@@ -87,25 +110,27 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       body: ListenableBuilder(
         listenable: SocialStore.instance,
         builder: (context, _) {
-          final today = SocialStore.instance.notifications.where((n) => n.timeAgo != 'Yesterday').toList();
-          final yesterday = SocialStore.instance.notifications.where((n) => n.timeAgo == 'Yesterday').toList();
+          final today = SocialStore.instance.notifications
+              .where((n) => n.timeAgo != 'Yesterday')
+              .toList();
+          final yesterday = SocialStore.instance.notifications
+              .where((n) => n.timeAgo == 'Yesterday')
+              .toList();
           return SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (SocialStore.instance.error != null)
+                  Text(SocialStore.instance.error!),
+                if (today.isEmpty && yesterday.isEmpty)
+                  const Center(child: Text('No notifications yet.')),
                 if (today.isNotEmpty) ...[
-                  _buildSection(
-                    title: 'Today',
-                    items: today,
-                  ),
+                  _buildSection(title: 'Today', items: today),
                   const SizedBox(height: 24),
                 ],
                 if (yesterday.isNotEmpty)
-                  _buildSection(
-                    title: 'Yesterday',
-                    items: yesterday,
-                  ),
+                  _buildSection(title: 'Yesterday', items: yesterday),
               ],
             ),
           );

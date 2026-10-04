@@ -3,6 +3,7 @@ import '../../../core/navigation/primary_navigation.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/rootly_back_button.dart';
 import 'field_note_editor_screen.dart';
+import '../data/field_notes_store.dart';
 import 'widgets/explorer_footer.dart';
 import 'widgets/region_image.dart';
 
@@ -12,9 +13,11 @@ class FieldNotesArchiveScreen extends StatefulWidget {
     required this.province,
     required this.site,
     required this.image,
+    this.store,
   });
 
   final String province, site, image;
+  final FieldNotesStore? store;
 
   @override
   State<FieldNotesArchiveScreen> createState() =>
@@ -24,40 +27,48 @@ class FieldNotesArchiveScreen extends StatefulWidget {
 class _FieldNotesArchiveScreenState extends State<FieldNotesArchiveScreen> {
   String filter = 'All Notes';
 
-  late final List<_FieldNote> notes = [
-    _FieldNote(
-      title: widget.site,
-      date: '12 May, 2024',
-      category: 'Architectural',
-      image: widget.image,
-      text:
-          'The sheer scale of this heritage site is staggering. Rough traces of original stonework reveal how the structure was carefully planned and preserved.',
-    ),
-    _FieldNote(
-      title: '${widget.province.replaceAll(' Province', '')} Heritage Trail',
-      date: '08 May, 2024',
-      category: 'Recent',
-      image: 'assets/images/login_image.jpg',
-      text:
-          'Examined the symbolic patterns and regional traditions found here. The precision of the craftsmanship reveals a deep understanding of place and community.',
-    ),
-    _FieldNote(
-      title: 'Polonnaruwa Vatadage',
-      date: '02 May, 2024',
-      category: 'Natural Sites',
-      image: 'assets/images/gal_vihara.png',
-      text:
-          'Moonstone details at the entrance show how a local motif can be present in architecture and ritual spaces.',
-    ),
-  ];
+  List<FieldNote> notes = [];
+  String query = '';
+  bool loading = true;
+  String? error;
+  FieldNotesStore get store => widget.store ?? FieldNotesStore.instance;
 
-  Future<void> _delete(_FieldNote note) async {
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load({bool force = false}) async {
+    if (mounted) {
+      setState(() {
+        loading = true;
+        error = null;
+      });
+    }
+    try {
+      await store.load(force: force);
+      if (mounted) {
+        setState(
+          () => notes = store.notes
+              .where((item) => item.province == widget.province)
+              .toList(),
+        );
+      }
+    } catch (e) {
+      if (mounted) setState(() => error = e.toString());
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  Future<void> _delete(FieldNote note) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Delete field note?'),
         content: Text(
-          'Are you sure you want to delete the field note for ${note.title}? This action cannot be undone.',
+          'Are you sure you want to delete the field note for ${note.site}? This action cannot be undone.',
         ),
         actions: [
           TextButton(
@@ -74,7 +85,22 @@ class _FieldNotesArchiveScreenState extends State<FieldNotesArchiveScreen> {
     );
 
     if (confirmed != true || !mounted) return;
-    setState(() => notes.remove(note));
+    try {
+      await store.delete(note.id);
+      if (!mounted) return;
+      setState(
+        () => notes = store.notes
+            .where((item) => item.province == widget.province)
+            .toList(),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
+      return;
+    }
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(const SnackBar(content: Text('Field note deleted')));
@@ -86,9 +112,20 @@ class _FieldNotesArchiveScreenState extends State<FieldNotesArchiveScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final visible = filter == 'All Notes'
-        ? notes
-        : notes.where((note) => note.category == filter).toList();
+    final visible = notes.where((note) {
+      final matchesFilter =
+          filter == 'All Notes' ||
+          (filter == 'Recent' &&
+              note.date.isAfter(
+                DateTime.now().subtract(const Duration(days: 30)),
+              )) ||
+          (filter == 'Natural Sites' && note.category == 'Natural Site') ||
+          note.category == filter;
+      return matchesFilter &&
+          '${note.site} ${note.text} ${note.tags.join(' ')}'
+              .toLowerCase()
+              .contains(query);
+    }).toList();
     return Scaffold(
       backgroundColor: const Color(0xFFFFFDFC),
       appBar: AppBar(
@@ -149,6 +186,8 @@ class _FieldNotesArchiveScreenState extends State<FieldNotesArchiveScreen> {
           ),
           const SizedBox(height: 11),
           TextField(
+            onChanged: (value) =>
+                setState(() => query = value.trim().toLowerCase()),
             decoration: InputDecoration(
               hintText: 'Search heritage sites or notes...',
               hintStyle: const TextStyle(fontSize: 10),
@@ -188,7 +227,16 @@ class _FieldNotesArchiveScreenState extends State<FieldNotesArchiveScreen> {
             ),
           ),
           const SizedBox(height: 14),
-          if (visible.isEmpty)
+          if (loading) const Center(child: CircularProgressIndicator()),
+          if (error != null)
+            ListTile(
+              title: Text(error!),
+              trailing: TextButton(
+                onPressed: () => _load(force: true),
+                child: const Text('Retry'),
+              ),
+            ),
+          if (!loading && error == null && visible.isEmpty)
             const Padding(
               padding: EdgeInsets.all(36),
               child: Center(child: Text('No field notes in this category.')),
@@ -204,19 +252,19 @@ class _FieldNotesArchiveScreenState extends State<FieldNotesArchiveScreen> {
                       builder: (_) => FieldNoteEditorScreen(
                         province: widget.province,
                         image: note.image,
-                        initialSite: note.title,
+                        initialSite: note.site,
                         initialCategory: note.category,
                         initialText: note.text,
                         isEditing: true,
+                        noteId: note.id,
+                        initialDate: note.date,
+                        initialTags: note.tags,
+                        store: store,
                       ),
                     ),
                   );
                   if (result != null && mounted) {
-                    setState(() {
-                      note.title = result.site;
-                      note.category = result.category;
-                      note.text = result.text;
-                    });
+                    await _load();
                   }
                 },
                 onDelete: () => _delete(note),
@@ -239,7 +287,7 @@ class _NoteCard extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
   });
-  final _FieldNote note;
+  final FieldNote note;
   final VoidCallback onEdit, onDelete;
 
   @override
@@ -277,7 +325,7 @@ class _NoteCard extends StatelessWidget {
         ),
         const SizedBox(height: 7),
         Text(
-          note.title,
+          note.site,
           style: const TextStyle(
             color: AppColors.brown,
             fontFamily: 'serif',
@@ -286,7 +334,7 @@ class _NoteCard extends StatelessWidget {
           ),
         ),
         Text(
-          note.date,
+          MaterialLocalizations.of(context).formatMediumDate(note.date),
           style: const TextStyle(fontSize: 8, color: Colors.black45),
         ),
         const SizedBox(height: 9),
@@ -303,7 +351,7 @@ class _NoteCard extends StatelessWidget {
         Row(
           children: [
             Text(
-              "FIELD LOG  #${note.title.hashCode.abs().toString().padLeft(4, '0').substring(0, 4)}",
+              "FIELD LOG  #${note.site.hashCode.abs().toString().padLeft(4, '0').substring(0, 4)}",
               style: const TextStyle(
                 fontSize: 7,
                 color: Colors.black38,
@@ -336,16 +384,4 @@ class _NoteCard extends StatelessWidget {
       ],
     ),
   );
-}
-
-class _FieldNote {
-  _FieldNote({
-    required this.title,
-    required this.date,
-    required this.category,
-    required this.image,
-    required this.text,
-  });
-  String title, category, text;
-  final String date, image;
 }

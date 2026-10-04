@@ -1,10 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:maplibre_gl/maplibre_gl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../../../core/services/account_data_store.dart';
 
 import '../domain/explore_category.dart';
 import '../domain/place.dart';
@@ -32,7 +31,11 @@ class PlacesRepository {
        _ownsClient = client == null,
        baseUrl = _normalizeBaseUrl(baseUrl ?? ApiConstants.baseUrl);
 
-  static const _historyKey = 'explorer_search_history';
+  late final AccountDataStore _historyStore = AccountDataStore(
+    'search-history',
+    client: _client,
+    baseUrl: baseUrl,
+  );
 
   static const fallbackPlaces = <Place>[
     Place(
@@ -59,12 +62,16 @@ class PlacesRepository {
   final bool _ownsClient;
   final String baseUrl;
   final Duration requestTimeout;
+  Future<void> _historyWrites = Future.value();
+  bool _disposed = false;
 
   String? photoUrl(Place place, {int width = 900}) => place.imageUrl;
 
-  Future<List<String>> history() async =>
-      (await SharedPreferences.getInstance()).getStringList(_historyKey) ??
-      const ['Ancient ruins', 'Rock temples'];
+  Future<List<String>> history() async {
+    await _historyWrites.catchError((Object _) {});
+    await _historyStore.load(force: true);
+    return List<String>.from(_historyStore.data['queries'] as List? ?? []);
+  }
 
   Future<List<Place>> suggestions() async =>
       (await fetchPlaces(size: 10)).items;
@@ -200,11 +207,30 @@ class PlacesRepository {
         .toList(growable: false);
   }
 
-  Future<void> _remember(String query) async {
-    final prefs = await SharedPreferences.getInstance();
-    final items = <String>[...?prefs.getStringList(_historyKey)]
-      ..removeWhere((item) => item.toLowerCase() == query.toLowerCase());
-    await prefs.setStringList(_historyKey, [query, ...items].take(8).toList());
+  Future<void> _remember(String query) {
+    final sessionFuture = AccountSession.current();
+    final operation = _historyWrites.catchError((Object _) {}).then((_) async {
+      final session = await sessionFuture;
+      if (_disposed || session == null || !await session.isCurrent) {
+        throw const AccountDataException(
+          'Your account changed. Please reopen this screen.',
+        );
+      }
+      await _historyStore.load();
+      if (_disposed || !await session.isCurrent) {
+        throw const AccountDataException(
+          'Your account changed. Please reopen this screen.',
+        );
+      }
+      final items = List<String>.from(
+        _historyStore.data['queries'] as List? ?? [],
+      )..removeWhere((item) => item.toLowerCase() == query.toLowerCase());
+      await _historyStore.save({
+        'queries': [query, ...items].take(8).toList(),
+      });
+    });
+    _historyWrites = operation;
+    return operation;
   }
 
   Future<http.Response> _post(
@@ -215,10 +241,7 @@ class PlacesRepository {
       return await _client
           .post(
             Uri.parse('$baseUrl$path'),
-            headers: const {
-              'Accept': 'application/json',
-              'Content-Type': 'application/json',
-            },
+            headers: await _headers(),
             body: jsonEncode(body),
           )
           .timeout(requestTimeout);
@@ -236,10 +259,7 @@ class PlacesRepository {
   Future<http.Response> _get(String path) async {
     try {
       return await _client
-          .get(
-            Uri.parse('$baseUrl$path'),
-            headers: const {'Accept': 'application/json'},
-          )
+          .get(Uri.parse('$baseUrl$path'), headers: await _headers())
           .timeout(requestTimeout);
     } on TimeoutException {
       throw PlacesApiException(
@@ -250,6 +270,15 @@ class PlacesRepository {
         'Could not connect to the Explore Places service at $baseUrl.',
       );
     }
+  }
+
+  Future<Map<String, String>> _headers() async {
+    final session = await AccountSession.current();
+    return {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      if (session != null) 'Authorization': 'Bearer ${session.token}',
+    };
   }
 
   static Map<String, dynamic> _decodeObject(String body) {
@@ -292,12 +321,12 @@ class PlacesRepository {
     );
   }
 
-
-
   static String _normalizeBaseUrl(String value) =>
       value.trim().replaceFirst(RegExp(r'/+$'), '');
 
   void dispose() {
+    _disposed = true;
+    _historyStore.dispose();
     if (_ownsClient) _client.close();
   }
 }

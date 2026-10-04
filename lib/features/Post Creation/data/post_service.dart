@@ -1,6 +1,5 @@
-import 'dart:io';
+import '../../../core/services/account_data_store.dart';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../../../core/services/api_service.dart';
 import '../../Profile/domain/social_store.dart';
 import 'package:flutter/material.dart';
@@ -15,30 +14,42 @@ class PostService {
     _mockPosts.clear();
   }
 
-  Future<String?> createPost(UserPost post, String mediaUrl, List<String> proofUrls) async {
+  Future<String?> createPost(
+    UserPost post,
+    String mediaUrl,
+    List<String> proofUrls, {
+    AccountSession? expectedSession,
+  }) async {
     if (isTestEnvironment) {
       _mockPosts.add(post);
       return null;
     }
     try {
-      final response = await _apiService.post('/posts', body: {
-        'title': post.title,
-        'story': post.story,
-        'media': mediaUrl,
-        'category': post.category,
-        'location': '${post.place}, ${post.district}',
-        'tags': post.tags,
-        'visibility': post.isPrivate ? 'private' : 'public',
-        'proofs': proofUrls,
-        'disableComments': post.disableComments,
-      });
+      final session = expectedSession ?? await AccountSession.current();
+      if (session == null || !await session.isCurrent) return 'Your session changed. Please reopen the editor.';
+      final response = await _apiService.post(
+        '/posts', sessionToken: session.token,
+        body: {
+          'title': post.title,
+          'story': post.story,
+          'media': mediaUrl,
+          'category': post.category,
+          'location': '${post.place}, ${post.district}',
+          'tags': post.tags,
+          'visibility': post.isPrivate ? 'private' : 'public',
+          'proofs': proofUrls,
+          'disableComments': post.disableComments,
+          'isDraft': post.isDraft,
+        },
+      );
 
+      if (!await session.isCurrent) return 'Your account changed. Please reopen this screen.';
       if (response.statusCode == 201 || response.statusCode == 200) {
         SocialStore.instance.addNotification(
           NotificationItemData(
             id: DateTime.now().toString(),
             title: 'Post created',
-            subtitle: 'Your post was successfully published.',
+            subtitle: post.isDraft ? 'Your draft was saved.' : 'Your post was successfully published.',
             timeAgo: 'Just now',
             icon: Icons.check_circle_outline,
             isUnread: true,
@@ -53,25 +64,37 @@ class PostService {
     }
   }
 
-  Future<String?> editPost(UserPost post, String mediaUrl, List<String> proofUrls) async {
+  Future<String?> editPost(
+    UserPost post,
+    String mediaUrl,
+    List<String> proofUrls, {
+    AccountSession? expectedSession,
+  }) async {
     if (isTestEnvironment) {
       final index = _mockPosts.indexWhere((p) => p.id == post.id);
       if (index != -1) _mockPosts[index] = post;
       return null;
     }
     try {
-      final response = await _apiService.put('/posts/${post.id}', body: {
-        'title': post.title,
-        'story': post.story,
-        'media': mediaUrl,
-        'category': post.category,
-        'location': '${post.place}, ${post.district}',
-        'tags': post.tags,
-        'visibility': post.isPrivate ? 'private' : 'public',
-        'proofs': proofUrls,
-        'disableComments': post.disableComments,
-      });
+      final session = expectedSession ?? await AccountSession.current();
+      if (session == null || !await session.isCurrent) return 'Your session changed. Please reopen the editor.';
+      final response = await _apiService.put(
+        '/posts/${post.id}', sessionToken: session.token,
+        body: {
+          'title': post.title,
+          'story': post.story,
+          'media': mediaUrl,
+          'category': post.category,
+          'location': '${post.place}, ${post.district}',
+          'tags': post.tags,
+          'visibility': post.isPrivate ? 'private' : 'public',
+          'proofs': proofUrls,
+          'disableComments': post.disableComments,
+          'isDraft': post.isDraft,
+        },
+      );
 
+      if (!await session.isCurrent) return 'Your account changed. Please reopen this screen.';
       if (response.statusCode == 200) {
         SocialStore.instance.addNotification(
           NotificationItemData(
@@ -118,6 +141,7 @@ class PostService {
       return 'Network error occurred: $e';
     }
   }
+
   Future<List<UserPost>?> getAllPosts() async {
     if (isTestEnvironment) {
       return _mockPosts.toList();
@@ -130,16 +154,27 @@ class PostService {
         if (list == null) return [];
         final posts = list.map((e) => UserPost.fromJson(e)).toList();
         for (final p in posts) {
-          if (p.isLiked) SocialStore.instance.likedPosts.add(p.id);
+          if (p.isLiked) {
+            SocialStore.instance.likedPosts.add(p.id);
+          } else {
+            SocialStore.instance.likedPosts.remove(p.id);
+          }
+          final raw = list.firstWhere((item) => item['id'] == p.id);
+          if (raw['isSaved'] == true) {
+            SocialStore.instance.savedPosts.add(p.id);
+          } else {
+            SocialStore.instance.savedPosts.remove(p.id);
+          }
         }
         return posts;
       }
       return [];
     } catch (e) {
-      print('Network error fetching posts: $e');
+      debugPrint('Network error fetching posts: $e');
       return [];
     }
   }
+
   Future<List<UserPost>?> getMyPosts() async {
     if (isTestEnvironment) {
       return _mockPosts.toList();
@@ -152,13 +187,23 @@ class PostService {
         if (list == null) return [];
         final posts = list.map((e) => UserPost.fromJson(e)).toList();
         for (final p in posts) {
-          if (p.isLiked) SocialStore.instance.likedPosts.add(p.id);
+          if (p.isLiked) {
+            SocialStore.instance.likedPosts.add(p.id);
+          } else {
+            SocialStore.instance.likedPosts.remove(p.id);
+          }
+          final raw = list.firstWhere((item) => item['id'] == p.id);
+          if (raw['isSaved'] == true) {
+            SocialStore.instance.savedPosts.add(p.id);
+          } else {
+            SocialStore.instance.savedPosts.remove(p.id);
+          }
         }
         return posts;
       }
       return [];
     } catch (e) {
-      print('Network error fetching my posts: $e');
+      debugPrint('Network error fetching my posts: $e');
       return [];
     }
   }
@@ -172,38 +217,42 @@ class PostService {
         if (list == null) return [];
         final posts = list.map((e) => UserPost.fromJson(e)).toList();
         for (final p in posts) {
-          if (p.isLiked) SocialStore.instance.likedPosts.add(p.id);
+          if (p.isLiked) {
+            SocialStore.instance.likedPosts.add(p.id);
+          } else {
+            SocialStore.instance.likedPosts.remove(p.id);
+          }
+          final raw = list.firstWhere((item) => item['id'] == p.id);
+          if (raw['isSaved'] == true) {
+            SocialStore.instance.savedPosts.add(p.id);
+          } else {
+            SocialStore.instance.savedPosts.remove(p.id);
+          }
         }
         return posts;
       }
       return [];
     } catch (e) {
-      print('Network error fetching saved posts: $e');
+      debugPrint('Network error fetching saved posts: $e');
       return [];
     }
   }
 
-  Future<void> likePost(String postId) async {
-    try {
-      await _apiService.post('/posts/$postId/like');
-    } catch (e) {
-      print('Network error liking post: $e');
+  Future<void> _interaction(
+    String endpoint, {
+    Map<String, dynamic>? body,
+  }) async {
+    final response = await _apiService.post(endpoint, body: body);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final data = jsonDecode(response.body);
+      throw StateError(
+        data['errorDescription'] ?? 'Could not save this action. Please retry.',
+      );
     }
   }
 
-  Future<void> savePost(String postId) async {
-    try {
-      await _apiService.post('/posts/$postId/save');
-    } catch (e) {
-      print('Network error saving post: $e');
-    }
-  }
-
-  Future<void> commentPost(String postId, String text) async {
-    try {
-      await _apiService.post('/posts/$postId/comment', body: {'text': text});
-    } catch (e) {
-      print('Network error commenting on post: $e');
-    }
-  }
+  Future<void> likePost(String postId) => _interaction('/posts/$postId/like');
+  Future<void> savePost(String postId) => _interaction('/posts/$postId/save');
+  Future<void> commentPost(String postId, String text) =>
+      _interaction('/posts/$postId/comment', body: {'text': text});
 }

@@ -33,7 +33,17 @@ class UserPost {
     this.commentCount = 0,
     this.comments = const [],
   });
-  final String id, title, story, category, place, district, language, asset, authorName, authorHandle, authorId;
+  final String id,
+      title,
+      story,
+      category,
+      place,
+      district,
+      language,
+      asset,
+      authorName,
+      authorHandle,
+      authorId;
   final String? authorPhoto;
   final DateTime? createdAt;
   final int likeCount, commentCount;
@@ -63,16 +73,22 @@ class UserPost {
       asset: json['media'] ?? '',
       disableComments: json['disableComments'] ?? false,
       isPrivate: json['visibility'] == 'private',
-      isDraft: false,
+      isDraft: json['isDraft'] == true,
       authorName: json['authorName'] ?? 'Unknown User',
       authorHandle: json['authorHandle'] ?? '@unknown',
       authorPhoto: json['authorPhoto'],
       authorId: json['userId'] ?? '',
       isLiked: json['isLiked'] ?? false,
-      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt']) : null,
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'])
+          : null,
       likeCount: json['likeCount'] ?? 0,
       commentCount: json['commentCount'] ?? 0,
-      comments: (json['comments'] as List?)?.map((e) => UserComment.fromJson(e)).toList() ?? [],
+      comments:
+          (json['comments'] as List?)
+              ?.map((e) => UserComment.fromJson(e))
+              .toList() ??
+          [],
     );
   }
 }
@@ -90,12 +106,14 @@ class UserComment {
   final DateTime? createdAt;
 
   factory UserComment.fromJson(Map<String, dynamic> json) => UserComment(
-        userId: json['userId'] ?? '',
-        text: json['text'] ?? '',
-        authorName: json['authorName'] ?? 'Unknown User',
-        authorPhoto: json['authorPhoto'],
-        createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt']) : null,
-      );
+    userId: json['userId'] ?? '',
+    text: json['text'] ?? '',
+    authorName: json['authorName'] ?? 'Unknown User',
+    authorPhoto: json['authorPhoto'],
+    createdAt: json['createdAt'] != null
+        ? DateTime.tryParse(json['createdAt'])
+        : null,
+  );
 }
 
 class PostEditorResult {

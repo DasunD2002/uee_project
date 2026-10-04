@@ -34,6 +34,17 @@ Future<void> chooseSavedCollections(
   SavedStory story,
 ) async {
   final store = SocialStore.instance;
+  try {
+    await store.load();
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
+    return;
+  }
+  if (!context.mounted) return;
   final selected = store.collections
       .where((c) => c.stories.containsKey(story.id))
       .toSet();
@@ -88,9 +99,18 @@ Future<void> chooseSavedCollections(
                 ),
               ),
               FilledButton(
-                onPressed: () {
+                onPressed: () async {
                   store.saveTo(story, selected);
-                  Navigator.pop(context);
+                  try {
+                    await store.flush();
+                    if (context.mounted) Navigator.pop(context);
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text(e.toString())));
+                    }
+                  }
                 },
                 child: const Text('Done'),
               ),
@@ -144,8 +164,18 @@ Future<void> reportPost(BuildContext context, String id) async {
     ),
   );
   if (result == null || !context.mounted) return;
-  SocialStore.instance.reports[id] = result;
-  ScaffoldMessenger.of(
-    context,
-  ).showSnackBar(const SnackBar(content: Text('Report saved on this device.')));
+  try {
+    await SocialStore.instance.report(id, result);
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Report submitted.')));
+    }
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
+  }
 }
