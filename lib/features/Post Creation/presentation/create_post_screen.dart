@@ -1,3 +1,4 @@
+import '../../../core/services/account_data_store.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
@@ -23,7 +24,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   late List<PostMedia> proofs;
   PostMedia? cover;
   String? category, district;
-  bool disableComments = false, isPrivate = false, picking = false, _isSaving = false;
+  bool disableComments = false,
+      isPrivate = false,
+      picking = false,
+      _isSaving = false;
   bool get editing => widget.post != null;
   final _supabaseService = SupabaseService();
   final _postService = PostService();
@@ -112,42 +116,23 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       message('Add a cover photo or video.');
       return;
     }
+    final session = await AccountSession.current();
+    if (session == null) { if (mounted) message('Please sign in.'); return; }
     addTag();
 
-    if (draft) {
-      Navigator.pop(
-        context,
-        PostEditorResult(
-          post: UserPost(
-            id: widget.post?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
-            title: title.text.trim(),
-            story: story.text.trim(),
-            category: category ?? '',
-            place: place.text.trim(),
-            district: district ?? '',
-            language: '',
-            tags: tags,
-            cover: cover,
-            proofs: proofs,
-            asset: widget.post?.asset ?? '',
-            disableComments: disableComments,
-            isPrivate: isPrivate,
-            isDraft: draft,
-          ),
-        ),
-      );
-      return;
-    }
-
     setState(() => _isSaving = true);
-    message('Saving post...');
 
     try {
       String mediaUrl = widget.post?.asset ?? '';
       if (cover != null) {
-        final path = 'posts/${DateTime.now().millisecondsSinceEpoch}_${cover!.name}';
+        final path =
+            'posts/${session.userId}/${DateTime.now().millisecondsSinceEpoch}_${cover!.name}';
         final mimeType = cover!.isVideo ? 'video/mp4' : 'image/jpeg';
-        final url = await _supabaseService.uploadBytes(cover!.bytes, path, mimeType);
+        final url = await _supabaseService.uploadBytes(
+          cover!.bytes,
+          path,
+          mimeType,
+        );
         if (url != null) {
           mediaUrl = url;
         } else {
@@ -162,12 +147,18 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
       List<String> proofUrls = [];
       for (final proof in proofs) {
-        final path = 'proofs/${DateTime.now().millisecondsSinceEpoch}_${proof.name}';
+        final path =
+            'proofs/${session.userId}/${DateTime.now().millisecondsSinceEpoch}_${proof.name}';
         final mimeType = proof.isVideo ? 'video/mp4' : 'image/jpeg';
-        final url = await _supabaseService.uploadBytes(proof.bytes, path, mimeType);
+        final url = await _supabaseService.uploadBytes(
+          proof.bytes,
+          path,
+          mimeType,
+        );
         if (url != null) proofUrls.add(url);
       }
 
+      if (!await session.isCurrent) { if (mounted) message('Your account changed. Please reopen the editor.'); return; }
       final post = UserPost(
         id: widget.post?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
         title: title.text.trim(),
@@ -186,8 +177,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       );
 
       final error = editing
-          ? await _postService.editPost(post, mediaUrl, proofUrls)
-          : await _postService.createPost(post, mediaUrl, proofUrls);
+          ? await _postService.editPost(post, mediaUrl, proofUrls, expectedSession: session)
+          : await _postService.createPost(post, mediaUrl, proofUrls, expectedSession: session);
 
       if (error == null) {
         if (mounted) Navigator.pop(context, PostEditorResult(post: post));
@@ -221,7 +212,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     );
     if (confirmed == true && mounted) {
       setState(() => _isSaving = true);
-      message('Deleting post...');
+
       if (widget.post != null) {
         final error = await _postService.deletePost(widget.post!.id);
         if (error != null) {
@@ -261,7 +252,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           .toList(),
       validator: (v) {
         if (label.contains('Optional')) return null;
-        return v == null || v.isEmpty ? 'Select ${label.replaceAll(' (Optional)', '').toLowerCase()}' : null;
+        return v == null || v.isEmpty
+            ? 'Select ${label.replaceAll(' (Optional)', '').toLowerCase()}'
+            : null;
       },
       onChanged: changed,
     ),
@@ -638,7 +631,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                             PostAction(
                               editing ? 'Delete Post' : 'Save as Draft',
                               outlined: true,
-                              onPressed: editing ? delete : () => save(draft: true),
+                              onPressed: editing
+                                  ? delete
+                                  : () => save(draft: true),
                             ),
                           ],
                         ),

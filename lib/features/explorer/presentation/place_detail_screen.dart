@@ -99,14 +99,20 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
         Stack(
           alignment: Alignment.bottomLeft,
           children: [
-            SizedBox(height: 280, width: double.infinity, child: _placeImage()),
+            SizedBox(
+              height: _place.imageUrl?.isNotEmpty == true ? 280 : 160,
+              width: double.infinity,
+              child: _placeImage(),
+            ),
             const Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, Color(0xCC000000)],
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.transparent, Color(0xCC000000)],
+                    ),
                   ),
                 ),
               ),

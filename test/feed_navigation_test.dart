@@ -38,9 +38,6 @@ void main() {
     expect(find.text('1,201 Likes · 96 Comments'), findsOneWidget);
     await tester.tap(find.byTooltip('Save post'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Hill Country Trails'));
-    await tester.tap(find.text('Done'));
-    await tester.pumpAndSettle();
     expect(find.byTooltip('Unsave post'), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'Beautiful craft');
     await tester.tap(find.byTooltip('Post comment'));

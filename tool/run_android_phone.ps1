@@ -30,7 +30,10 @@ try {
         throw 'The server did not return Explore categories.'
     }
 } catch {
-    throw "Rootly backend is not responding at http://127.0.0.1:8080. Start Rootly_Backend and retry. $($_.Exception.Message)"
+    # Authentication is required now; a 401 also proves that Rootly is listening.
+    if ([int]$_.Exception.Response.StatusCode -ne 401) {
+        throw "Rootly backend is not responding at http://127.0.0.1:8080. Start Rootly_Backend and retry. $($_.Exception.Message)"
+    }
 }
 
 & $adbPath @adbArguments reverse tcp:8080 tcp:8080

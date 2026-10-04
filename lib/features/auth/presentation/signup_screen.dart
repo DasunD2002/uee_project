@@ -79,7 +79,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   DropdownButtonFormField<String>(
                     initialValue: language,
                     isDense: true,
-                    decoration: fieldDecoration('Language', 'Select a language'),
+                    decoration: fieldDecoration(
+                      'Language',
+                      'Select a language',
+                    ),
                     items: ['English', 'Sinhala', 'Tamil']
                         .map((l) => DropdownMenuItem(value: l, child: Text(l)))
                         .toList(),
@@ -157,9 +160,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 'email': email.text.trim(),
                                 'phone': phone.text.trim(),
                                 'password': password.text,
-                                'gender': 'Prefer not to say', // Required by backend
-                                'languages': [language ?? 'English'], // Selected from dropdown
+                                'gender':
+                                    'Prefer not to say', // Required by backend
+                                'languages': [
+                                  language ?? 'English',
+                                ], // Selected from dropdown
                               });
+                              if (!mounted || !context.mounted) return;
                               setState(() => _isLoading = false);
 
                               if (error == null) {
@@ -173,7 +180,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               } else {
                                 if (mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text(error), backgroundColor: Colors.red),
+                                    SnackBar(
+                                      content: Text(error),
+                                      backgroundColor: Colors.red,
+                                    ),
                                   );
                                 }
                               }

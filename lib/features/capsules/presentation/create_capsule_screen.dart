@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/services/api_service.dart';
+import '../../../core/services/account_data_store.dart';
+import '../../../core/services/supabase_service.dart';
+import 'package:file_selector/file_selector.dart';
+import 'dart:convert';
 
 /// Form used to collect the details for a new time capsule.
 class CreateCapsuleScreen extends StatefulWidget {
-  const CreateCapsuleScreen({super.key});
+  const CreateCapsuleScreen({super.key, this.chainedFromCapsuleId});
+  final String? chainedFromCapsuleId;
 
   @override
   State<CreateCapsuleScreen> createState() => _CreateCapsuleScreenState();
@@ -15,7 +21,8 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   String _type = 'Family';
-  bool _hasCoverPhoto = false;
+  bool _hasCoverPhoto = false, _saving = false, _uploading = false;
+  String? _coverPhotoUrl;
 
   @override
   void dispose() {
@@ -24,13 +31,88 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
     super.dispose();
   }
 
-  void _selectCoverPhoto() {
-    // The screen is ready to connect to image_picker when photo storage is added.
-    setState(() => _hasCoverPhoto = true);
+  Future<void> _selectCoverPhoto() async {
+    if (_saving || _uploading) return;
+    final session = await AccountSession.current();
+    if (session == null || !mounted) return;
+    try {
+      final file = await openFile(
+        acceptedTypeGroups: [
+          const XTypeGroup(
+            label: 'Images',
+            extensions: ['jpg', 'jpeg', 'png', 'webp'],
+            mimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
+            uniformTypeIdentifiers: ['public.image'],
+          ),
+        ],
+      );
+      if (file == null || !mounted) return;
+      setState(() => _uploading = true);
+      if (await file.length() > 10 * 1024 * 1024) {
+        throw StateError('Choose an image smaller than 10 MB.');
+      }
+      final extension = file.name.split('.').last.toLowerCase();
+      final mimeType = switch (extension) {
+        'png' => 'image/png',
+        'webp' => 'image/webp',
+        _ => 'image/jpeg',
+      };
+      final url = await SupabaseService().uploadBytes(
+        await file.readAsBytes(),
+        'capsules/${session.userId}/${DateTime.now().microsecondsSinceEpoch}.$extension',
+        mimeType,
+      );
+      if (!mounted || !await session.isCurrent) return;
+      setState(() {
+        _coverPhotoUrl = url;
+        _hasCoverPhoto = true;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
   }
 
-  void _createCapsule() {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _createCapsule() async {
+    if (_saving || !_formKey.currentState!.validate()) return;
+    setState(() => _saving = true);
+    try {
+      final session = await AccountSession.current();
+      if (session == null) throw StateError('Please sign in.');
+      final response = await ApiService().post(
+        '/capsules',
+        sessionToken: session.token,
+        body: {
+          'title': _titleController.text.trim(),
+          'description': _descriptionController.text.trim(),
+          'type': _type.toLowerCase(),
+          'privacy': 'private',
+          'coverPhotoUrl': _coverPhotoUrl,
+          'chainedFromCapsuleId': widget.chainedFromCapsuleId,
+        },
+      );
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        throw StateError(
+          body['errorDescription'] ?? 'Could not create the capsule.',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
+      return;
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('${_titleController.text.trim()} capsule created'),
@@ -79,7 +161,9 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
                   TextFormField(
                     controller: _titleController,
                     textCapitalization: TextCapitalization.sentences,
-                    decoration: _inputDecoration('Sinhala New Year Wishes 2025'),
+                    decoration: _inputDecoration(
+                      'Sinhala New Year Wishes 2025',
+                    ),
                     validator: (value) => value == null || value.trim().isEmpty
                         ? 'Enter a capsule title'
                         : null,
@@ -113,6 +197,7 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
               subtitle: 'Choose an image that brings this capsule to life.',
               child: _CoverPhotoPicker(
                 hasCoverPhoto: _hasCoverPhoto,
+                coverUrl: _coverPhotoUrl,
                 onTap: _selectCoverPhoto,
               ),
             ),
@@ -120,7 +205,7 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
             SizedBox(
               height: 50,
               child: FilledButton(
-                onPressed: _createCapsule,
+                onPressed: _saving || _uploading ? null : _createCapsule,
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.brown,
                   foregroundColor: Colors.white,
@@ -136,7 +221,10 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
                     SizedBox(width: 8),
                     Text(
                       'Create Capsule',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ],
                 ),
@@ -218,7 +306,11 @@ class _FormSection extends StatelessWidget {
       borderRadius: BorderRadius.circular(14),
       border: Border.all(color: const Color(0xFFF0E8E3)),
       boxShadow: const [
-        BoxShadow(color: Color(0x083B241D), blurRadius: 13, offset: Offset(0, 5)),
+        BoxShadow(
+          color: Color(0x083B241D),
+          blurRadius: 13,
+          offset: Offset(0, 5),
+        ),
       ],
     ),
     child: Column(
@@ -226,7 +318,10 @@ class _FormSection extends StatelessWidget {
       children: [
         _SectionTitle(title),
         const SizedBox(height: 3),
-        Text(subtitle, style: const TextStyle(color: Color(0xFF897C77), fontSize: 9)),
+        Text(
+          subtitle,
+          style: const TextStyle(color: Color(0xFF897C77), fontSize: 9),
+        ),
         const SizedBox(height: 16),
         child,
       ],
@@ -235,8 +330,13 @@ class _FormSection extends StatelessWidget {
 }
 
 class _CoverPhotoPicker extends StatelessWidget {
-  const _CoverPhotoPicker({required this.hasCoverPhoto, required this.onTap});
+  const _CoverPhotoPicker({
+    required this.hasCoverPhoto,
+    required this.onTap,
+    this.coverUrl,
+  });
   final bool hasCoverPhoto;
+  final String? coverUrl;
   final VoidCallback onTap;
 
   @override
@@ -256,7 +356,12 @@ class _CoverPhotoPicker extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Image.asset('assets/images/login_image.jpg', fit: BoxFit.cover),
+                  Image.network(
+                    coverUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) =>
+                        const Icon(Icons.image_not_supported_outlined),
+                  ),
                   const Align(
                     alignment: Alignment.bottomCenter,
                     child: DecoratedBox(
@@ -265,8 +370,10 @@ class _CoverPhotoPicker extends StatelessWidget {
                         height: 34,
                         width: double.infinity,
                         child: Center(
-                          child: Text('Tap to change cover photo',
-                              style: TextStyle(color: Colors.white, fontSize: 10)),
+                          child: Text(
+                            'Tap to change cover photo',
+                            style: TextStyle(color: Colors.white, fontSize: 10),
+                          ),
                         ),
                       ),
                     ),
@@ -280,18 +387,26 @@ class _CoverPhotoPicker extends StatelessWidget {
                 CircleAvatar(
                   radius: 27,
                   backgroundColor: Colors.white,
-                  child: Icon(Icons.add_a_photo_outlined,
-                      color: AppColors.brown, size: 25),
+                  child: Icon(
+                    Icons.add_a_photo_outlined,
+                    color: AppColors.brown,
+                    size: 25,
+                  ),
                 ),
                 SizedBox(height: 10),
-                Text('Upload or take a photo',
-                    style: TextStyle(
-                        color: AppColors.brown,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700)),
+                Text(
+                  'Upload or take a photo',
+                  style: TextStyle(
+                    color: AppColors.brown,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
                 SizedBox(height: 3),
-                Text('JPG or PNG, up to 10 MB',
-                    style: TextStyle(color: Color(0xFF897C77), fontSize: 8)),
+                Text(
+                  'JPG or PNG, up to 10 MB',
+                  style: TextStyle(color: Color(0xFF897C77), fontSize: 8),
+                ),
               ],
             ),
     ),
@@ -322,7 +437,9 @@ class _CapsuleTypePicker extends StatelessWidget {
                   child: Container(
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: value == type ? AppColors.brown : Colors.transparent,
+                      color: value == type
+                          ? AppColors.brown
+                          : Colors.transparent,
                       borderRadius: BorderRadius.circular(7),
                     ),
                     child: Text(
@@ -330,7 +447,9 @@ class _CapsuleTypePicker extends StatelessWidget {
                       style: TextStyle(
                         color: value == type ? Colors.white : AppColors.brown,
                         fontSize: 9,
-                        fontWeight: value == type ? FontWeight.w700 : FontWeight.w500,
+                        fontWeight: value == type
+                            ? FontWeight.w700
+                            : FontWeight.w500,
                       ),
                     ),
                   ),

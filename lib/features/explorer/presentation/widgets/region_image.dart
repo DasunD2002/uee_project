@@ -8,18 +8,6 @@ class RegionImage extends StatelessWidget {
   final String? source;
   final double? width, height;
 
-  static String _displayUrl(String source) {
-    final uri = Uri.tryParse(source);
-    if (uri == null ||
-        uri.host != 'commons.wikimedia.org' ||
-        !uri.path.startsWith('/wiki/Special:FilePath/')) {
-      return source;
-    }
-    return uri
-        .replace(queryParameters: {...uri.queryParameters, 'width': '900'})
-        .toString();
-  }
-
   @override
   Widget build(BuildContext context) {
     final image = source?.trim() ?? '';
@@ -29,7 +17,7 @@ class RegionImage extends StatelessWidget {
       width: width,
       height: height,
       child: image.isEmpty || isRemote
-          ? PlaceImage(url: image.isEmpty ? null : _displayUrl(image))
+          ? PlaceImage(url: image.isEmpty ? null : image)
           : Image.asset(
               image,
               fit: BoxFit.cover,

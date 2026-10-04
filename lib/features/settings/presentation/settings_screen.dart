@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../../../core/services/account_data_store.dart';
+import '../../auth/data/auth_service.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../home/presentation/widgets/home_drawer.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -10,6 +10,7 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  final document = AccountDataStore('preferences');
   bool notifications = true, activity = true, loading = true;
   @override
   void initState() {
@@ -19,12 +20,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> load() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      await document.load();
       if (!mounted) return;
       setState(() {
-        notifications = prefs.getBool('settings.notifications') ?? true;
-        activity = prefs.getBool('settings.activity') ?? true;
+        notifications = document.data['notifications'] as bool? ?? true;
+        activity = document.data['activity'] as bool? ?? true;
       });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -32,11 +39,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> update(String key, Object value) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final ok = value is bool
-          ? await prefs.setBool(key, value)
-          : await prefs.setString(key, value as String);
-      if (!ok) throw StateError('Save failed');
+      setState(() => loading = true);
+      await document.load();
+      await document.save({
+        ...document.data,
+        key.replaceFirst('settings.', ''): value,
+      });
       if (!mounted) return;
       setState(() {
         if (key == 'settings.notifications') notifications = value as bool;
@@ -50,7 +58,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         );
       }
+    } finally {
+      if (mounted) setState(() => loading = false);
     }
+  }
+
+  @override
+  void dispose() {
+    document.dispose();
+    super.dispose();
   }
 
   @override
@@ -136,11 +152,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 24),
             OutlinedButton.icon(
-              onPressed: () => Navigator.pushNamedAndRemoveUntil(
-                context,
-                '/login',
-                (_) => false,
-              ),
+              onPressed: () async {
+                await AuthService().logout();
+                if (!context.mounted) return;
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/login',
+                  (_) => false,
+                );
+              },
               icon: const Icon(Icons.logout),
               label: const Text('Log out'),
             ),

@@ -147,17 +147,29 @@ class _LoginScreenState extends State<LoginScreen> {
                                 onPressed: () async {
                                   if (key.currentState!.validate()) {
                                     setState(() => _isLoading = true);
-                                    final error = await _authService.login(email.text.trim(), password.text);
+                                    final error = await _authService.login(
+                                      email.text.trim(),
+                                      password.text,
+                                    );
+                                    if (!mounted || !context.mounted) return;
                                     setState(() => _isLoading = false);
-                                    
+
                                     if (error == null) {
                                       if (mounted) {
-                                        Navigator.pushReplacementNamed(context, '/home');
+                                        Navigator.pushReplacementNamed(
+                                          context,
+                                          '/home',
+                                        );
                                       }
                                     } else {
                                       if (mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text(error), backgroundColor: Colors.red),
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(error),
+                                            backgroundColor: Colors.red,
+                                          ),
                                         );
                                       }
                                     }

@@ -3,7 +3,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/constants/api_constants.dart';
 import 'core/theme/app_colors.dart';
 import 'features/auth/presentation/login_screen.dart';
-import 'features/auth/presentation/change_password_screen.dart';
 import 'features/auth/presentation/signup_screen.dart';
 import 'features/auth/presentation/otp_screen.dart';
 import 'features/auth/presentation/change_password_screen.dart';
@@ -34,7 +33,7 @@ void main() async {
 
   await Supabase.initialize(
     url: ApiConstants.supabaseUrl,
-    anonKey: ApiConstants.supabaseAnonKey,
+    publishableKey: ApiConstants.supabaseAnonKey,
   );
 
   runApp(const RootlyApp());

@@ -62,7 +62,7 @@ class FakeApiService extends ApiService {
   Map<String, dynamic>? lastBody;
 
   @override
-  Future<http.Response> get(String endpoint) async {
+  Future<http.Response> get(String endpoint, {String? sessionToken}) async {
     calls.add('GET $endpoint');
     if (errorStatus != null) {
       return http.Response(
@@ -77,6 +77,7 @@ class FakeApiService extends ApiService {
   Future<http.Response> post(
     String endpoint, {
     Map<String, dynamic>? body,
+    String? sessionToken,
   }) async {
     calls.add('POST $endpoint');
     lastBody = body;

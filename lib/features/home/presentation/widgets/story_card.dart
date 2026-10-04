@@ -47,6 +47,8 @@ class StoryCard extends StatelessWidget {
           context,
           MaterialPageRoute<void>(
             builder: (_) => PublicProfileScreen(
+              authorId: authorId,
+              postId: postId,
               author: author,
               handle: handle,
               avatar: authorPhoto ?? '',
@@ -68,8 +70,12 @@ class StoryCard extends StatelessWidget {
             child: const Icon(Icons.video_file_outlined, size: 52),
           )
         : imagePath.startsWith('http')
-            ? Image.network(imagePath, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.broken_image))
-            : Image.asset(imagePath, fit: BoxFit.cover),
+        ? Image.network(
+            imagePath,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => const Icon(Icons.broken_image),
+          )
+        : Image.asset(imagePath, fit: BoxFit.cover),
     category: category,
     title: title,
     location: location,
