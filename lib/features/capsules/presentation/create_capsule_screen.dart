@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/account_data_store.dart';
+import '../../../core/services/notification_service.dart';
 import '../../../core/services/supabase_service.dart';
 import 'package:file_selector/file_selector.dart';
 import 'dart:convert';
@@ -113,12 +114,23 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
       if (mounted) setState(() => _saving = false);
     }
     if (!mounted) return;
+    final title = _titleController.text.trim();
+
+    NotificationService().showNotification(
+      title: 'Capsule Created! ✨',
+      body: '"$title" has been safely preserved in your vault.',
+      icon: Icons.lock_clock_outlined,
+    );
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${_titleController.text.trim()} capsule created'),
+        content: Text('$title capsule created successfully!'),
         behavior: SnackBarBehavior.floating,
+        backgroundColor: Colors.green[800],
       ),
     );
+
+    Navigator.pop(context, true);
   }
 
   @override
