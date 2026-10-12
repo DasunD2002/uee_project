@@ -1,8 +1,8 @@
-import '../../../core/services/account_data_store.dart';
 import 'dart:convert';
+import 'package:flutter/material.dart';
+import '../../../core/services/account_data_store.dart';
 import '../../../core/services/api_service.dart';
 import '../../Profile/domain/social_store.dart';
-import 'package:flutter/material.dart';
 import '../domain/user_post.dart';
 import '../../notifications/presentation/widgets/notification_item_tile.dart';
 
@@ -13,6 +13,9 @@ class PostService {
   static void clearMockPosts() {
     _mockPosts.clear();
   }
+
+  static int mockPostsLength() => _mockPosts.length;
+  static List<String> mockPostsTitles() => _mockPosts.map((p) => p.title).toList();
 
   Future<String?> createPost(
     UserPost post,

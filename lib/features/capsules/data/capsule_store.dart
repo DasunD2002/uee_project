@@ -1,5 +1,6 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 import '../../../core/services/account_data_store.dart';
 import '../../../core/services/api_service.dart';
@@ -13,6 +14,20 @@ class CapsuleStore extends ChangeNotifier {
   bool loading = false, entriesLoading = false;
   String? error, entriesError;
   int _generation = 0, _selection = 0;
+
+  @override
+  void notifyListeners() {
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (hasListeners) {
+          super.notifyListeners();
+        }
+      });
+    } else {
+      super.notifyListeners();
+    }
+  }
 
   Future<AccountSession> _session() async {
     final session = await AccountSession.current();

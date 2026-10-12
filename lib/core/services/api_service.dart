@@ -19,7 +19,16 @@ class ApiService {
 
   static String get baseUrl => '${ApiConstants.baseUrl}/api/v1';
 
-  Future<Map<String, String>> _getHeaders(String? sessionToken) async {
+  static String _getFallbackUrl(String url) {
+    if (url.contains('127.0.0.1')) {
+      return url.replaceAll('127.0.0.1', '10.0.2.2');
+    } else if (url.contains('10.0.2.2')) {
+      return url.replaceAll('10.0.2.2', '127.0.0.1');
+    }
+    return url;
+  }
+
+  Future<Map<String, String>> _getHeaders([String? sessionToken]) async {
     final prefs = await SharedPreferences.getInstance();
     final token = sessionToken ?? prefs.getString('jwt_token');
 
@@ -34,15 +43,38 @@ class ApiService {
     return headers;
   }
 
+  Future<http.Response> _sendWithFallback(
+    String endpoint,
+    String? sessionToken,
+    Future<http.Response> Function(Uri uri, Map<String, String> headers) requester,
+  ) async {
+    final headers = await _getHeaders(sessionToken);
+    final primaryUri = Uri.parse('$baseUrl$endpoint');
+    try {
+      return await requester(primaryUri, headers);
+    } catch (_) {
+      final fallbackString = _getFallbackUrl(primaryUri.toString());
+      if (fallbackString != primaryUri.toString()) {
+        try {
+          return await requester(Uri.parse(fallbackString), headers);
+        } catch (_) {}
+      }
+      rethrow;
+    }
+  }
+
   Future<http.Response> get(String endpoint, {String? sessionToken}) async {
     if (isTestEnvironment) {
       if (testResponder != null) return testResponder!('GET', endpoint, null);
       return http.Response('{"content": []}', 200);
     }
-    final headers = await _getHeaders(sessionToken);
-    return await http
-        .get(Uri.parse('$baseUrl$endpoint'), headers: headers)
-        .timeout(const Duration(seconds: 30));
+    return await _sendWithFallback(
+      endpoint,
+      sessionToken,
+      (uri, headers) => http
+          .get(uri, headers: headers)
+          .timeout(const Duration(seconds: 30)),
+    );
   }
 
   Future<http.Response> post(
@@ -54,14 +86,14 @@ class ApiService {
       if (testResponder != null) return testResponder!('POST', endpoint, body);
       return http.Response('{"content": []}', 201);
     }
-    final headers = await _getHeaders(sessionToken);
-    return await http
-        .post(
-          Uri.parse('$baseUrl$endpoint'),
-          headers: headers,
-          body: body != null ? jsonEncode(body) : null,
-        )
-        .timeout(const Duration(seconds: 30));
+    final encoded = body != null ? jsonEncode(body) : null;
+    return await _sendWithFallback(
+      endpoint,
+      sessionToken,
+      (uri, headers) => http
+          .post(uri, headers: headers, body: encoded)
+          .timeout(const Duration(seconds: 30)),
+    );
   }
 
   Future<http.Response> put(
@@ -73,14 +105,14 @@ class ApiService {
       if (testResponder != null) return testResponder!('PUT', endpoint, body);
       return http.Response('{"content": []}', 200);
     }
-    final headers = await _getHeaders(sessionToken);
-    return await http
-        .put(
-          Uri.parse('$baseUrl$endpoint'),
-          headers: headers,
-          body: body != null ? jsonEncode(body) : null,
-        )
-        .timeout(const Duration(seconds: 30));
+    final encoded = body != null ? jsonEncode(body) : null;
+    return await _sendWithFallback(
+      endpoint,
+      sessionToken,
+      (uri, headers) => http
+          .put(uri, headers: headers, body: encoded)
+          .timeout(const Duration(seconds: 30)),
+    );
   }
 
   Future<http.Response> delete(String endpoint, {String? sessionToken}) async {
@@ -90,9 +122,12 @@ class ApiService {
       }
       return http.Response('{"content": []}', 200);
     }
-    final headers = await _getHeaders(sessionToken);
-    return await http
-        .delete(Uri.parse('$baseUrl$endpoint'), headers: headers)
-        .timeout(const Duration(seconds: 30));
+    return await _sendWithFallback(
+      endpoint,
+      sessionToken,
+      (uri, headers) => http
+          .delete(uri, headers: headers)
+          .timeout(const Duration(seconds: 30)),
+    );
   }
 }

@@ -1,21 +1,21 @@
-import '../../capsules/data/capsule_store.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../explorer/presentation/widgets/explorer_footer.dart';
+import '../../../core/services/notification_service.dart';
 
 // ── Palette — matches the rest of the app ────────────────────────────────────
-const _kBg = Color(0xFFFDF8F5); // warm off-white page background
-const _kCard = Color(0xFFFFFFFF); // card surface
-const _kBrown = Color(0xFF84321F); // primary brown (AppColors.brown)
-const _kBrownDp = Color(0xFF5A1E0E); // deep headings
-const _kGold = Color(0xFFD4A24C); // gold accent
-const _kBorder = Color(0xFFEEDFD9); // card border
-const _kMuted = Color(0xFFA07060); // secondary text
-const _kPeach = Color(0xFFFFF3E8); // button background tint
-const _kPeachBd = Color(0xFFD9B49E); // button border
+const _kBg       = Color(0xFFFDF8F5);   // warm off-white page background
+const _kCard     = Color(0xFFFFFFFF);   // card surface
+const _kBrown    = Color(0xFF84321F);   // primary brown (AppColors.brown)
+const _kBrownDp  = Color(0xFF5A1E0E);   // deep headings
+const _kGold     = Color(0xFFD4A24C);   // gold accent
+const _kBorder   = Color(0xFFEEDFD9);   // card border
+const _kMuted    = Color(0xFFA07060);   // secondary text
+const _kPeach    = Color(0xFFFFF3E8);   // button background tint
+const _kPeachBd  = Color(0xFFD9B49E);   // button border
 
 /// "Add a Memory" screen – warm earthy theme consistent with the rest of the app.
 class AddMemoryScreen extends StatefulWidget {
@@ -27,7 +27,7 @@ class AddMemoryScreen extends StatefulWidget {
 
 class _AddMemoryScreenState extends State<AddMemoryScreen>
     with TickerProviderStateMixin {
-  int _step = 0; // 0 pick type · 1 add content · 2 review & seal
+  int _step = 0;          // 0 pick type · 1 add content · 2 review & seal
   _MemoryType? _picked;
 
   late final AnimationController _stepCtrl = AnimationController(
@@ -36,27 +36,15 @@ class _AddMemoryScreenState extends State<AddMemoryScreen>
   );
 
   final _captionCtrl = TextEditingController();
-  final _contentCtrl = TextEditingController();
-  bool _saving = false;
 
   @override
   void dispose() {
     _stepCtrl.dispose();
     _captionCtrl.dispose();
-    _contentCtrl.dispose();
     super.dispose();
   }
 
   void _advance() {
-    if (_saving) return;
-    if (_step == 1 &&
-        _picked == _MemoryType.letter &&
-        _contentCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Write your letter before continuing.')),
-      );
-      return;
-    }
     if (_step < 2) {
       setState(() => _step++);
     } else {
@@ -64,55 +52,29 @@ class _AddMemoryScreenState extends State<AddMemoryScreen>
     }
   }
 
-  Future<void> _finish() async {
-    if (_saving) return;
-    if (_picked != _MemoryType.letter) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Media uploads are awaiting setup. Your memory has not been saved.',
-          ),
-        ),
-      );
-      return;
-    }
-    setState(() => _saving = true);
-    try {
-      await CapsuleStore.instance.saveEntry({
-        'type': 'letter',
-        'content': _contentCtrl.text.trim(),
-        'caption': _captionCtrl.text.trim(),
-      });
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.toString())));
-      }
-      return;
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-    if (!mounted) return;
+  void _finish() {
     HapticFeedback.mediumImpact();
+    NotificationService().showNotification(
+      title: 'Memory Sealed ✦',
+      body: 'A new memory has been safely sealed into your time capsule.',
+      icon: Icons.lock_rounded,
+    );
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
         backgroundColor: _kBrownDp,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
         content: const Row(
           children: [
             Icon(Icons.lock_rounded, color: Colors.white, size: 17),
             SizedBox(width: 10),
-            Text(
-              'Saved into your capsule ✦',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            Text('Sealed into your capsule ✦',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600)),
           ],
         ),
       ),
@@ -158,7 +120,8 @@ class _AddMemoryScreenState extends State<AddMemoryScreen>
               ),
               Text(
                 _stepSub(_step),
-                style: const TextStyle(color: _kMuted, fontSize: 11),
+                style:
+                    const TextStyle(color: _kMuted, fontSize: 11),
               ),
             ],
           ),
@@ -168,7 +131,8 @@ class _AddMemoryScreenState extends State<AddMemoryScreen>
           // Gold step counter pill
           Container(
             margin: const EdgeInsets.only(right: 14),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
               color: const Color(0xFFFFF0D6),
               borderRadius: BorderRadius.circular(20),
@@ -191,7 +155,8 @@ class _AddMemoryScreenState extends State<AddMemoryScreen>
           children: [
             // ── Step progress bar ──────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+              padding:
+                  const EdgeInsets.fromLTRB(20, 10, 20, 0),
               child: Row(
                 children: List.generate(3, (i) {
                   final active = i <= _step;
@@ -229,36 +194,20 @@ class _AddMemoryScreenState extends State<AddMemoryScreen>
                 ),
                 child: switch (_step) {
                   0 => _StepPickType(
-                    key: const ValueKey(0),
-                    picked: _picked,
-                    onPick: (t) {
-                      if (t != _MemoryType.letter) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Media memories are unavailable until storage setup is complete.',
-                            ),
-                          ),
-                        );
-                        return;
-                      }
-                      setState(() => _picked = t);
-                    },
-                  ),
+                      key: const ValueKey(0),
+                      picked: _picked,
+                      onPick: (t) => setState(() => _picked = t),
+                    ),
                   1 => _StepContent(
-                    key: const ValueKey(1),
-                    type: _picked!,
-                    captionCtrl: _captionCtrl,
-                    contentCtrl: _contentCtrl,
-                  ),
+                      key: const ValueKey(1),
+                      type: _picked!,
+                      captionCtrl: _captionCtrl,
+                    ),
                   _ => _StepReview(
-                    key: const ValueKey(2),
-                    type: _picked!,
-                    caption: [
-                      _captionCtrl.text,
-                      if (_picked == _MemoryType.letter) _contentCtrl.text,
-                    ].where((text) => text.isNotEmpty).join('\n\n'),
-                  ),
+                      key: const ValueKey(2),
+                      type: _picked!,
+                      caption: _captionCtrl.text,
+                    ),
                 },
               ),
             ),
@@ -266,29 +215,36 @@ class _AddMemoryScreenState extends State<AddMemoryScreen>
             // ── Bottom CTA ────────────────────────────────────────────────
             _BottomCTA(
               step: _step,
-              enabled: !_saving && (_step == 0 ? _picked != null : true),
+              enabled: _step == 0 ? _picked != null : true,
               onPressed: _advance,
             ),
           ],
         ),
       ),
-      bottomNavigationBar: ExplorerFooter(selectedIndex: 3, onSelected: (_) {}),
+      bottomNavigationBar: ExplorerFooter(
+        selectedIndex: 3,
+        onSelected: (_) {},
+      ),
     );
   }
 
   static String _stepTitle(int s) =>
       ['Choose Memory', 'Add Content', 'Review & Seal'][s];
   static String _stepSub(int s) => [
-    'What do you want to preserve?',
-    'Upload or create your memory',
-    'Caption & seal the moment',
-  ][s];
+        'What do you want to preserve?',
+        'Upload or create your memory',
+        'Caption & seal the moment',
+      ][s];
 }
 
 // ── Step 1: Choose memory type ────────────────────────────────────────────────
 
 class _StepPickType extends StatelessWidget {
-  const _StepPickType({super.key, required this.picked, required this.onPick});
+  const _StepPickType({
+    super.key,
+    required this.picked,
+    required this.onPick,
+  });
   final _MemoryType? picked;
   final ValueChanged<_MemoryType> onPick;
 
@@ -339,7 +295,8 @@ class _StepPickType extends StatelessWidget {
 
           // ── Info strip ──────────────────────────────────────────────────
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
               color: const Color(0xFFFFF7EE),
               borderRadius: BorderRadius.circular(14),
@@ -354,11 +311,8 @@ class _StepPickType extends StatelessWidget {
                     color: const Color(0xFFFFF0D6),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
-                    Icons.lock_outline_rounded,
-                    color: _kGold,
-                    size: 15,
-                  ),
+                  child: const Icon(Icons.lock_outline_rounded,
+                      color: _kGold, size: 15),
                 ),
                 const SizedBox(width: 12),
                 const Expanded(
@@ -366,7 +320,7 @@ class _StepPickType extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Preserved in your selected capsule',
+                        'Sealed until April 14, 2027',
                         style: TextStyle(
                           color: _kBrownDp,
                           fontSize: 12,
@@ -447,7 +401,9 @@ class _HeroTypeCardState extends State<_HeroTypeCard>
             ),
             boxShadow: [
               BoxShadow(
-                color: sel ? t.accent.withAlpha(35) : const Color(0x0F000000),
+                color: sel
+                    ? t.accent.withAlpha(35)
+                    : const Color(0x0F000000),
                 blurRadius: sel ? 18 : 8,
                 offset: const Offset(0, 4),
               ),
@@ -481,7 +437,8 @@ class _HeroTypeCardState extends State<_HeroTypeCard>
                             : const Color(0xFFF5EDE8),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Icon(t.icon, color: t.accent, size: 22),
+                      child: Icon(t.icon,
+                          color: t.accent, size: 22),
                     ),
                     const Spacer(),
                     Row(
@@ -501,9 +458,7 @@ class _HeroTypeCardState extends State<_HeroTypeCard>
                             Text(
                               t.sublabel,
                               style: const TextStyle(
-                                color: _kMuted,
-                                fontSize: 11.5,
-                              ),
+                                  color: _kMuted, fontSize: 11.5),
                             ),
                           ],
                         ),
@@ -513,14 +468,16 @@ class _HeroTypeCardState extends State<_HeroTypeCard>
                           width: 30,
                           height: 30,
                           decoration: BoxDecoration(
-                            color: sel ? t.accent : const Color(0xFFF0E4DF),
+                            color:
+                                sel ? t.accent : const Color(0xFFF0E4DF),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
                             sel
                                 ? Icons.check_rounded
                                 : Icons.arrow_forward_rounded,
-                            color: sel ? Colors.white : _kMuted,
+                            color:
+                                sel ? Colors.white : _kMuted,
                             size: 15,
                           ),
                         ),
@@ -594,7 +551,9 @@ class _SmallTypeCardState extends State<_SmallTypeCard>
             ),
             boxShadow: [
               BoxShadow(
-                color: sel ? t.accent.withAlpha(28) : const Color(0x0A000000),
+                color: sel
+                    ? t.accent.withAlpha(28)
+                    : const Color(0x0A000000),
                 blurRadius: sel ? 14 : 6,
                 offset: const Offset(0, 3),
               ),
@@ -608,10 +567,13 @@ class _SmallTypeCardState extends State<_SmallTypeCard>
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: sel ? t.accent.withAlpha(30) : const Color(0xFFF5EDE8),
+                  color: sel
+                      ? t.accent.withAlpha(30)
+                      : const Color(0xFFF5EDE8),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(t.icon, size: 18, color: t.accent),
+                child:
+                    Icon(t.icon, size: 18, color: t.accent),
               ),
               const SizedBox(height: 8),
               Text(
@@ -619,7 +581,8 @@ class _SmallTypeCardState extends State<_SmallTypeCard>
                 style: TextStyle(
                   color: _kBrownDp,
                   fontSize: 11,
-                  fontWeight: sel ? FontWeight.w800 : FontWeight.w600,
+                  fontWeight:
+                      sel ? FontWeight.w800 : FontWeight.w600,
                 ),
               ),
             ],
@@ -637,10 +600,9 @@ class _StepContent extends StatefulWidget {
     super.key,
     required this.type,
     required this.captionCtrl,
-    required this.contentCtrl,
   });
   final _MemoryType type;
-  final TextEditingController captionCtrl, contentCtrl;
+  final TextEditingController captionCtrl;
 
   @override
   State<_StepContent> createState() => _StepContentState();
@@ -674,25 +636,25 @@ class _StepContentState extends State<_StepContent>
           Align(
             alignment: Alignment.centerLeft,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: t.lightBg,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: t.accent.withAlpha(100)),
+                border:
+                    Border.all(color: t.accent.withAlpha(100)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(t.icon, size: 13, color: t.accent),
                   const SizedBox(width: 6),
-                  Text(
-                    t.label,
-                    style: TextStyle(
-                      color: t.accent,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                  Text(t.label,
+                      style: TextStyle(
+                        color: t.accent,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      )),
                 ],
               ),
             ),
@@ -717,7 +679,7 @@ class _StepContentState extends State<_StepContent>
               },
             )
           else if (t == _MemoryType.letter)
-            _LetterEditor(controller: widget.contentCtrl)
+            const _LetterEditor()
           else
             _MediaUploader(
               type: t,
@@ -781,10 +743,9 @@ class _VoiceRecorderState extends State<_VoiceRecorder>
         border: Border.all(color: _kBorder),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x0A000000),
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
+              color: Color(0x0A000000),
+              blurRadius: 10,
+              offset: Offset(0, 4)),
         ],
       ),
       child: Stack(
@@ -804,7 +765,7 @@ class _VoiceRecorderState extends State<_VoiceRecorder>
                   children: List.generate(_waveCtrls.length, (i) {
                     return AnimatedBuilder(
                       animation: _waveCtrls[i],
-                      builder: (_, _) {
+                      builder: (_, child) {
                         final h = widget.recording
                             ? 6 + _waveCtrls[i].value * 30
                             : 6 + math.sin(i * .7) * 14;
@@ -839,8 +800,7 @@ class _VoiceRecorderState extends State<_VoiceRecorder>
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: widget.accent.withAlpha(
-                        (20 * (1 - widget.pulseCtrl.value)).toInt(),
-                      ),
+                          (20 * (1 - widget.pulseCtrl.value)).toInt()),
                     ),
                   ),
                   Container(
@@ -849,8 +809,7 @@ class _VoiceRecorderState extends State<_VoiceRecorder>
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: widget.accent.withAlpha(
-                        (30 * (1 - widget.pulseCtrl.value)).toInt(),
-                      ),
+                          (30 * (1 - widget.pulseCtrl.value)).toInt()),
                     ),
                   ),
                 ],
@@ -876,22 +835,21 @@ class _VoiceRecorderState extends State<_VoiceRecorder>
                             color: widget.accent.withAlpha(60),
                             blurRadius: 20,
                             spreadRadius: 2,
-                          ),
+                          )
                         ]
                       : const [
                           BoxShadow(
-                            color: Color(0x12000000),
-                            blurRadius: 8,
-                            offset: Offset(0, 3),
-                          ),
+                              color: Color(0x12000000),
+                              blurRadius: 8,
+                              offset: Offset(0, 3)),
                         ],
                 ),
                 child: Icon(
                   widget.hasContent && !widget.recording
                       ? Icons.play_arrow_rounded
                       : widget.recording
-                      ? Icons.stop_rounded
-                      : Icons.mic_rounded,
+                          ? Icons.stop_rounded
+                          : Icons.mic_rounded,
                   color: widget.recording ? Colors.white : _kBrown,
                   size: 28,
                 ),
@@ -906,8 +864,8 @@ class _VoiceRecorderState extends State<_VoiceRecorder>
               widget.hasContent && !widget.recording
                   ? '✓  Recording ready  ·  0:12'
                   : widget.recording
-                  ? 'Recording…  tap to stop'
-                  : 'Tap to start recording',
+                      ? 'Recording…  tap to stop'
+                      : 'Tap to start recording',
               style: TextStyle(
                 color: widget.recording ? widget.accent : _kMuted,
                 fontSize: 12,
@@ -924,8 +882,7 @@ class _VoiceRecorderState extends State<_VoiceRecorder>
 // ── Letter editor ─────────────────────────────────────────────────────────────
 
 class _LetterEditor extends StatelessWidget {
-  const _LetterEditor({required this.controller});
-  final TextEditingController controller;
+  const _LetterEditor();
 
   @override
   Widget build(BuildContext context) {
@@ -936,10 +893,9 @@ class _LetterEditor extends StatelessWidget {
         border: Border.all(color: _kBorder),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x0A000000),
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
+              color: Color(0x0A000000),
+              blurRadius: 10,
+              offset: Offset(0, 4)),
         ],
       ),
       child: Column(
@@ -951,11 +907,13 @@ class _LetterEditor extends StatelessWidget {
             decoration: const BoxDecoration(
               color: Color(0xFFFFF7EE),
               border: Border(bottom: BorderSide(color: _kBorder)),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius:
+                  BorderRadius.vertical(top: Radius.circular(20)),
             ),
             child: Row(
               children: [
-                const Icon(Icons.auto_stories_rounded, color: _kGold, size: 15),
+                const Icon(Icons.auto_stories_rounded,
+                    color: _kGold, size: 15),
                 const SizedBox(width: 8),
                 const Text(
                   'To my family, with love…',
@@ -968,8 +926,9 @@ class _LetterEditor extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  'Your letter',
-                  style: TextStyle(color: _kMuted.withAlpha(160), fontSize: 10),
+                  'Sealed · 2027',
+                  style: TextStyle(
+                      color: _kMuted.withAlpha(160), fontSize: 10),
                 ),
               ],
             ),
@@ -977,8 +936,6 @@ class _LetterEditor extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.all(14),
             child: TextField(
-              controller: controller,
-              maxLength: 30000,
               maxLines: 7,
               style: const TextStyle(
                 color: _kBrownDp,
@@ -990,7 +947,8 @@ class _LetterEditor extends StatelessWidget {
               decoration: const InputDecoration(
                 hintText:
                     'Dear future family,\n\nWrite what you want them to remember…',
-                hintStyle: TextStyle(color: Color(0xFFCFB5A8), fontSize: 14),
+                hintStyle: TextStyle(
+                    color: Color(0xFFCFB5A8), fontSize: 14),
                 border: InputBorder.none,
                 isDense: true,
               ),
@@ -1034,21 +992,15 @@ class _MediaUploader extends StatelessWidget {
                 color: Color(0xFFD6F0D9),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.check_rounded,
-                color: Color(0xFF4A9E55),
-                size: 26,
-              ),
+              child: const Icon(Icons.check_rounded,
+                  color: Color(0xFF4A9E55), size: 26),
             ),
             const SizedBox(height: 10),
-            const Text(
-              'File attached',
-              style: TextStyle(
-                color: _kBrownDp,
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+            const Text('File attached',
+                style: TextStyle(
+                    color: _kBrownDp,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700)),
             const SizedBox(height: 3),
             Text(
               'Your ${type.label.toLowerCase()} is ready to seal',
@@ -1069,7 +1021,8 @@ class _MediaUploader extends StatelessWidget {
             decoration: BoxDecoration(
               color: type.lightBg,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: type.accent.withAlpha(80)),
+              border: Border.all(
+                  color: type.accent.withAlpha(80)),
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -1081,7 +1034,8 @@ class _MediaUploader extends StatelessWidget {
                     color: type.accent.withAlpha(30),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(type.icon, color: type.accent, size: 24),
+                  child:
+                      Icon(type.icon, color: type.accent, size: 24),
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -1097,7 +1051,8 @@ class _MediaUploader extends StatelessWidget {
                   type == _MemoryType.photo
                       ? 'JPG · PNG · HEIC  ·  max 20 MB'
                       : 'MP4 · MOV  ·  max 100 MB',
-                  style: const TextStyle(color: _kMuted, fontSize: 11),
+                  style:
+                      const TextStyle(color: _kMuted, fontSize: 11),
                 ),
               ],
             ),
@@ -1107,16 +1062,14 @@ class _MediaUploader extends StatelessWidget {
         Row(
           children: [
             _UploadPill(
-              icon: Icons.photo_library_outlined,
-              label: 'Gallery',
-              onTap: onUploaded,
-            ),
+                icon: Icons.photo_library_outlined,
+                label: 'Gallery',
+                onTap: onUploaded),
             const SizedBox(width: 10),
             _UploadPill(
-              icon: Icons.camera_alt_outlined,
-              label: 'Camera',
-              onTap: onUploaded,
-            ),
+                icon: Icons.camera_alt_outlined,
+                label: 'Camera',
+                onTap: onUploaded),
           ],
         ),
       ],
@@ -1147,10 +1100,9 @@ class _UploadPill extends StatelessWidget {
             border: Border.all(color: _kPeachBd),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x08000000),
-                blurRadius: 6,
-                offset: Offset(0, 3),
-              ),
+                  color: Color(0x08000000),
+                  blurRadius: 6,
+                  offset: Offset(0, 3)),
             ],
           ),
           child: Row(
@@ -1158,14 +1110,11 @@ class _UploadPill extends StatelessWidget {
             children: [
               Icon(icon, size: 16, color: _kBrown),
               const SizedBox(width: 7),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: _kBrownDp,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              Text(label,
+                  style: const TextStyle(
+                      color: _kBrownDp,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600)),
             ],
           ),
         ),
@@ -1189,25 +1138,29 @@ class _CaptionInput extends StatelessWidget {
         border: Border.all(color: _kBorder),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x07000000),
-            blurRadius: 6,
-            offset: Offset(0, 3),
-          ),
+              color: Color(0x07000000),
+              blurRadius: 6,
+              offset: Offset(0, 3)),
         ],
       ),
       child: TextField(
         controller: controller,
         maxLines: 2,
         maxLength: 160,
-        style: const TextStyle(color: _kBrownDp, fontSize: 13, height: 1.5),
+        style:
+            const TextStyle(color: _kBrownDp, fontSize: 13, height: 1.5),
         cursorColor: _kBrown,
         decoration: const InputDecoration(
           hintText: 'Add a caption to this memory…',
-          hintStyle: TextStyle(color: Color(0xFFCFB5A8), fontSize: 13),
-          prefixIcon: Icon(Icons.edit_outlined, color: _kMuted, size: 18),
-          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+          hintStyle:
+              TextStyle(color: Color(0xFFCFB5A8), fontSize: 13),
+          prefixIcon:
+              Icon(Icons.edit_outlined, color: _kMuted, size: 18),
+          contentPadding:
+              EdgeInsets.symmetric(horizontal: 12, vertical: 13),
           border: InputBorder.none,
-          counterStyle: TextStyle(color: Color(0xFFCFB5A8), fontSize: 10),
+          counterStyle:
+              TextStyle(color: Color(0xFFCFB5A8), fontSize: 10),
         ),
       ),
     );
@@ -1234,7 +1187,8 @@ class _StepReview extends StatelessWidget {
             decoration: BoxDecoration(
               color: type.lightBg,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: type.accent.withAlpha(100)),
+              border: Border.all(
+                  color: type.accent.withAlpha(100)),
               boxShadow: [
                 BoxShadow(
                   color: type.accent.withAlpha(20),
@@ -1255,27 +1209,23 @@ class _StepReview extends StatelessWidget {
                         color: type.accent.withAlpha(35),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Icon(type.icon, color: type.accent, size: 20),
+                      child: Icon(type.icon,
+                          color: type.accent, size: 20),
                     ),
                     const SizedBox(width: 12),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          type.label,
-                          style: const TextStyle(
-                            color: _kBrownDp,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const Text(
-                          'Ready to seal ✓',
-                          style: TextStyle(
-                            color: Color(0xFF5E9E65),
-                            fontSize: 11,
-                          ),
-                        ),
+                        Text(type.label,
+                            style: const TextStyle(
+                              color: _kBrownDp,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                            )),
+                        const Text('Ready to seal ✓',
+                            style: TextStyle(
+                                color: Color(0xFF5E9E65),
+                                fontSize: 11)),
                       ],
                     ),
                   ],
@@ -1302,32 +1252,25 @@ class _StepReview extends StatelessWidget {
 
           // Metadata rows
           _MetaRow(
-            icon: Icons.group_outlined,
-            label: 'Visible to',
-            value: 'Family contributors only',
-          ),
+              icon: Icons.group_outlined,
+              label: 'Visible to',
+              value: 'Family contributors only'),
           const SizedBox(height: 9),
           _MetaRow(
-            icon: Icons.lock_outline_rounded,
-            label: 'Unlocks',
-            value:
-                CapsuleStore.instance.selected?['unlockCondition']?['date']
-                    ?.toString()
-                    .split('T')
-                    .first ??
-                'Not set',
-          ),
+              icon: Icons.lock_outline_rounded,
+              label: 'Unlocks',
+              value: 'April 14, 2027'),
           const SizedBox(height: 9),
           _MetaRow(
-            icon: Icons.inventory_2_outlined,
-            label: 'Capsule',
-            value: CapsuleStore.instance.selected?['title'] ?? 'Your capsule',
-          ),
+              icon: Icons.inventory_2_outlined,
+              label: 'Capsule',
+              value: 'Family Recipe'),
           const SizedBox(height: 18),
 
           // Gold note
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
               color: const Color(0xFFFFF7EE),
               borderRadius: BorderRadius.circular(14),
@@ -1335,16 +1278,14 @@ class _StepReview extends StatelessWidget {
             ),
             child: Row(
               children: const [
-                Icon(Icons.info_outline_rounded, color: _kGold, size: 15),
+                Icon(Icons.info_outline_rounded,
+                    color: _kGold, size: 15),
                 SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Once sealed, this memory cannot be edited.',
+                    'Once sealed, this memory cannot be edited until the capsule unlocks.',
                     style: TextStyle(
-                      color: _kMuted,
-                      fontSize: 11.5,
-                      height: 1.4,
-                    ),
+                        color: _kMuted, fontSize: 11.5, height: 1.4),
                   ),
                 ),
               ],
@@ -1376,26 +1317,24 @@ class _MetaRow extends StatelessWidget {
         border: Border.all(color: _kBorder),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x07000000),
-            blurRadius: 6,
-            offset: Offset(0, 3),
-          ),
+              color: Color(0x07000000),
+              blurRadius: 6,
+              offset: Offset(0, 3)),
         ],
       ),
       child: Row(
         children: [
           Icon(icon, color: _kMuted, size: 17),
           const SizedBox(width: 11),
-          Text(label, style: const TextStyle(color: _kMuted, fontSize: 12)),
+          Text(label,
+              style: const TextStyle(color: _kMuted, fontSize: 12)),
           const Spacer(),
-          Text(
-            value,
-            style: const TextStyle(
-              color: _kBrownDp,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          Text(value,
+              style: const TextStyle(
+                color: _kBrownDp,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              )),
         ],
       ),
     );
@@ -1435,7 +1374,8 @@ class _BottomCTAState extends State<_BottomCTA>
   Widget build(BuildContext context) {
     final isFinal = widget.step == 2;
     final label = isFinal ? 'Seal Into Capsule' : 'Continue';
-    final icon = isFinal ? Icons.lock_rounded : Icons.arrow_forward_rounded;
+    final icon =
+        isFinal ? Icons.lock_rounded : Icons.arrow_forward_rounded;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 18),
@@ -1447,7 +1387,8 @@ class _BottomCTAState extends State<_BottomCTA>
             boxShadow: widget.enabled
                 ? [
                     BoxShadow(
-                      color: _kBrown.withAlpha((45 + 45 * _glow.value).toInt()),
+                      color: _kBrown.withAlpha(
+                          (45 + 45 * _glow.value).toInt()),
                       blurRadius: 14 + 10 * _glow.value,
                       spreadRadius: _glow.value * 2,
                       offset: const Offset(0, 4),
@@ -1465,7 +1406,8 @@ class _BottomCTAState extends State<_BottomCTA>
             icon: Icon(icon, size: 16),
             label: Text(
               label,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+              style: const TextStyle(
+                  fontSize: 14, fontWeight: FontWeight.w700),
             ),
             style: FilledButton.styleFrom(
               backgroundColor: _kBrown,
@@ -1473,8 +1415,7 @@ class _BottomCTAState extends State<_BottomCTA>
               disabledForegroundColor: const Color(0xFFA89390),
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(13),
-              ),
+                  borderRadius: BorderRadius.circular(13)),
             ),
           ),
         ),

@@ -21,24 +21,34 @@ class AuthService {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
-        final token = data['data']['token'];
-
-        final userId = data['data']['id'];
-        if (token is String &&
-            token.isNotEmpty &&
-            userId is String &&
-            userId.isNotEmpty) {
+        final token = data['data']?['token'];
+        final userId = data['data']?['id']?.toString() ?? '';
+        if (token is String && token.isNotEmpty) {
           _clearAccountCaches();
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('jwt_token', token);
-          UserService.cachedUserId = userId;
-          await prefs.setString('user_id', userId);
+          if (userId.isNotEmpty) {
+            UserService.cachedUserId = userId;
+            await prefs.setString('user_id', userId);
+          }
           return null; // Success
         }
         return 'Invalid response format';
       } else {
-        final data = jsonDecode(response.body);
-        return data['errorDescription'] ?? 'Login failed';
+        try {
+          final data = jsonDecode(response.body);
+          if (data is Map && data['errorDescription'] != null) {
+            return data['errorDescription'] as String;
+          }
+          if (data is Map && data['message'] != null) {
+            return data['message'] as String;
+          }
+        } catch (_) {}
+
+        if (response.statusCode == 401) {
+          return 'Invalid email or password';
+        }
+        return 'Login failed (${response.statusCode})';
       }
     } catch (e) {
       debugPrint('Network error in login: $e');

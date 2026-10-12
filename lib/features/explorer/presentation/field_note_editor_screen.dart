@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../data/field_notes_store.dart';
 import '../../../core/navigation/primary_navigation.dart';
+import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/rootly_back_button.dart';
 import 'widgets/explorer_footer.dart';
@@ -98,6 +99,11 @@ class _FieldNoteEditorScreenState extends State<FieldNoteEditorScreen> {
       return;
     }
     if (!mounted) return;
+    NotificationService().showNotification(
+      title: widget.isEditing ? 'Field Note Updated 📜' : 'Field Note Saved 📜',
+      body: 'Your journal entry for "${siteController.text.trim()}" has been recorded.',
+      icon: Icons.bookmark_added_outlined,
+    );
     Navigator.pop(
       context,
       FieldNoteEditorResult(
