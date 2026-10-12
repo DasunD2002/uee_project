@@ -67,6 +67,19 @@ class CapsuleService {
     ];
   }
 
+  static CapsuleModel defaultCapsule() {
+    return CapsuleModel(
+      id: 'default_family_recipe',
+      title: 'Family Recipe',
+      description: 'A collection of family recipes from grandmother to be shared.',
+      category: 'Family',
+      type: 'Family',
+      unlockDate: 'April 14, 2027',
+      coverImageUrl: 'assets/images/login_image.jpg',
+      memories: defaultMemories(),
+    );
+  }
+
   Future<String> _resolveCreatorId() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('jwt_token');
@@ -204,19 +217,6 @@ class CapsuleService {
     }
     try {
       final local = await _getLocalCapsules();
-      try {
-        final response = await _apiService.get('/capsules');
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          final list = (data['data'] ?? data['content'] ?? data) as List?;
-          if (list != null && list.isNotEmpty) {
-            final remote = list.map((item) => CapsuleModel.fromJson(item)).toList();
-            return remote;
-          }
-        }
-      } catch (_) {}
-
-      // If local capsules exist, ensure default memories exist
       if (local.isNotEmpty) {
         return local.map((c) {
           if (c.memories.isEmpty) {
@@ -226,40 +226,62 @@ class CapsuleService {
         }).toList();
       }
 
+      // Fast network fetch only if local storage is empty
+      try {
+        final response = await _apiService
+            .get('/capsules')
+            .timeout(const Duration(milliseconds: 1000));
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          final list = (data['data'] ?? data['content'] ?? data) as List?;
+          if (list != null && list.isNotEmpty) {
+            final remote = list.map((item) => CapsuleModel.fromJson(item)).toList();
+            await _saveLocalCapsules(remote);
+            return remote;
+          }
+        }
+      } catch (_) {}
+
       // Default initial sample capsule if none created yet
-      return [
-        CapsuleModel(
-          id: 'default_family_recipe',
-          title: 'Family Recipe',
-          description: 'A collection of family recipes from grandmother to be shared.',
-          category: 'Family',
-          unlockDate: 'April 14, 2027',
-          coverImageUrl: 'assets/images/login_image.jpg',
-          memories: defaultMemories(),
-        ),
-      ];
+      return [defaultCapsule()];
     } catch (e) {
-      return [];
+      return [defaultCapsule()];
     }
   }
 
   /// 5. GET CAPSULE BY ID (GET /capsules/{capsuleId})
   Future<CapsuleModel?> getCapsuleById(String capsuleId) async {
     if (isTestEnvironment) {
-      return _mockCapsules.firstWhere((c) => c.id == capsuleId);
+      return _mockCapsules.firstWhere((c) => c.id == capsuleId, orElse: () => defaultCapsule());
     }
     try {
-      final response = await _apiService.get('/capsules/$capsuleId');
-      if (response.statusCode == 200 || response.statusCode == 204) {
-        final data = jsonDecode(response.body);
-        final capsuleData = data['data'] ?? data;
-        return CapsuleModel.fromJson(capsuleData);
+      final local = await _getLocalCapsules();
+      final match = local.where((c) => c.id == capsuleId).toList();
+      if (match.isNotEmpty) {
+        final c = match.first;
+        return c.memories.isEmpty ? c.copyWith(memories: defaultMemories()) : c;
       }
-    } catch (_) {}
+      if (capsuleId == 'default_family_recipe' || capsuleId.isEmpty) {
+        return defaultCapsule();
+      }
 
-    final local = await _getLocalCapsules();
-    final match = local.where((c) => c.id == capsuleId).toList();
-    return match.isNotEmpty ? match.first : null;
+      // Short timeout network call so UI never hangs
+      try {
+        final response = await _apiService
+            .get('/capsules/$capsuleId')
+            .timeout(const Duration(milliseconds: 1500));
+        if (response.statusCode == 200 || response.statusCode == 204) {
+          final data = jsonDecode(response.body);
+          final capsuleData = data['data'] ?? data;
+          final fromNet = CapsuleModel.fromJson(capsuleData);
+          return fromNet.memories.isEmpty ? fromNet.copyWith(memories: defaultMemories()) : fromNet;
+        }
+      } catch (_) {}
+
+      return defaultCapsule();
+    } catch (_) {
+      return defaultCapsule();
+    }
   }
 
   /// 6. ADD MEMORY TO CAPSULE

@@ -82,11 +82,14 @@ class CapsuleHomeScreen extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 25),
-        const Row(
+        Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('YOUR TIME CAPSULES', style: TextStyle(color: Color(0xFF5C4B45), fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: .6)),
-            Text('View all', style: TextStyle(color: AppColors.brown, fontSize: 10, fontWeight: FontWeight.w700)),
+            const Text('YOUR TIME CAPSULES', style: TextStyle(color: Color(0xFF5C4B45), fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: .6)),
+            GestureDetector(
+              onTap: () => Navigator.pushNamed(context, '/capsules'),
+              child: const Text('View all', style: TextStyle(color: AppColors.brown, fontSize: 10, fontWeight: FontWeight.w700)),
+            ),
           ],
         ),
         const SizedBox(height: 11),
@@ -206,13 +209,16 @@ class _CapsuleCard extends StatelessWidget {
   const _CapsuleCard();
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(11),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      boxShadow: const [BoxShadow(color: Color(0x0C3B241D), blurRadius: 15, offset: Offset(0, 6))],
-    ),
+  Widget build(BuildContext context) => InkWell(
+    borderRadius: BorderRadius.circular(16),
+    onTap: () => Navigator.pushNamed(context, '/family-receipt'),
+    child: Container(
+      padding: const EdgeInsets.all(11),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [BoxShadow(color: Color(0x0C3B241D), blurRadius: 15, offset: Offset(0, 6))],
+      ),
     child: Row(
       children: [
         ClipRRect(
@@ -235,5 +241,6 @@ class _CapsuleCard extends StatelessWidget {
         const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF927B70), size: 15),
       ],
     ),
-  );
+  ),
+);
 }

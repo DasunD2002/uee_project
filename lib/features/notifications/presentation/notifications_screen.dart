@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/services/notification_service.dart';
+import '../../Profile/domain/social_store.dart';
 import '../../explorer/presentation/widgets/explorer_footer.dart';
 import 'widgets/notification_item_tile.dart';
 
@@ -22,6 +23,24 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _loadNotifications() async {
+    final socialItems = SocialStore.instance.notifications;
+    if (socialItems.isNotEmpty) {
+      final today = socialItems
+          .where((i) => i.timeAgo.contains('ago') || i.timeAgo == 'Just now')
+          .toList();
+      final earlier = socialItems
+          .where((i) => !i.timeAgo.contains('ago') && i.timeAgo != 'Just now')
+          .toList();
+      if (mounted) {
+        setState(() {
+          todayNotifications = today;
+          yesterdayNotifications = earlier;
+          _isLoading = false;
+        });
+      }
+      return;
+    }
+
     final dynamicItems = await NotificationService().getInAppNotifications();
 
     if (dynamicItems.isNotEmpty) {

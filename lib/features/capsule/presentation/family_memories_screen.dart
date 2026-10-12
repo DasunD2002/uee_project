@@ -57,10 +57,8 @@ class _FamilyMemoriesScreenState extends State<FamilyMemoriesScreen>
     if (mounted) {
       setState(() {
         _isLoading = false;
-        if (list.isNotEmpty) {
-          _capsule = list.first;
-          _checkUnlockReveal();
-        }
+        _capsule = list.isNotEmpty ? list.first : CapsuleService.defaultCapsule();
+        _checkUnlockReveal();
       });
     }
   }
@@ -266,8 +264,13 @@ class _FamilyMemoriesScreenState extends State<FamilyMemoriesScreen>
           // First-time reveal animation overlay (Step 8)
           if (_showRevealOverlay)
             Positioned.fill(
-              child: Container(
-                color: Colors.black54,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  if (mounted) setState(() => _showRevealOverlay = false);
+                },
+                child: Container(
+                  color: Colors.black54,
                 child: Center(
                   child: ScaleTransition(
                     scale: _scaleAnim,
@@ -319,6 +322,7 @@ class _FamilyMemoriesScreenState extends State<FamilyMemoriesScreen>
                 ),
               ),
             ),
+          ),
         ],
       ),
     );
@@ -555,17 +559,39 @@ class _PolaroidTile extends StatelessWidget {
   }
 
   Widget _buildPhotoWidget(String path) {
-    if (path.toLowerCase().endsWith('.mp4')) {
+    final lower = path.toLowerCase();
+    final isVid = lower.endsWith('.mp4') ||
+        lower.endsWith('.mov') ||
+        lower.endsWith('.webm') ||
+        lower.endsWith('.mkv') ||
+        lower.endsWith('.avi') ||
+        lower.endsWith('.m4v') ||
+        lower.endsWith('.3gp');
+    if (isVid) {
       return Image.asset('assets/images/gal_vihara.png', fit: BoxFit.cover);
     }
     if (path.startsWith('http://') || path.startsWith('https://')) {
-      return Image.network(path, fit: BoxFit.cover);
+      return Image.network(
+        path,
+        fit: BoxFit.cover,
+        errorBuilder: (_, o, s) => Image.asset('assets/images/gal_vihara.png', fit: BoxFit.cover),
+      );
     } else if (path.startsWith('assets/')) {
-      return Image.asset(path, fit: BoxFit.cover);
+      return Image.asset(
+        path,
+        fit: BoxFit.cover,
+        errorBuilder: (_, o, s) => Image.asset('assets/images/gal_vihara.png', fit: BoxFit.cover),
+      );
     } else {
       try {
         final f = File(path);
-        if (f.existsSync()) return Image.file(f, fit: BoxFit.cover);
+        if (f.existsSync()) {
+          return Image.file(
+            f,
+            fit: BoxFit.cover,
+            errorBuilder: (_, o, s) => Image.asset('assets/images/gal_vihara.png', fit: BoxFit.cover),
+          );
+        }
       } catch (_) {}
       return Image.asset('assets/images/gal_vihara.png', fit: BoxFit.cover);
     }

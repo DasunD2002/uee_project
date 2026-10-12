@@ -63,10 +63,9 @@ class AddMemoryPickerSheet extends StatelessWidget {
             title: 'Photo Memory',
             subtitle: 'Pick from gallery or capture with camera',
             onTap: () async {
-              Navigator.pop(context);
               final memory = await _pickPhotoOrVideo(context, isVideo: false);
               if (memory != null && context.mounted) {
-                // Handled
+                Navigator.pop(context, memory);
               }
             },
           ),
@@ -76,8 +75,10 @@ class AddMemoryPickerSheet extends StatelessWidget {
             title: 'Video Memory',
             subtitle: 'Preserve moving moments and greetings',
             onTap: () async {
-              Navigator.pop(context);
-              await _pickPhotoOrVideo(context, isVideo: true);
+              final memory = await _pickPhotoOrVideo(context, isVideo: true);
+              if (memory != null && context.mounted) {
+                Navigator.pop(context, memory);
+              }
             },
           ),
           const SizedBox(height: 10),
@@ -86,8 +87,10 @@ class AddMemoryPickerSheet extends StatelessWidget {
             title: 'Write a Letter',
             subtitle: 'Pen down personal thoughts, recipes, or wisdom',
             onTap: () async {
-              Navigator.pop(context);
-              await _openLetterEditor(context);
+              final memory = await _openLetterEditor(context);
+              if (memory != null && context.mounted) {
+                Navigator.pop(context, memory);
+              }
             },
           ),
         ],
@@ -315,7 +318,18 @@ class _PreviewAndCaptionDialogState extends State<_PreviewAndCaptionDialog> {
                         child: Icon(Icons.play_circle_fill_rounded, color: Colors.white70, size: 54),
                       ),
                     )
-                  : Image.file(widget.file, height: 200, width: double.infinity, fit: BoxFit.cover),
+                  : Image.file(
+                      widget.file,
+                      height: 200,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, o, s) => Image.asset(
+                        'assets/images/gal_vihara.png',
+                        height: 200,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
             ),
             const SizedBox(height: 16),
             TextField(

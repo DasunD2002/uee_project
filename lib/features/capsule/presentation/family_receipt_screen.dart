@@ -51,8 +51,12 @@ class _FamilyReceiptScreenState extends State<FamilyReceiptScreen>
   void didChangeDependencies() {
     super.didChangeDependencies();
     final args = ModalRoute.of(context)?.settings.arguments;
-    if (args is CapsuleModel && _capsule == null) {
-      _capsule = args;
+    if (_capsule == null) {
+      if (args is CapsuleModel) {
+        _capsule = args;
+      } else {
+        _capsule = CapsuleService.defaultCapsule();
+      }
       _reloadCapsule();
     }
   }
@@ -414,7 +418,7 @@ class _FamilyReceiptScreenState extends State<FamilyReceiptScreen>
                       _AnimatedVideoCard(
                         alignment: const Alignment(.10, -.05),
                         angle: -.02,
-                        image: memVideo.content.isNotEmpty ? memVideo.content : 'assets/images/gal_vihara.png',
+                        image: 'assets/images/gal_vihara.png',
                         onTap: () => _onCardTap(memVideo),
                       ),
                     ],
@@ -1031,12 +1035,7 @@ class _AnimatedVideoCardState extends State<_AnimatedVideoCard>
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        Image.asset(
-                          widget.image,
-                          height: 94,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                        ),
+                        _buildImage(widget.image),
                         Container(
                           height: 94,
                           decoration: const BoxDecoration(
@@ -1105,6 +1104,29 @@ class _AnimatedVideoCardState extends State<_AnimatedVideoCard>
         ),
       ),
     );
+  }
+
+  Widget _buildImage(String path) {
+    if (path.toLowerCase().endsWith('.mp4')) {
+      return Image.asset('assets/images/gal_vihara.png', height: 94, width: double.infinity, fit: BoxFit.cover);
+    }
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return Image.network(
+        path,
+        height: 94,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (_, o, s) => Image.asset('assets/images/gal_vihara.png', height: 94, width: double.infinity, fit: BoxFit.cover),
+      );
+    } else if (path.startsWith('assets/')) {
+      return Image.asset(path, height: 94, width: double.infinity, fit: BoxFit.cover);
+    } else {
+      try {
+        final f = File(path);
+        if (f.existsSync()) return Image.file(f, height: 94, width: double.infinity, fit: BoxFit.cover);
+      } catch (_) {}
+      return Image.asset('assets/images/gal_vihara.png', height: 94, width: double.infinity, fit: BoxFit.cover);
+    }
   }
 
   void _openVideoPlayer(BuildContext context) {
@@ -1197,6 +1219,27 @@ class _VideoPlayerPageState extends State<_VideoPlayerPage>
     }
   }
 
+  Widget _buildThumbnail(String path) {
+    if (path.toLowerCase().endsWith('.mp4')) {
+      return Image.asset('assets/images/gal_vihara.png', fit: BoxFit.cover);
+    }
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return Image.network(
+        path,
+        fit: BoxFit.cover,
+        errorBuilder: (_, o, s) => Image.asset('assets/images/gal_vihara.png', fit: BoxFit.cover),
+      );
+    } else if (path.startsWith('assets/')) {
+      return Image.asset(path, fit: BoxFit.cover);
+    } else {
+      try {
+        final f = File(path);
+        if (f.existsSync()) return Image.file(f, fit: BoxFit.cover);
+      } catch (_) {}
+      return Image.asset('assets/images/gal_vihara.png', fit: BoxFit.cover);
+    }
+  }
+
   String _formatDuration(double progress) {
     const total = Duration(seconds: 45);
     final elapsed = total * progress;
@@ -1247,7 +1290,7 @@ class _VideoPlayerPageState extends State<_VideoPlayerPage>
                         fit: StackFit.expand,
                         children: [
                           // Thumbnail
-                          Image.asset(widget.image, fit: BoxFit.cover),
+                          _buildThumbnail(widget.image),
 
                           // Dark overlay
                           const ColoredBox(color: Color(0x55000000)),
@@ -1428,18 +1471,47 @@ class _MemoryCard extends StatelessWidget {
   final VoidCallback? onTap;
 
   Widget _buildImage(String path) {
+    final lower = path.toLowerCase();
+    final isVid = lower.endsWith('.mp4') ||
+        lower.endsWith('.mov') ||
+        lower.endsWith('.webm') ||
+        lower.endsWith('.mkv') ||
+        lower.endsWith('.avi') ||
+        lower.endsWith('.m4v') ||
+        lower.endsWith('.3gp');
+    if (isVid) {
+      return Image.asset('assets/images/gal_vihara.png', height: 94, width: double.infinity, fit: BoxFit.cover);
+    }
     if (path.startsWith('http://') || path.startsWith('https://')) {
-      return Image.network(path, height: 94, width: double.infinity, fit: BoxFit.cover);
+      return Image.network(
+        path,
+        height: 94,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (_, o, s) => Image.asset('assets/images/gal_vihara.png', height: 94, width: double.infinity, fit: BoxFit.cover),
+      );
     } else if (path.startsWith('assets/')) {
-      return Image.asset(path, height: 94, width: double.infinity, fit: BoxFit.cover);
+      return Image.asset(
+        path,
+        height: 94,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (_, o, s) => Image.asset('assets/images/gal_vihara.png', height: 94, width: double.infinity, fit: BoxFit.cover),
+      );
     } else {
       try {
         final f = File(path);
         if (f.existsSync()) {
-          return Image.file(f, height: 94, width: double.infinity, fit: BoxFit.cover);
+          return Image.file(
+            f,
+            height: 94,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            errorBuilder: (_, o, s) => Image.asset('assets/images/gal_vihara.png', height: 94, width: double.infinity, fit: BoxFit.cover),
+          );
         }
       } catch (_) {}
-      return Image.asset('assets/images/login_image.jpg', height: 94, width: double.infinity, fit: BoxFit.cover);
+      return Image.asset('assets/images/gal_vihara.png', height: 94, width: double.infinity, fit: BoxFit.cover);
     }
   }
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -172,18 +173,46 @@ class MemoryViewer {
   }
 
   static Widget _buildImageWidget(String path) {
-    if (path.toLowerCase().endsWith('.mp4')) {
+    final lower = path.toLowerCase();
+    final isVid = lower.endsWith('.mp4') ||
+        lower.endsWith('.mov') ||
+        lower.endsWith('.webm') ||
+        lower.endsWith('.mkv') ||
+        lower.endsWith('.avi') ||
+        lower.endsWith('.m4v') ||
+        lower.endsWith('.3gp');
+    if (isVid) {
       return Image.asset('assets/images/gal_vihara.png', height: 260, width: double.infinity, fit: BoxFit.cover);
     }
     if (path.startsWith('http://') || path.startsWith('https://')) {
-      return Image.network(path, height: 260, width: double.infinity, fit: BoxFit.cover);
+      return Image.network(
+        path,
+        height: 260,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (_, o, s) => Image.asset('assets/images/gal_vihara.png', height: 260, width: double.infinity, fit: BoxFit.cover),
+      );
     } else if (path.startsWith('assets/')) {
-      return Image.asset(path, height: 260, width: double.infinity, fit: BoxFit.cover);
+      return Image.asset(
+        path,
+        height: 260,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (_, o, s) => Image.asset('assets/images/gal_vihara.png', height: 260, width: double.infinity, fit: BoxFit.cover),
+      );
     } else {
-      final file = File(path);
-      if (file.existsSync()) {
-        return Image.file(file, height: 260, width: double.infinity, fit: BoxFit.cover);
-      }
+      try {
+        final file = File(path);
+        if (file.existsSync()) {
+          return Image.file(
+            file,
+            height: 260,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            errorBuilder: (_, o, s) => Image.asset('assets/images/gal_vihara.png', height: 260, width: double.infinity, fit: BoxFit.cover),
+          );
+        }
+      } catch (_) {}
       return Image.asset('assets/images/gal_vihara.png', height: 260, width: double.infinity, fit: BoxFit.cover);
     }
   }
@@ -316,6 +345,7 @@ class _VideoPlayerModalState extends State<_VideoPlayerModal> {
   Duration _position = Duration.zero;
   Duration _duration = const Duration(seconds: 30);
   String _currentSource = '';
+  Timer? _simTimer;
 
   @override
   void initState() {
@@ -332,6 +362,7 @@ class _VideoPlayerModalState extends State<_VideoPlayerModal> {
       _currentSource = source;
     });
 
+    _simTimer?.cancel();
     final prev = _controller;
     _controller = null;
     await prev?.dispose();
@@ -351,7 +382,7 @@ class _VideoPlayerModalState extends State<_VideoPlayerModal> {
         }
       }
 
-      await c.initialize();
+      await c.initialize().timeout(const Duration(seconds: 3));
       c.setLooping(false);
       c.addListener(_onVideoUpdate);
       if (mounted) {
@@ -367,7 +398,12 @@ class _VideoPlayerModalState extends State<_VideoPlayerModal> {
         _setupController('assets/videos/family_temple_video.mp4');
       } else {
         if (mounted) {
-          setState(() => _isLoading = false);
+          setState(() {
+            _isLoading = false;
+            _duration = widget.memory.durationSeconds != null
+                ? Duration(seconds: widget.memory.durationSeconds!)
+                : const Duration(seconds: 30);
+          });
         }
       }
     }
@@ -386,14 +422,45 @@ class _VideoPlayerModalState extends State<_VideoPlayerModal> {
   }
 
   void _togglePlayPause() {
-    if (_controller == null || !_controller!.value.isInitialized) return;
-    if (_controller!.value.isPlaying) {
-      _controller!.pause();
-    } else {
-      if (_controller!.value.position >= _controller!.value.duration) {
-        _controller!.seekTo(Duration.zero);
+    if (_controller != null && _controller!.value.isInitialized) {
+      if (_controller!.value.isPlaying) {
+        _controller!.pause();
+      } else {
+        if (_controller!.value.position >= _controller!.value.duration) {
+          _controller!.seekTo(Duration.zero);
+        }
+        _controller!.play();
       }
-      _controller!.play();
+      return;
+    }
+
+    // Fallback simulated playback (for desktop or when native decoder is unavailable)
+    setState(() {
+      _isPlaying = !_isPlaying;
+    });
+    if (_isPlaying) {
+      if (_position >= _duration) {
+        _position = Duration.zero;
+      }
+      _simTimer?.cancel();
+      _simTimer = Timer.periodic(const Duration(milliseconds: 250), (timer) {
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
+        setState(() {
+          final nextMs = _position.inMilliseconds + 250;
+          if (nextMs >= _duration.inMilliseconds) {
+            _position = _duration;
+            _isPlaying = false;
+            timer.cancel();
+          } else {
+            _position = Duration(milliseconds: nextMs);
+          }
+        });
+      });
+    } else {
+      _simTimer?.cancel();
     }
   }
 
@@ -484,6 +551,7 @@ class _VideoPlayerModalState extends State<_VideoPlayerModal> {
 
   @override
   void dispose() {
+    _simTimer?.cancel();
     _controller?.removeListener(_onVideoUpdate);
     _controller?.dispose();
     super.dispose();
@@ -659,9 +727,13 @@ class _VideoPlayerModalState extends State<_VideoPlayerModal> {
                     activeColor: _kBrown,
                     inactiveColor: Colors.white24,
                     onChanged: (v) {
+                      final targetMs = (v * _duration.inMilliseconds).toInt();
                       if (_controller != null && isInitialized) {
-                        final targetMs = (v * _duration.inMilliseconds).toInt();
                         _controller!.seekTo(Duration(milliseconds: targetMs));
+                      } else {
+                        setState(() {
+                          _position = Duration(milliseconds: targetMs);
+                        });
                       }
                     },
                   ),
@@ -752,21 +824,53 @@ class _VoicePlayerSheetState extends State<_VoicePlayerSheet> {
     });
   }
 
+  Timer? _simAudioTimer;
+
   @override
   void dispose() {
+    _simAudioTimer?.cancel();
     _audioPlayer.dispose();
     super.dispose();
   }
 
   Future<void> _toggleAudio() async {
     if (_isPlaying) {
-      await _audioPlayer.pause();
+      _simAudioTimer?.cancel();
+      try {
+        await _audioPlayer.pause();
+      } catch (_) {}
+      if (mounted) setState(() => _isPlaying = false);
     } else {
+      bool playedNatively = false;
       if (widget.memory.content.isNotEmpty && File(widget.memory.content).existsSync()) {
-        await _audioPlayer.play(DeviceFileSource(widget.memory.content));
-      } else {
+        try {
+          await _audioPlayer.play(DeviceFileSource(widget.memory.content));
+          playedNatively = true;
+        } catch (_) {}
+      }
+      if (!playedNatively) {
         // Fallback simulation toggle
         setState(() => _isPlaying = true);
+        if (_position >= _duration) {
+          _position = Duration.zero;
+        }
+        _simAudioTimer?.cancel();
+        _simAudioTimer = Timer.periodic(const Duration(milliseconds: 250), (t) {
+          if (!mounted) {
+            t.cancel();
+            return;
+          }
+          setState(() {
+            final nextMs = _position.inMilliseconds + 250;
+            if (nextMs >= _duration.inMilliseconds) {
+              _position = _duration;
+              _isPlaying = false;
+              t.cancel();
+            } else {
+              _position = Duration(milliseconds: nextMs);
+            }
+          });
+        });
       }
     }
   }
