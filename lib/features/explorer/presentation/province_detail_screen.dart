@@ -232,7 +232,7 @@ class _ProvinceDetailScreenState extends State<ProvinceDetailScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(14, 18, 14, 26),
         children: [
-          _PageHeading(accentColor: widget.accentColor),
+          const _PageHeading(),
           const SizedBox(height: 28),
           if (_details == null) ...[
             Text(widget.name, style: _sectionTitle),
@@ -463,8 +463,7 @@ class _LoadError extends StatelessWidget {
 }
 
 class _PageHeading extends StatelessWidget {
-  const _PageHeading({required this.accentColor});
-  final Color accentColor;
+  const _PageHeading();
   @override
   Widget build(BuildContext context) => Container(
     height: 52,
@@ -472,23 +471,15 @@ class _PageHeading extends StatelessWidget {
       color: const Color(0xFFFFEBDD),
       borderRadius: BorderRadius.circular(11),
     ),
-    child: Stack(
-      alignment: Alignment.center,
-      children: [
-        Positioned(
-          left: -2,
-          top: -8,
-          child: CircleAvatar(radius: 17, backgroundColor: accentColor),
+    child: const Center(
+      child: Text(
+        'Explore Province',
+        style: TextStyle(
+          color: AppColors.brown,
+          fontSize: 16,
+          fontWeight: FontWeight.w800,
         ),
-        const Text(
-          'Explore Province',
-          style: TextStyle(
-            color: AppColors.brown,
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ],
+      ),
     ),
   );
 }
@@ -505,12 +496,14 @@ class _Hero extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           RegionImage(source: image),
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Colors.transparent, Color(0xD9000000)],
+          const IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.transparent, Color(0xD9000000)],
+                ),
               ),
             ),
           ),
@@ -683,15 +676,17 @@ class _HeritageCard extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: RegionImage(
-            source: image,
-            height: 155,
-            width: double.infinity,
+        if (image.isNotEmpty) ...[
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: RegionImage(
+              source: image,
+              height: 155,
+              width: double.infinity,
+            ),
           ),
-        ),
-        const SizedBox(height: 12),
+          const SizedBox(height: 12),
+        ],
         Text(
           category,
           style: const TextStyle(

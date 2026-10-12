@@ -6,6 +6,7 @@ import 'post_interaction_sheets.dart';
 import '../../features/Profile/domain/social_store.dart';
 import '../../features/Post Creation/domain/user_post.dart';
 import '../../features/Post Creation/data/post_service.dart';
+import '../../features/Profile/data/user_service.dart';
 
 class FeedPostCard extends StatefulWidget {
   const FeedPostCard({
@@ -20,10 +21,12 @@ class FeedPostCard extends StatefulWidget {
     required this.comments,
     this.author = 'Amaya',
     this.handle = '@amaya.heritage',
+    this.authorId = '',
     this.time = '6h',
-    this.avatar = 'assets/images/profile_avatar.png',
+    this.avatar = '',
     this.onEdit,
     this.onAuthorTap,
+    this.onDelete,
     this.isDetail = false,
     this.detailFields = const {},
     this.proofs = const [],
@@ -43,8 +46,9 @@ class FeedPostCard extends StatefulWidget {
       author,
       handle,
       time,
-      avatar;
-  final VoidCallback? onEdit, onAuthorTap;
+      avatar,
+      authorId;
+  final VoidCallback? onEdit, onAuthorTap, onDelete;
   final bool commentsDisabled, isDetail;
   final Map<String, String> detailFields;
   final List<Widget> proofs;
@@ -56,7 +60,15 @@ class FeedPostCard extends StatefulWidget {
 class _FeedPostCardState extends State<FeedPostCard> {
   bool expanded = false, showHeart = false;
   final comment = TextEditingController();
-  String get postId => '${widget.handle}:${widget.title}';
+  String get postId => widget.postId;
+  late bool initiallyLiked;
+
+  @override
+  void initState() {
+    super.initState();
+    initiallyLiked = SocialStore.instance.likedPosts.contains(postId);
+  }
+
   bool get liked => SocialStore.instance.likedPosts.contains(postId);
   bool get saved => SocialStore.instance.isSaved(postId);
   List<String> get addedComments =>
@@ -67,40 +79,77 @@ class _FeedPostCardState extends State<FeedPostCard> {
     super.dispose();
   }
 
-  void toggleLike() {
+  bool interacting = false;
+
+  void _interactionError(Object error) {
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
+
+  Future<void> toggleLike() async {
+    if (interacting) return;
+    interacting = true;
+    final wasLiked = liked;
     setState(() {
-      if (liked) {
+      if (wasLiked) {
         SocialStore.instance.likedPosts.remove(postId);
       } else {
         SocialStore.instance.likedPosts.add(postId);
-        PostService().likePost(widget.postId);
       }
     });
+    try {
+      await PostService().likePost(postId);
+    } catch (e) {
+      if (wasLiked) {
+        SocialStore.instance.likedPosts.add(postId);
+      } else {
+        SocialStore.instance.likedPosts.remove(postId);
+      }
+      _interactionError(e);
+      if (mounted) setState(() {});
+    } finally {
+      interacting = false;
+    }
   }
 
   Future<void> doubleLike() async {
-    setState(() {
-      if (!liked) {
-        SocialStore.instance.likedPosts.add(postId);
-        PostService().likePost(widget.postId);
-      }
-      showHeart = true;
-    });
+    if (!liked) await toggleLike();
+    if (!mounted) return;
+    setState(() => showHeart = true);
     await Future<void>.delayed(const Duration(milliseconds: 650));
     if (mounted) setState(() => showHeart = false);
   }
 
   Future<void> saveCollections() async {
-    await chooseSavedCollections(
-      context,
-      SavedStory(
-        id: postId,
-        title: widget.title,
-        author: widget.author,
-        description: widget.description,
-      ),
-    );
-    if (mounted) setState(() {});
+    if (widget.authorId.isNotEmpty &&
+        widget.authorId == UserService.cachedUserId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Your own posts are already in your profile'),
+        ),
+      );
+      return;
+    }
+    if (interacting) return;
+    interacting = true;
+    try {
+      await PostService().savePost(postId);
+      if (!mounted) return;
+      setState(() {
+        if (saved) {
+          SocialStore.instance.savedPosts.remove(postId);
+        } else {
+          SocialStore.instance.savedPosts.add(postId);
+        }
+      });
+    } catch (e) {
+      _interactionError(e);
+    } finally {
+      interacting = false;
+    }
   }
 
   String count(String value, int extra) {
@@ -112,12 +161,22 @@ class _FeedPostCardState extends State<FeedPostCard> {
     );
   }
 
-  void submitComment() {
-    if (comment.text.trim().isEmpty) return;
-    setState(() {
-      addedComments.add(comment.text.trim());
-      comment.clear();
-    });
+  Future<void> submitComment() async {
+    final text = comment.text.trim();
+    if (text.isEmpty || interacting) return;
+    interacting = true;
+    try {
+      await PostService().commentPost(postId, text);
+      if (!mounted) return;
+      setState(() {
+        addedComments.add(text);
+        comment.clear();
+      });
+    } catch (e) {
+      _interactionError(e);
+    } finally {
+      interacting = false;
+    }
   }
 
   Future<void> openComments() async {
@@ -130,9 +189,9 @@ class _FeedPostCardState extends State<FeedPostCard> {
       builder: (_) => PostCommentsSheet(
         backendComments: widget.postComments,
         comments: addedComments,
-        onSend: (text) {
-          setState(() => addedComments.add(text));
-          PostService().commentPost(widget.postId, text);
+        onSend: (text) async {
+          await PostService().commentPost(widget.postId, text);
+          if (mounted) setState(() => addedComments.add(text));
         },
       ),
     );
@@ -202,7 +261,12 @@ class _FeedPostCardState extends State<FeedPostCard> {
                       children: [
                         CircleAvatar(
                           radius: 20,
-                          backgroundImage: AssetImage(widget.avatar),
+                          backgroundImage: widget.avatar.startsWith('http')
+                              ? NetworkImage(widget.avatar)
+                              : null,
+                          child: widget.avatar.startsWith('http')
+                              ? null
+                              : const Icon(Icons.person, color: Colors.grey),
                         ),
                         const SizedBox(width: 9),
                         Expanded(
@@ -308,27 +372,53 @@ class _FeedPostCardState extends State<FeedPostCard> {
                   ),
                 ),
               ),
-              if (widget.onEdit != null)
+              if (widget.onEdit != null || widget.onDelete != null)
                 Positioned(
                   bottom: 10,
                   right: 10,
-                  child: SizedBox(
-                    height: 30,
-                    child: FilledButton.icon(
-                      onPressed: widget.onEdit,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFFFFDABB),
-                        foregroundColor: AppColors.brown,
-                      ),
-                      icon: const Icon(Icons.edit_outlined, size: 15),
-                      label: const Text(
-                        'Edit post',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
+                  child: Row(
+                    children: [
+                      if (widget.onDelete != null)
+                        SizedBox(
+                          height: 30,
+                          child: FilledButton.icon(
+                            onPressed: widget.onDelete,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: const Color(0xFFFFDABB),
+                              foregroundColor: Colors.red,
+                            ),
+                            icon: const Icon(Icons.delete_outline, size: 15),
+                            label: const Text(
+                              'Delete',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
+                      if (widget.onEdit != null && widget.onDelete != null)
+                        const SizedBox(width: 8),
+                      if (widget.onEdit != null)
+                        SizedBox(
+                          height: 30,
+                          child: FilledButton.icon(
+                            onPressed: widget.onEdit,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: const Color(0xFFFFDABB),
+                              foregroundColor: AppColors.brown,
+                            ),
+                            icon: const Icon(Icons.edit_outlined, size: 15),
+                            label: const Text(
+                              'Edit post',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
             ],
@@ -368,7 +458,11 @@ class _FeedPostCardState extends State<FeedPostCard> {
                   ],
                 ),
                 Text(
-                  '${count(widget.likes, liked ? 1 : 0)} Likes · ${widget.commentsDisabled ? 'Comments off' : '${count(widget.comments, addedComments.length)} Comments'}',
+                  '${count(widget.likes, (initiallyLiked && !liked)
+                      ? -1
+                      : (!initiallyLiked && liked)
+                      ? 1
+                      : 0)} Likes · ${widget.commentsDisabled ? 'Comments off' : '${count(widget.comments, addedComments.length)} Comments'}',
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
@@ -467,11 +561,22 @@ class _FeedPostCardState extends State<FeedPostCard> {
                   const SizedBox(height: 5),
                   Row(
                     children: [
-                      const CircleAvatar(
+                      CircleAvatar(
                         radius: 16,
-                        backgroundImage: AssetImage(
-                          'assets/images/profile_avatar.png',
-                        ),
+                        backgroundImage:
+                            UserService.cachedPhotoUrl != null &&
+                                UserService.cachedPhotoUrl!.startsWith('http')
+                            ? NetworkImage(UserService.cachedPhotoUrl!)
+                            : null,
+                        child:
+                            UserService.cachedPhotoUrl != null &&
+                                UserService.cachedPhotoUrl!.startsWith('http')
+                            ? null
+                            : const Icon(
+                                Icons.person,
+                                size: 20,
+                                color: Colors.grey,
+                              ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(

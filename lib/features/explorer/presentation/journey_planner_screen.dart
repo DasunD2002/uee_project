@@ -27,7 +27,28 @@ class _JourneyPlannerScreenState extends State<JourneyPlannerScreen> {
   void initState() {
     super.initState();
     store = widget.store ?? JourneyStore.instance;
-    if (widget.selectedPlace case final place?) store.addPlace(place);
+    if (store.document == null) {
+      if (widget.selectedPlace case final place?) store.addPlace(place);
+    } else {
+      _loadJourney();
+    }
+  }
+
+  Future<void> _loadJourney() async {
+    try {
+      await store.load();
+      if (!mounted) return;
+      if (widget.selectedPlace case final place?) store.addPlace(place);
+    } catch (_) {
+      // The builder displays the persistence error with a retry action.
+    }
+  }
+
+  void _showSaveError(Object error) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(error.toString())));
   }
 
   void _addMoreSites() {
@@ -135,6 +156,36 @@ class _JourneyPlannerScreenState extends State<JourneyPlannerScreen> {
           top: false,
           child: CustomScrollView(
             slivers: [
+              if (store.loading)
+                const SliverToBoxAdapter(child: LinearProgressIndicator()),
+              if (store.error != null)
+                SliverToBoxAdapter(
+                  child: MaterialBanner(
+                    content: Text(store.error!),
+                    actions: [
+                      TextButton(
+                        onPressed: () async {
+                          try {
+                            await store.retrySave();
+                          } catch (e) {
+                            _showSaveError(e);
+                          }
+                        },
+                        child: const Text('Retry save'),
+                      ),
+                      TextButton(
+                        onPressed: () async {
+                          try {
+                            await store.load(force: true);
+                          } catch (e) {
+                            _showSaveError(e);
+                          }
+                        },
+                        child: const Text('Reload'),
+                      ),
+                    ],
+                  ),
+                ),
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
                 sliver: SliverToBoxAdapter(
@@ -307,10 +358,19 @@ class _JourneyPlannerScreenState extends State<JourneyPlannerScreen> {
                       ),
                       const SizedBox(height: 8),
                       OutlinedButton(
-                        onPressed: sites.isEmpty
+                        onPressed:
+                            sites.isEmpty || store.loading || store.saving
                             ? null
-                            : () {
-                                if (!store.saveDraft()) return;
+                            : () async {
+                                try {
+                                  if (!await store.saveDraftToDatabase()) {
+                                    return;
+                                  }
+                                } catch (error) {
+                                  _showSaveError(error);
+                                  return;
+                                }
+                                if (!context.mounted) return;
                                 ScaffoldMessenger.of(context)
                                   ..hideCurrentSnackBar()
                                   ..showSnackBar(
@@ -566,7 +626,17 @@ class JourneyDraftsScreen extends StatelessWidget {
         ],
       ),
     );
-    if (confirmed == true) store.deleteDraft(draft);
+    if (confirmed == true) {
+      try {
+        await store.deleteDraftFromDatabase(draft);
+      } catch (error) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(error.toString())));
+        }
+      }
+    }
   }
 
   @override

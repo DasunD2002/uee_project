@@ -53,7 +53,12 @@ foreach ($port in @(8080, 8081)) {
             break
         }
     } catch {
-        # Try next port
+        # Authentication is required now; a 401 or non-500 response proves Rootly is listening
+        if ($_.Exception.Response -and [int]$_.Exception.Response.StatusCode -lt 500) {
+            $backendPort = $port
+            $backendResponding = $true
+            break
+        }
     }
 }
 

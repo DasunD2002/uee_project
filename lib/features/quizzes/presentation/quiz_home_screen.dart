@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../core/navigation/primary_navigation.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../explorer/presentation/widgets/explorer_footer.dart';
-import '../domain/quiz_progress_store.dart';
+import '../data/quiz_service.dart';
+import '../domain/quiz.dart';
+import 'daily_quiz_screen.dart';
 
 const _pageBackground = Colors.white;
 const _cardBackground = Color(0xFFFFFCF8);
@@ -12,14 +14,20 @@ const _lineColor = Color(0xFFEBDACB);
 const _mutedText = Color(0xFF8C766B);
 
 class QuizHomeScreen extends StatefulWidget {
-  const QuizHomeScreen({super.key});
+  const QuizHomeScreen({super.key, this.quizService});
+
+  final QuizService? quizService;
 
   @override
   State<QuizHomeScreen> createState() => _QuizHomeScreenState();
 }
 
 class _QuizHomeScreenState extends State<QuizHomeScreen> {
-  final progress = QuizProgressStore.instance;
+  late final QuizService _quizService;
+  QuizDashboard? _dashboard;
+  bool _loading = true;
+  bool _starting = false;
+  String? _error;
 
   static const challenges = <({String title, String subtitle, int points})>[
     (
@@ -42,36 +50,93 @@ class _QuizHomeScreenState extends State<QuizHomeScreen> {
   @override
   void initState() {
     super.initState();
-    progress.addListener(_refresh);
-  }
-
-  @override
-  void dispose() {
-    progress.removeListener(_refresh);
-    super.dispose();
-  }
-
-  void _refresh() {
-    if (mounted) setState(() {});
+    _quizService = widget.quizService ?? ApiQuizService();
+    _loadDashboard();
   }
 
   Future<void> _play() async {
-    progress.startChallenge();
-    final result = await Navigator.pushNamed(context, '/daily-quiz');
-    if (!mounted || result is! int) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Daily challenge complete — $result XP earned!'),
-        backgroundColor: AppColors.brown,
-      ),
-    );
+    if (_starting) return;
+    setState(() => _starting = true);
+    try {
+      final session = await _quizService.startOrResume();
+      if (!mounted) return;
+      final result = await Navigator.push<int>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DailyQuizScreen(
+            quizService: _quizService,
+            initialSession: session,
+          ),
+        ),
+      );
+      if (!mounted) return;
+      await _loadDashboard();
+      if (!mounted || result == null) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Daily challenge complete — $result XP earned!'),
+          backgroundColor: AppColors.brown,
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    } finally {
+      if (mounted) setState(() => _starting = false);
+    }
+  }
+
+  Future<void> _loadDashboard() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final dashboard = await _quizService.getDashboard();
+      if (mounted) setState(() => _dashboard = dashboard);
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   void _navigate(int index) => navigateToPrimaryDestination(context, index);
 
   @override
   Widget build(BuildContext context) {
-    final completed = progress.completedSteps;
+    final dashboard = _dashboard;
+    if (_loading && dashboard == null) {
+      return const Scaffold(
+        backgroundColor: _pageBackground,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (dashboard == null) {
+      return Scaffold(
+        backgroundColor: _pageBackground,
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(_error ?? 'The quiz dashboard could not be loaded.'),
+                const SizedBox(height: 12),
+                FilledButton(
+                  onPressed: _loadDashboard,
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    final completed = dashboard.completedSteps;
     final next = completed < challenges.length ? challenges[completed] : null;
 
     return Scaffold(
@@ -90,23 +155,26 @@ class _QuizHomeScreenState extends State<QuizHomeScreen> {
               children: [
                 const _PageHeading(),
                 const SizedBox(height: 18),
-                const _StreakCard(),
-                const SizedBox(height: 23),
-                _SetProgress(
-                  completed: completed,
-                  score: progress.score,
+                _StreakCard(
+                  streakDays: dashboard.streakDays,
+                  activity: dashboard.weekActivity,
                 ),
+                const SizedBox(height: 23),
+                _SetProgress(completed: completed, score: dashboard.todayScore),
                 const SizedBox(height: 10),
                 if (next != null)
                   _UpNextCard(
                     title: next.title,
                     subtitle: next.subtitle,
                     points: next.points,
-                    isResume: completed > 0,
-                    onPlay: _play,
+                    isResume: dashboard.activeSessionId != null,
+                    onPlay: _starting ? null : _play,
                   )
                 else
-                  _CompletedCard(score: progress.score, onReplay: _play),
+                  _CompletedCard(
+                    score: dashboard.todayScore,
+                    onReplay: _starting ? null : _play,
+                  ),
                 const SizedBox(height: 12),
                 for (var i = 0; i < challenges.length; i++)
                   if (next == null || i != completed) ...[
@@ -120,7 +188,7 @@ class _QuizHomeScreenState extends State<QuizHomeScreen> {
                     const SizedBox(height: 10),
                   ],
                 const SizedBox(height: 13),
-                const _Leaderboard(),
+                _Leaderboard(leaders: dashboard.weeklyLeaders),
               ],
             ),
           ),
@@ -152,7 +220,10 @@ class _PageHeading extends StatelessWidget {
 }
 
 class _StreakCard extends StatelessWidget {
-  const _StreakCard();
+  const _StreakCard({required this.streakDays, required this.activity});
+
+  final int streakDays;
+  final List<bool> activity;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -163,9 +234,9 @@ class _StreakCard extends StatelessWidget {
     ),
     child: Column(
       children: [
-        const Row(
+        Row(
           children: [
-            CircleAvatar(
+            const CircleAvatar(
               radius: 22,
               backgroundColor: Color(0xFF9C432D),
               child: Icon(
@@ -173,24 +244,26 @@ class _StreakCard extends StatelessWidget {
                 color: Color(0xFFFFC19D),
               ),
             ),
-            SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '12 day streak',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontFamily: 'Georgia',
-                    fontSize: 21,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$streakDays day streak',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontFamily: 'Georgia',
+                      fontSize: 21,
+                    ),
                   ),
-                ),
-                SizedBox(height: 3),
-                Text(
-                  'Three challenges a day keeps it alive',
-                  style: TextStyle(color: Color(0xFFFFD9C6), fontSize: 12),
-                ),
-              ],
+                  const SizedBox(height: 3),
+                  const Text(
+                    'Three challenges a day keeps it alive',
+                    style: TextStyle(color: Color(0xFFFFD9C6), fontSize: 12),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -198,11 +271,13 @@ class _StreakCard extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            for (final day in ['✓', '✓', '✓', 'T', 'F', 'S', 'S'])
+            for (var index = 0; index < 7; index++)
               _DayDot(
-                label: day,
-                completed: day == '✓',
-                today: day == 'T',
+                label: index < activity.length && activity[index]
+                    ? '✓'
+                    : const ['M', 'T', 'W', 'T', 'F', 'S', 'S'][index],
+                completed: index < activity.length && activity[index],
+                today: index == DateTime.now().weekday - 1,
               ),
           ],
         ),
@@ -297,7 +372,7 @@ class _UpNextCard extends StatelessWidget {
   final String subtitle;
   final int points;
   final bool isResume;
-  final VoidCallback onPlay;
+  final VoidCallback? onPlay;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -338,7 +413,10 @@ class _UpNextCard extends StatelessWidget {
         const SizedBox(height: 6),
         Text(subtitle, style: const TextStyle(color: _mutedText, fontSize: 13)),
         const SizedBox(height: 14),
-        Row(
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          runSpacing: 8,
           children: [
             FilledButton(
               key: const Key('play-daily-quiz'),
@@ -350,15 +428,15 @@ class _UpNextCard extends StatelessWidget {
               ),
               child: Text(isResume ? 'Resume' : 'Play now'),
             ),
-            const SizedBox(width: 12),
-            const Icon(Icons.schedule, size: 16, color: _mutedText),
-            const SizedBox(width: 4),
-            const Text('3 min', style: TextStyle(color: _mutedText)),
-            const SizedBox(width: 13),
-            Text(
-              '+$points XP',
-              style: const TextStyle(color: AppColors.brown),
+            const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.schedule, size: 16, color: _mutedText),
+                SizedBox(width: 4),
+                Text('90 sec', style: TextStyle(color: _mutedText)),
+              ],
             ),
+            Text('+$points XP', style: const TextStyle(color: AppColors.brown)),
           ],
         ),
       ],
@@ -369,7 +447,7 @@ class _UpNextCard extends StatelessWidget {
 class _CompletedCard extends StatelessWidget {
   const _CompletedCard({required this.score, required this.onReplay});
   final int score;
-  final VoidCallback onReplay;
+  final VoidCallback? onReplay;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -461,7 +539,11 @@ class _ChallengeRow extends StatelessWidget {
           ),
         ),
         if (completed) ...[
-          const Icon(Icons.check_circle_outline, size: 17, color: AppColors.brown),
+          const Icon(
+            Icons.check_circle_outline,
+            size: 17,
+            color: AppColors.brown,
+          ),
           const SizedBox(width: 4),
           const Text(
             'Done',
@@ -483,15 +565,12 @@ class _ChallengeRow extends StatelessWidget {
 }
 
 class _Leaderboard extends StatelessWidget {
-  const _Leaderboard();
+  const _Leaderboard({required this.leaders});
+
+  final List<QuizLeader> leaders;
 
   @override
   Widget build(BuildContext context) {
-    const leaders = [
-      ('NK', 'Nadeesha K.', '1,840 XP'),
-      ('TW', 'Tom Whitaker', '1,725 XP'),
-      ('AP', 'Amaya Perera', '1,610 XP'),
-    ];
     return Column(
       children: [
         const Row(
@@ -522,22 +601,30 @@ class _Leaderboard extends StatelessWidget {
           ),
           child: Column(
             children: [
+              if (leaders.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(18),
+                  child: Text(
+                    'Complete a challenge to join this week’s leaderboard.',
+                    style: TextStyle(color: _mutedText, fontSize: 12),
+                  ),
+                ),
               for (var i = 0; i < leaders.length; i++) ...[
                 if (i > 0) const Divider(height: 1, color: _lineColor),
                 Container(
-                  color: i == 2 ? _softPeach : Colors.transparent,
+                  color: leaders[i].viewer ? _softPeach : Colors.transparent,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 13,
                     vertical: 10,
                   ),
                   child: Row(
                     children: [
-                      SizedBox(width: 28, child: Text('${i + 1}')),
+                      SizedBox(width: 28, child: Text('${leaders[i].rank}')),
                       CircleAvatar(
                         radius: 17,
                         backgroundColor: const Color(0xFFFFE1C6),
                         child: Text(
-                          leaders[i].$1,
+                          leaders[i].initials,
                           style: const TextStyle(
                             color: AppColors.brown,
                             fontSize: 11,
@@ -549,8 +636,8 @@ class _Leaderboard extends StatelessWidget {
                       Expanded(
                         child: Text.rich(
                           TextSpan(
-                            text: leaders[i].$2,
-                            children: i == 2
+                            text: leaders[i].name,
+                            children: leaders[i].viewer
                                 ? const [
                                     TextSpan(
                                       text: '  You',
@@ -565,7 +652,7 @@ class _Leaderboard extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        leaders[i].$3,
+                        '${leaders[i].score} XP',
                         style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ],

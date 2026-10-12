@@ -35,7 +35,7 @@ void main() async {
 
   await Supabase.initialize(
     url: ApiConstants.supabaseUrl,
-    anonKey: ApiConstants.supabaseAnonKey,
+    publishableKey: ApiConstants.supabaseAnonKey,
   );
 
   await NotificationService().init();

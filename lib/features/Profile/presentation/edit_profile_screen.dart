@@ -1,8 +1,4 @@
-import 'dart:typed_data';
-import '../domain/profile_photo_service.dart';
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/widgets/auth_widgets.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -15,48 +11,11 @@ class EditProfileScreen extends StatefulWidget {
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final form = GlobalKey<FormState>();
   late final Map<String, TextEditingController> fields;
-  bool saving = false,
-      picking = false,
-      photoChanged = false,
-      photoLoading = true;
-  Uint8List? photo;
-  Future<void> loadPhoto() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final encoded = prefs.getString('profile.avatar');
-      if (mounted) {
-        setState(() => photo = encoded == null ? null : base64Decode(encoded));
-      }
-    } catch (_) {
-      if (mounted) showMessage(context, 'Could not load your photo.');
-    } finally {
-      if (mounted) setState(() => photoLoading = false);
-    }
-  }
-
-  Future<void> changePhoto() async {
-    setState(() => picking = true);
-    try {
-      final bytes = await pickProfilePhoto();
-      if (bytes != null && mounted) {
-        setState(() {
-          photo = bytes;
-          photoChanged = true;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        showMessage(context, 'Choose a valid JPG or PNG under 10 MB.');
-      }
-    } finally {
-      if (mounted) setState(() => picking = false);
-    }
-  }
+  bool saving = false;
 
   @override
   void initState() {
     super.initState();
-    loadPhoto();
     fields = widget.details.map(
       (k, v) => MapEntry(k, TextEditingController(text: v)),
     );
@@ -75,15 +34,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     setState(() => saving = true);
     try {
       final details = fields.map((k, v) => MapEntry(k, v.text.trim()));
-      final prefs = await SharedPreferences.getInstance();
-      if (photoChanged &&
-          photo != null &&
-          !await prefs.setString('profile.avatar', base64Encode(photo!))) {
-        throw StateError('Photo save failed');
-      }
-      if (!await prefs.setString('profile.details', jsonEncode(details))) {
-        throw StateError('Save failed');
-      }
       if (mounted) Navigator.pop(context, details);
     } catch (_) {
       if (mounted) {
@@ -113,24 +63,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 const SizedBox(height: 8),
                 const Text('Choose what people see on your profile.'),
                 const SizedBox(height: 24),
-                Center(
-                  child: CircleAvatar(
-                    radius: 46,
-                    backgroundImage: photo == null
-                        ? const AssetImage('assets/images/profile_avatar.png')
-                        : MemoryImage(photo!),
-                  ),
-                ),
-                TextButton.icon(
-                  onPressed: photoLoading || picking || saving
-                      ? null
-                      : changePhoto,
-                  icon: const Icon(Icons.add_a_photo_outlined),
-                  label: Text(
-                    picking ? 'Opening photo...' : 'Change profile image',
-                  ),
-                ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
                 AuthField(
                   label: 'Name',
                   controller: fields['name'],
@@ -163,7 +96,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 AuthField(label: 'Location', controller: fields['location']),
                 const SizedBox(height: 28),
                 FilledButton(
-                  onPressed: saving || picking || photoLoading ? null : save,
+                  onPressed: saving ? null : save,
                   child: Text(saving ? 'Saving...' : 'Save Changes'),
                 ),
               ],

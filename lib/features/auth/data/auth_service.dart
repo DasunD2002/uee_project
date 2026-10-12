@@ -1,6 +1,13 @@
+import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/services/api_service.dart';
+import '../../explorer/data/journey_store.dart';
+import '../../explorer/data/field_notes_store.dart';
+import '../../Profile/data/user_service.dart';
+import '../../Profile/domain/social_store.dart';
+import '../../capsules/data/capsule_store.dart';
+import '../../translations/data/translation_library_store.dart';
 
 class AuthService {
   final ApiService _apiService = ApiService();
@@ -15,10 +22,15 @@ class AuthService {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
         final token = data['data']?['token'];
-
-        if (token != null) {
+        final userId = data['data']?['id']?.toString() ?? '';
+        if (token is String && token.isNotEmpty) {
+          _clearAccountCaches();
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('jwt_token', token);
+          if (userId.isNotEmpty) {
+            UserService.cachedUserId = userId;
+            await prefs.setString('user_id', userId);
+          }
           return null; // Success
         }
         return 'Invalid response format';
@@ -39,6 +51,7 @@ class AuthService {
         return 'Login failed (${response.statusCode})';
       }
     } catch (e) {
+      debugPrint('Network error in login: $e');
       return 'Network error: $e';
     }
   }
@@ -60,5 +73,17 @@ class AuthService {
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('jwt_token');
+    await prefs.remove('user_id');
+    _clearAccountCaches();
+  }
+
+  static void _clearAccountCaches() {
+    JourneyStore.instance.reset();
+    FieldNotesStore.instance.reset();
+    SocialStore.instance.reset();
+    CapsuleStore.instance.reset();
+    TranslationLibraryStore.instance.reset();
+    UserService.cachedUserId = null;
+    UserService.cachedPhotoUrl = null;
   }
 }

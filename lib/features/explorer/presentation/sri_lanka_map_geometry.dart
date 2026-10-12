@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'sri_lanka_map_colors.dart';
 
 /// Coordinates follow the supplied reference image. Keeping every shared edge
 /// in one place makes adjacent provinces fit together when the map is scaled.
@@ -954,7 +955,7 @@ final provinces = <ProvinceData>[
     shortName: 'Northern',
     tagline: 'Heritage of the north',
     sites: const ['Jaffna Fort', 'Nallur Kandaswamy Temple'],
-    color: const Color(0xFFF33336),
+    color: ProvinceMapColors.northern,
     label: const Offset(450, 182),
     points: _outline([
       _northCoast,
@@ -1110,7 +1111,7 @@ final provinces = <ProvinceData>[
     shortName: 'North Western',
     tagline: 'Coasts and kingdoms',
     sites: const ['Yapahuwa Rock Fortress', 'Munneswaram Temple'],
-    color: const Color(0xFF55DE40),
+    color: ProvinceMapColors.northWestern,
     label: const Offset(358, 505),
     points: _outline([
       _northNorthWest,
@@ -1169,7 +1170,7 @@ final provinces = <ProvinceData>[
     shortName: 'North Central',
     tagline: 'Ancient capitals',
     sites: const ['Anuradhapura', 'Polonnaruwa'],
-    color: const Color(0xFFE7B838),
+    color: ProvinceMapColors.northCentral,
     label: const Offset(472, 350),
     points: _outline([
       _northNorthCentral,
@@ -1184,7 +1185,7 @@ final provinces = <ProvinceData>[
     shortName: 'Eastern',
     tagline: 'Eastern shores',
     sites: const ['Koneswaram Temple', 'Batticaloa Fort'],
-    color: const Color(0xFFF48735),
+    color: ProvinceMapColors.eastern,
     label: const Offset(738, 536),
     points: _outline([
       _northEast,
@@ -1308,7 +1309,7 @@ final provinces = <ProvinceData>[
     shortName: 'Central',
     tagline: 'Highland heritage',
     sites: const ['Temple of the Tooth', 'Dambulla Cave Temple'],
-    color: const Color(0xFF59B978),
+    color: ProvinceMapColors.central,
     label: const Offset(531, 601),
     points: _outline([
       _northCentralCentral,
@@ -1322,7 +1323,7 @@ final provinces = <ProvinceData>[
     shortName: 'Western',
     tagline: 'Gateway to the island',
     sites: const ['Colombo National Museum', 'Kelaniya Temple'],
-    color: const Color(0xFF40CABE),
+    color: ProvinceMapColors.western,
     label: const Offset(315, 736),
     points: _outline([
       _northWestWestern,
@@ -1346,7 +1347,7 @@ final provinces = <ProvinceData>[
     shortName: 'Sabaragamuwa',
     tagline: 'Gems and wilderness',
     sites: const ['Adam\u2019s Peak', 'Ratnapura Museum'],
-    color: const Color(0xFF3E91D1),
+    color: ProvinceMapColors.sabaragamuwa,
     label: const Offset(475, 815),
     points: _outline([
       _northWestSabaragamuwa,
@@ -1361,7 +1362,7 @@ final provinces = <ProvinceData>[
     shortName: 'Uva',
     tagline: 'Highland heritage',
     sites: const ['Buduruwagala Rock', 'Muthiyangana Temple'],
-    color: const Color(0xFF3650CC),
+    color: ProvinceMapColors.uva,
     label: const Offset(689, 676),
     points: _outline([
       _northCentralUva,
@@ -1376,7 +1377,7 @@ final provinces = <ProvinceData>[
     shortName: 'Southern',
     tagline: 'Coastal culture',
     sites: const ['Galle Fort', 'Matara Star Fort'],
-    color: const Color(0xFF6246D4),
+    color: ProvinceMapColors.southern,
     label: const Offset(470, 944),
     points: _outline([
       _westernSouth.reversed,

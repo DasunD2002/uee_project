@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../../../core/services/account_data_store.dart';
+import '../../auth/data/auth_service.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../home/presentation/widgets/home_drawer.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -10,7 +10,7 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  String language = 'English';
+  final document = AccountDataStore('preferences');
   bool notifications = true, activity = true, loading = true;
   @override
   void initState() {
@@ -20,13 +20,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> load() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      await document.load();
       if (!mounted) return;
       setState(() {
-        language = prefs.getString('settings.language') ?? 'English';
-        notifications = prefs.getBool('settings.notifications') ?? true;
-        activity = prefs.getBool('settings.activity') ?? true;
+        notifications = document.data['notifications'] as bool? ?? true;
+        activity = document.data['activity'] as bool? ?? true;
       });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -34,14 +39,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> update(String key, Object value) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final ok = value is bool
-          ? await prefs.setBool(key, value)
-          : await prefs.setString(key, value as String);
-      if (!ok) throw StateError('Save failed');
+      setState(() => loading = true);
+      await document.load();
+      await document.save({
+        ...document.data,
+        key.replaceFirst('settings.', ''): value,
+      });
       if (!mounted) return;
       setState(() {
-        if (key == 'settings.language') language = value as String;
         if (key == 'settings.notifications') notifications = value as bool;
         if (key == 'settings.activity') activity = value as bool;
       });
@@ -53,14 +58,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         );
       }
+    } finally {
+      if (mounted) setState(() => loading = false);
     }
+  }
+
+  @override
+  void dispose() {
+    document.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: const Color(0xFFFAF8F6),
-    drawer: const HomeDrawer(selectedSection: 'Settings'),
     appBar: AppBar(
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back),
+        onPressed: () => Navigator.pushNamed(context, '/profile'),
+      ),
       title: const Text('Settings'),
       backgroundColor: const Color(0xFFFAF8F6),
     ),
@@ -112,38 +128,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const _Section('PREFERENCES'),
             Card(
               color: Colors.white,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: DropdownButtonFormField<String>(
-                  key: ValueKey(language),
-                  initialValue: language,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Preferred language',
-                    prefixIcon: Icon(Icons.translate),
-                    border: OutlineInputBorder(),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'English', child: Text('English')),
-                    DropdownMenuItem(
-                      value: 'Sinhala',
-                      child: Text('සිංහල · Sinhala'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'Tamil',
-                      child: Text('தமிழ் · Tamil'),
-                    ),
-                  ],
-                  onChanged: loading
-                      ? null
-                      : (v) {
-                          if (v != null) update('settings.language', v);
-                        },
-                ),
-              ),
-            ),
-            Card(
-              color: Colors.white,
               child: Column(
                 children: [
                   SwitchListTile(
@@ -168,11 +152,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 24),
             OutlinedButton.icon(
-              onPressed: () => Navigator.pushNamedAndRemoveUntil(
-                context,
-                '/login',
-                (_) => false,
-              ),
+              onPressed: () async {
+                await AuthService().logout();
+                if (!context.mounted) return;
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/login',
+                  (_) => false,
+                );
+              },
               icon: const Icon(Icons.logout),
               label: const Text('Log out'),
             ),

@@ -13,28 +13,6 @@ import '../../home/presentation/widgets/home_drawer.dart';
 import 'widgets/profile_header.dart';
 import 'widgets/profile_post_card.dart';
 
-// Keep this prototype's changes when navigating between profile and home.
-final _posts = <UserPost>[
-  UserPost(
-    id: 'sigiriya',
-    title: 'The frescoes hidden halfway up Sigiriya',
-    story:
-        'My grandmother climbed Sigiriya in 1962, barefoot, with a tiffin of string hoppers tied to her waist...',
-    tags: ['sigiriya', 'frescoes', 'unesco', 'matale'],
-  ),
-  UserPost(
-    id: 'craft',
-    title: 'Ambalangoda mask carvers and the spirits they keep',
-    story:
-        'For generations, local artisans have shaped stories and spirits from kaduru wood, keeping an ancient craft alive.',
-    category: 'Craft',
-    place: 'Ambalangoda',
-    district: 'Galle',
-    asset: 'assets/images/mask_carver.png',
-  ),
-];
-final _collections = SocialStore.instance.collections;
-
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key, this.showSavedPosts = false});
   final bool showSavedPosts;
@@ -43,17 +21,25 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  final _posts = <UserPost>[];
   late bool saved;
   @override
   void initState() {
     super.initState();
     saved = widget.showSavedPosts;
     SocialStore.instance.addListener(refreshCollections);
+    SocialStore.instance.load().catchError((Object error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    });
     _fetchPosts();
   }
 
   Future<void> _fetchPosts() async {
-    final posts = saved 
+    final posts = saved
         ? await PostService().getSavedPosts()
         : await PostService().getMyPosts();
     if (posts != null && mounted) {
@@ -75,6 +61,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> edit([UserPost? post]) async {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     final result = await Navigator.push<PostEditorResult>(
       context,
       MaterialPageRoute(
@@ -85,6 +72,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
     if (result == null || !mounted) return;
     await _fetchPosts();
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -127,7 +115,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
     if (result != null && mounted) {
-      setState(() => SocialStore.instance.addCollection(result));
+      try {
+        SocialStore.instance.addCollection(result);
+        await SocialStore.instance.flush();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(e.toString())));
+        }
+      }
     }
   }
 
@@ -151,9 +148,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           constraints: const BoxConstraints(maxWidth: 620),
           child: ListView(
             children: [
-              ProfileHeader(
-                postCount: 46 + _posts.where((p) => !p.isDraft).length,
-              ),
+              ProfileHeader(postCount: _posts.where((p) => !p.isDraft).length),
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 78,
@@ -208,138 +203,67 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
               ),
-              if (!saved) ...[
-                if (_posts.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(30),
-                    child: Text(
-                      'Your stories will appear here. Create your first post.',
-                    ),
-                  ),
-                for (final post in _posts)
-                  ProfilePostCard(
-                    key: ValueKey(post.id),
-                    post: post,
-                    onEdit: () => edit(post),
-                  ),
-              ] else ...[
+              if (saved)
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(19, 0, 19, 16),
-                  child: Text(
-                    '${_collections.length} collections · ${_collections.fold<int>(0, (sum, c) => sum + c.count)} saved stories',
-                    style: const TextStyle(color: Color(0xFF95857F)),
-                  ),
-                ),
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 18),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 13,
-                    crossAxisSpacing: 13,
-                    mainAxisExtent: 180,
-                  ),
-                  itemCount: _collections.length,
-                  itemBuilder: (context, index) {
-                    final collection = _collections[index];
-                    return Card(
-                      margin: EdgeInsets.zero,
-                      color: Colors.white,
-                      elevation: 1,
-                      clipBehavior: Clip.antiAlias,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(17),
-                        side: const BorderSide(color: Color(0xFFF0DDD4)),
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${SocialStore.instance.collections.length} collections · ${SocialStore.instance.collections.fold<int>(0, (sum, collection) => sum + collection.count)} saved stories',
                       ),
-                      child: InkWell(
-                        onTap: () => showModalBottomSheet<void>(
-                          context: context,
-                          builder: (_) => Padding(
-                            padding: const EdgeInsets.all(28),
-                            child: SingleChildScrollView(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    collection.name,
-                                    style: const TextStyle(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    collection.count == 0
-                                        ? 'No stories saved in this collection yet.'
-                                        : '${collection.count} saved stories · Preview collection',
-                                  ),
-                                  for (final story in collection.stories.values)
-                                    ListTile(
-                                      title: Text(story.title),
-                                      subtitle: Text(story.author),
-                                      onTap: () => showDialog<void>(
-                                        context: context,
-                                        builder: (context) => AlertDialog(
-                                          title: Text(story.title),
-                                          content: SingleChildScrollView(
-                                            child: Text(story.description),
-                                          ),
-                                          actions: [
-                                            TextButton(
-                                              onPressed: () =>
-                                                  Navigator.pop(context),
-                                              child: const Text('Close'),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  const SizedBox(height: 20),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                      for (final collection in SocialStore.instance.collections)
+                        ExpansionTile(
+                          title: Text(collection.name),
+                          subtitle: Text('${collection.count} stories'),
                           children: [
-                            Image.asset(
-                              'assets/images/${collection.image}.png',
-                              height: 112,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(12, 11, 8, 5),
-                              child: Text(
-                                collection.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
+                            for (final story in collection.stories.values)
+                              ListTile(
+                                title: Text(story.title),
+                                subtitle: Text(story.author),
+                              ),
+                            if (collection.stories.isEmpty)
+                              const ListTile(
+                                title: Text(
+                                  'No stories saved to this collection yet.',
                                 ),
                               ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.only(left: 12),
-                              child: Text(
-                                '${collection.count} stories',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFF95857F),
-                                ),
-                              ),
-                            ),
                           ],
                         ),
-                      ),
-                    );
-                  },
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 80),
-              ],
+              if (_posts.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(30),
+                  child: Text(
+                    saved
+                        ? 'Your saved stories will appear here.'
+                        : 'Your stories will appear here. Create your first post.',
+                  ),
+                ),
+              for (final post in _posts)
+                ProfilePostCard(
+                  key: ValueKey(post.id),
+                  post: post,
+                  onEdit: saved ? null : () => edit(post),
+                  onDelete: saved
+                      ? null
+                      : () async {
+                          final error = await PostService().deletePost(post.id);
+                          if (!context.mounted) return;
+                          if (error == null) {
+                            _fetchPosts();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Post deleted')),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(
+                              context,
+                            ).showSnackBar(SnackBar(content: Text(error)));
+                          }
+                        },
+                ),
             ],
           ),
         ),

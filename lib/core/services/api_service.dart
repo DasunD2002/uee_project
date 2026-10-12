@@ -1,12 +1,22 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/api_constants.dart';
 
-bool isTestEnvironment = Platform.environment.containsKey('FLUTTER_TEST');
+bool isTestEnvironment =
+    !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
 
 class ApiService {
+  @visibleForTesting
+  static Future<http.Response> Function(
+    String method,
+    String endpoint,
+    Map<String, dynamic>? body,
+  )?
+  testResponder;
+
   static String get baseUrl => '${ApiConstants.baseUrl}/api/v1';
 
   static String _getFallbackUrl(String url) {
@@ -18,10 +28,10 @@ class ApiService {
     return url;
   }
 
-  Future<Map<String, String>> _getHeaders() async {
+  Future<Map<String, String>> _getHeaders([String? sessionToken]) async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('jwt_token');
-    
+    final token = sessionToken ?? prefs.getString('jwt_token');
+
     final headers = {
       'Content-Type': 'application/json',
       'Accept-Language': 'en',
@@ -35,9 +45,10 @@ class ApiService {
 
   Future<http.Response> _sendWithFallback(
     String endpoint,
+    String? sessionToken,
     Future<http.Response> Function(Uri uri, Map<String, String> headers) requester,
   ) async {
-    final headers = await _getHeaders();
+    final headers = await _getHeaders(sessionToken);
     final primaryUri = Uri.parse('$baseUrl$endpoint');
     try {
       return await requester(primaryUri, headers);
@@ -52,42 +63,71 @@ class ApiService {
     }
   }
 
-  Future<http.Response> get(String endpoint) async {
+  Future<http.Response> get(String endpoint, {String? sessionToken}) async {
     if (isTestEnvironment) {
+      if (testResponder != null) return testResponder!('GET', endpoint, null);
       return http.Response('{"content": []}', 200);
     }
-    return await _sendWithFallback(endpoint, (uri, headers) => http.get(uri, headers: headers));
+    return await _sendWithFallback(
+      endpoint,
+      sessionToken,
+      (uri, headers) => http
+          .get(uri, headers: headers)
+          .timeout(const Duration(seconds: 30)),
+    );
   }
 
-  Future<http.Response> post(String endpoint, {Map<String, dynamic>? body}) async {
+  Future<http.Response> post(
+    String endpoint, {
+    Map<String, dynamic>? body,
+    String? sessionToken,
+  }) async {
     if (isTestEnvironment) {
+      if (testResponder != null) return testResponder!('POST', endpoint, body);
       return http.Response('{"content": []}', 201);
     }
     final encoded = body != null ? jsonEncode(body) : null;
     return await _sendWithFallback(
       endpoint,
-      (uri, headers) => http.post(uri, headers: headers, body: encoded),
+      sessionToken,
+      (uri, headers) => http
+          .post(uri, headers: headers, body: encoded)
+          .timeout(const Duration(seconds: 30)),
     );
   }
 
-  Future<http.Response> put(String endpoint, {Map<String, dynamic>? body}) async {
+  Future<http.Response> put(
+    String endpoint, {
+    Map<String, dynamic>? body,
+    String? sessionToken,
+  }) async {
     if (isTestEnvironment) {
+      if (testResponder != null) return testResponder!('PUT', endpoint, body);
       return http.Response('{"content": []}', 200);
     }
     final encoded = body != null ? jsonEncode(body) : null;
     return await _sendWithFallback(
       endpoint,
-      (uri, headers) => http.put(uri, headers: headers, body: encoded),
+      sessionToken,
+      (uri, headers) => http
+          .put(uri, headers: headers, body: encoded)
+          .timeout(const Duration(seconds: 30)),
     );
   }
 
-  Future<http.Response> delete(String endpoint) async {
+  Future<http.Response> delete(String endpoint, {String? sessionToken}) async {
     if (isTestEnvironment) {
+      if (testResponder != null) {
+        return testResponder!('DELETE', endpoint, null);
+      }
       return http.Response('{"content": []}', 200);
     }
     return await _sendWithFallback(
       endpoint,
-      (uri, headers) => http.delete(uri, headers: headers),
+      sessionToken,
+      (uri, headers) => http
+          .delete(uri, headers: headers)
+          .timeout(const Duration(seconds: 30)),
     );
   }
 }

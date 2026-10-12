@@ -9,6 +9,8 @@ import '../../explorer/presentation/widgets/explorer_footer.dart';
 import '../../home/presentation/widgets/home_drawer.dart';
 import '../data/english_speech_service.dart';
 import '../data/translation_service.dart';
+import '../data/translation_library_store.dart';
+import '../../../core/services/api_service.dart';
 import '../domain/translation_entry.dart';
 
 class TranslationScreen extends StatefulWidget {
@@ -16,10 +18,12 @@ class TranslationScreen extends StatefulWidget {
     super.key,
     this.translationService,
     this.speechService,
+    this.libraryStore,
   });
 
   final TranslationService? translationService;
   final EnglishSpeechService? speechService;
+  final TranslationLibraryStore? libraryStore;
 
   @override
   State<TranslationScreen> createState() => _TranslationScreenState();
@@ -34,15 +38,16 @@ class _TranslationScreenState extends State<TranslationScreen> {
   ];
 
   final _controller = TextEditingController(text: 'stupa');
-  final _favourites = <String>{};
-  final _recentEntries = <TranslationEntry>[];
+  late final TranslationLibraryStore _library;
+  bool _libraryLoading = true;
+  Set<String> get _favourites => _library.favourites;
+  List<TranslationEntry> get _recentEntries => _library.recent;
   late final TranslationService _translationService;
   late final EnglishSpeechService _speechService;
   Timer? _lookupDebounce;
   int _lookupRequest = 0;
   int _glossaryRequest = 0;
   bool _fromEnglish = true;
-  bool _pageBookmarked = false;
   String _category = 'Temple';
   TranslationEntry? _entry;
   List<TranslationEntry> _glossaryEntries = const [];
@@ -61,6 +66,13 @@ class _TranslationScreenState extends State<TranslationScreen> {
     super.initState();
     _translationService = widget.translationService ?? ApiTranslationService();
     _speechService = widget.speechService ?? DeviceEnglishSpeechService();
+    _library =
+        widget.libraryStore ??
+        (isTestEnvironment
+            ? TranslationLibraryStore.inMemory()
+            : TranslationLibraryStore.instance);
+    _library.addListener(_libraryChanged);
+    _loadLibrary();
     _performLookup('stupa');
     _loadGlossary();
   }
@@ -68,6 +80,7 @@ class _TranslationScreenState extends State<TranslationScreen> {
   @override
   void dispose() {
     _disposing = true;
+    _library.removeListener(_libraryChanged);
     _lookupDebounce?.cancel();
     if (_speechInitialized) unawaited(_speechService.cancel());
     _controller.dispose();
@@ -170,11 +183,31 @@ class _TranslationScreenState extends State<TranslationScreen> {
     _loadGlossary();
   }
 
+  void _libraryChanged() {
+    if (mounted && !_disposing) setState(() {});
+  }
+
+  Future<void> _loadLibrary() async {
+    if (mounted) setState(() => _libraryLoading = true);
+    try {
+      await _library.load(force: true);
+    } catch (error) {
+      if (mounted) _showMessage(error.toString());
+    } finally {
+      if (mounted) setState(() => _libraryLoading = false);
+    }
+  }
+
+  Future<void> _saveLibrary(Future<void> Function() save) async {
+    try {
+      await save();
+    } catch (error) {
+      if (mounted) _showMessage(error.toString());
+    }
+  }
+
   void _rememberWithoutRebuild(TranslationEntry entry) {
-    _recentEntries
-      ..removeWhere((value) => _entryKey(value) == _entryKey(entry))
-      ..insert(0, entry);
-    if (_recentEntries.length > 6) _recentEntries.removeLast();
+    unawaited(_saveLibrary(() => _library.remember(entry)));
   }
 
   void _selectEntry(TranslationEntry entry) {
@@ -226,17 +259,12 @@ class _TranslationScreenState extends State<TranslationScreen> {
 
   void _toggleFavourite() {
     final entry = _entry;
-    if (entry == null) return;
-    final key = _entryKey(entry);
-    setState(() {
-      if (!_favourites.add(key)) {
-        _favourites.remove(key);
-      }
-    });
+    if (entry == null || _libraryLoading) return;
+    unawaited(_saveLibrary(() => _library.toggleFavourite(entry)));
   }
 
   String _entryKey(TranslationEntry entry) =>
-      entry.id.isNotEmpty ? entry.id : entry.english.toLowerCase();
+      TranslationLibraryStore.entryKey(entry);
 
   Future<void> _toggleVoiceInput() async {
     if (!_fromEnglish) {
@@ -407,13 +435,14 @@ class _TranslationScreenState extends State<TranslationScreen> {
                 ),
               ),
               IconButton(
-                tooltip: _pageBookmarked
+                tooltip: entry != null && _library.isSaved(entry)
                     ? 'Remove saved translation'
                     : 'Save translation',
-                onPressed: () =>
-                    setState(() => _pageBookmarked = !_pageBookmarked),
+                onPressed: entry == null || _libraryLoading
+                    ? null
+                    : () => _saveLibrary(() => _library.toggleSaved(entry)),
                 icon: Icon(
-                  _pageBookmarked
+                  entry != null && _library.isSaved(entry)
                       ? Icons.bookmark_rounded
                       : Icons.bookmark_border_rounded,
                   size: 20,
@@ -433,7 +462,7 @@ class _TranslationScreenState extends State<TranslationScreen> {
             listening: _listening,
             microphoneBusy: _speechInitializing,
             onMicrophone: _toggleVoiceInput,
-            onScan: () => _showMessage('Text scanner is ready'),
+            onScan: () => _showMessage('Text scanning is not configured yet.'),
           ),
           const SizedBox(height: 14),
           _TranslationResult(
@@ -442,7 +471,8 @@ class _TranslationScreenState extends State<TranslationScreen> {
             loading: _lookupLoading,
             error: _lookupError,
             favourite: entry != null && _favourites.contains(_entryKey(entry)),
-            onSpeak: () => _showMessage('Playing pronunciation'),
+            onSpeak: () =>
+                _showMessage('Pronunciation playback is not configured yet.'),
             onCopy: _copyTranslation,
             onFavourite: _toggleFavourite,
           ),
@@ -494,6 +524,8 @@ class _TranslationScreenState extends State<TranslationScreen> {
           else
             _GlossaryList(entries: _glossaryEntries, onSelected: _selectEntry),
           const SizedBox(height: 14),
+          if (_library.error != null)
+            _TranslationError(message: _library.error!, onRetry: _loadLibrary),
           const _SectionTitle('Recent lookups'),
           const SizedBox(height: 8),
           if (_recentEntries.isEmpty)
@@ -507,12 +539,8 @@ class _TranslationScreenState extends State<TranslationScreen> {
                 entry: recentEntry,
                 favourite: _favourites.contains(_entryKey(recentEntry)),
                 onTap: _selectEntry,
-                onFavourite: (entry) => setState(() {
-                  final key = _entryKey(entry);
-                  if (!_favourites.add(key)) {
-                    _favourites.remove(key);
-                  }
-                }),
+                onFavourite: (entry) =>
+                    _saveLibrary(() => _library.toggleFavourite(entry)),
               ),
               const SizedBox(height: 7),
             ],

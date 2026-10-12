@@ -6,6 +6,7 @@ import '../../../core/widgets/rootly_back_button.dart';
 import '../../home/presentation/widgets/home_drawer.dart';
 import 'province_detail_screen.dart';
 import 'sri_lanka_map_geometry.dart';
+import 'sri_lanka_map_colors.dart';
 import 'sri_lanka_map_painter.dart';
 import 'widgets/explorer_footer.dart';
 
@@ -96,10 +97,10 @@ class _SriLanka3DMapScreenState extends State<SriLanka3DMapScreen> {
             child: Container(
               width: double.infinity,
               decoration: BoxDecoration(
-                color: const Color(0xFF07151C),
+                color: ProvinceMapColors.background,
                 borderRadius: BorderRadius.circular(10),
                 boxShadow: const [
-                  BoxShadow(color: Color(0x19000000), blurRadius: 10),
+                  BoxShadow(color: Color(0x1984321F), blurRadius: 10),
                 ],
               ),
               clipBehavior: Clip.antiAlias,
@@ -153,7 +154,9 @@ class _SriLanka3DMapScreenState extends State<SriLanka3DMapScreen> {
                         bottom: 10,
                         child: DecoratedBox(
                           decoration: BoxDecoration(
-                            color: const Color(0xCC07151C),
+                            color: ProvinceMapColors.surface.withValues(
+                              alpha: .94,
+                            ),
                             borderRadius: BorderRadius.circular(7),
                           ),
                           child: Padding(
@@ -167,7 +170,7 @@ class _SriLanka3DMapScreenState extends State<SriLanka3DMapScreen> {
                                   : 'Tap a province to explore',
                               style: const TextStyle(
                                 fontSize: 10,
-                                color: Color(0xFFB7C6CA),
+                                color: AppColors.brown,
                               ),
                             ),
                           ),
@@ -224,11 +227,11 @@ class _ProvinceCard extends StatelessWidget {
     width: 178,
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: ProvinceMapColors.surface,
       borderRadius: BorderRadius.circular(8),
       boxShadow: const [
         BoxShadow(
-          color: Color(0x44000000),
+          color: Color(0x3384321F),
           blurRadius: 12,
           offset: Offset(0, 5),
         ),

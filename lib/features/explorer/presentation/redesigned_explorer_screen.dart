@@ -444,69 +444,108 @@ class _PlaceCard extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
       child: InkWell(
         onTap: onTap,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            PlaceImage(url: place.imageUrl),
-            const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Colors.transparent, Color(0xD9000000)],
-                  stops: [.42, 1],
-                ),
-              ),
-            ),
-            Positioned(
-              left: 12,
-              right: 12,
-              bottom: 13,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        child: place.imageUrl?.isNotEmpty == true
+            ? Stack(
+                fit: StackFit.expand,
                 children: [
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFE1C8),
-                      borderRadius: BorderRadius.circular(11),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      child: Text(
-                        place.category,
-                        style: const TextStyle(
-                          color: AppColors.brown,
-                          fontSize: 9,
+                  PlaceImage(url: place.imageUrl),
+                  const IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Colors.transparent, Color(0xD9000000)],
+                          stops: [.42, 1],
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    place.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontFamily: 'serif',
-                      fontWeight: FontWeight.bold,
-                      fontSize: 23,
+                  Positioned(
+                    left: 12,
+                    right: 12,
+                    bottom: 13,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFE1C8),
+                            borderRadius: BorderRadius.circular(11),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            child: Text(
+                              place.category,
+                              style: const TextStyle(
+                                color: AppColors.brown,
+                                fontSize: 9,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          place.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontFamily: 'serif',
+                            fontWeight: FontWeight.bold,
+                            fontSize: 23,
+                          ),
+                        ),
+                        Text(
+                          '● ${place.subtitle}',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  Text(
-                    '● ${place.subtitle}',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white70, fontSize: 10),
-                  ),
                 ],
+              )
+            : Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      place.category,
+                      style: const TextStyle(
+                        color: AppColors.brown,
+                        fontSize: 11,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      place.name,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: 'serif',
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      place.subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
-        ),
       ),
     ),
   );

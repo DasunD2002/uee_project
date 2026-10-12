@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import '../../../core/services/account_data_store.dart';
 import '../../../core/services/api_service.dart';
 
 class CapsuleStore extends ChangeNotifier {
@@ -29,13 +29,10 @@ class CapsuleStore extends ChangeNotifier {
     }
   }
 
-  Future<String> _ensureLoggedIn() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('jwt_token');
-    if (token == null || token.isEmpty) {
-      throw StateError('Please sign in.');
-    }
-    return token;
+  Future<AccountSession> _session() async {
+    final session = await AccountSession.current();
+    if (session == null) throw StateError('Please sign in.');
+    return session;
   }
 
   Future<void> load() async {
@@ -44,10 +41,10 @@ class CapsuleStore extends ChangeNotifier {
     error = null;
     notifyListeners();
     try {
-      await _ensureLoggedIn();
-      final response = await api.get('/capsules');
+      final session = await _session();
+      final response = await api.get('/capsules', sessionToken: session.token);
       final data = _data(response) as List;
-      if (generation != _generation) return;
+      if (generation != _generation || !await session.isCurrent) return;
       capsules = data
           .map((item) => Map<String, dynamic>.from(item as Map))
           .toList();
@@ -84,16 +81,18 @@ class CapsuleStore extends ChangeNotifier {
     entriesError = null;
     notifyListeners();
     try {
-      await _ensureLoggedIn();
-      final id = _id;
+      final session = await _session(), id = _id;
       final data =
           _data(
                 await api.get(
                   '/capsules/$id/entries',
+                  sessionToken: session.token,
                 ),
               )
               as List;
-      if (generation != _generation || selection != _selection) {
+      if (generation != _generation ||
+          selection != _selection ||
+          !await session.isCurrent) {
         return;
       }
       entries = data
@@ -112,16 +111,17 @@ class CapsuleStore extends ChangeNotifier {
   }
 
   Future<void> _mutate(
-    Future<http.Response> Function(String id) request,
+    Future<http.Response> Function(String id, String token) request,
   ) async {
     final generation = _generation, selection = _selection;
-    await _ensureLoggedIn();
-    final id = _id;
-    final response = await request(id);
+    final session = await _session(), id = _id;
+    final response = await request(id, session.token);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       _data(response);
     }
-    if (generation != _generation || selection != _selection) {
+    if (generation != _generation ||
+        selection != _selection ||
+        !await session.isCurrent) {
       throw StateError('Your account changed. Please reopen this screen.');
     }
     await load();
@@ -129,35 +129,38 @@ class CapsuleStore extends ChangeNotifier {
   }
 
   Future<void> update(Map<String, dynamic> fields) => _mutate(
-    (id) => api.put('/capsules/$id', body: fields),
+    (id, token) => api.put('/capsules/$id', body: fields, sessionToken: token),
   );
 
   Future<void> seal() => _mutate(
-    (id) => api.post('/capsules/$id/seal'),
+    (id, token) => api.post('/capsules/$id/seal', sessionToken: token),
   );
 
   Future<void> saveEntry(Map<String, dynamic> fields, {String? entryId}) =>
       _mutate(
-        (id) => entryId == null
+        (id, token) => entryId == null
             ? api.post(
                 '/capsules/$id/entries',
                 body: fields,
+                sessionToken: token,
               )
             : api.put(
                 '/capsules/$id/entries/$entryId',
                 body: fields,
+                sessionToken: token,
               ),
       );
 
   Future<void> deleteEntry(String entryId) => _mutate(
-    (id) =>
-        api.delete('/capsules/$id/entries/$entryId'),
+    (id, token) =>
+        api.delete('/capsules/$id/entries/$entryId', sessionToken: token),
   );
 
   Future<void> invite(String contributorId) => _mutate(
-    (id) => api.post(
+    (id, token) => api.post(
       '/capsules/$id/invite',
       body: {'contributorId': contributorId.trim()},
+      sessionToken: token,
     ),
   );
 
@@ -165,10 +168,11 @@ class CapsuleStore extends ChangeNotifier {
     final parent = selected;
     if (parent == null) throw StateError('Select a capsule first.');
     final generation = _generation;
-    await _ensureLoggedIn();
+    final session = await _session();
     final data = _data(
       await api.post(
         '/capsules',
+        sessionToken: session.token,
         body: {
           'title': 'Response to ${parent['title'] ?? 'your capsule'}',
           'description': '',
@@ -178,7 +182,7 @@ class CapsuleStore extends ChangeNotifier {
         },
       ),
     );
-    if (generation != _generation) {
+    if (generation != _generation || !await session.isCurrent) {
       throw StateError('Your account changed.');
     }
     select(Map<String, dynamic>.from(data as Map));
@@ -187,15 +191,15 @@ class CapsuleStore extends ChangeNotifier {
 
   Future<void> delete() async {
     final generation = _generation;
-    await _ensureLoggedIn();
-    final id = _id;
+    final session = await _session(), id = _id;
     final response = await api.delete(
       '/capsules/$id',
+      sessionToken: session.token,
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       _data(response);
     }
-    if (generation != _generation) return;
+    if (generation != _generation || !await session.isCurrent) return;
     _selection++;
     selected = null;
     entries = [];
