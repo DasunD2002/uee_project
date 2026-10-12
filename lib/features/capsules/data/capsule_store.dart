@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
-import '../../../core/services/account_data_store.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/services/api_service.dart';
 
 class CapsuleStore extends ChangeNotifier {
@@ -15,7 +15,7 @@ class CapsuleStore extends ChangeNotifier {
   String? error, entriesError;
   int _generation = 0, _selection = 0;
 
-  @override//comment
+  @override
   void notifyListeners() {
     if (SchedulerBinding.instance.schedulerPhase ==
         SchedulerPhase.persistentCallbacks) {
@@ -29,10 +29,13 @@ class CapsuleStore extends ChangeNotifier {
     }
   }
 
-  Future<AccountSession> _session() async {
-    final session = await AccountSession.current();
-    if (session == null) throw StateError('Please sign in.');
-    return session;
+  Future<String> _ensureLoggedIn() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt_token');
+    if (token == null || token.isEmpty) {
+      throw StateError('Please sign in.');
+    }
+    return token;
   }
 
   Future<void> load() async {
@@ -41,10 +44,10 @@ class CapsuleStore extends ChangeNotifier {
     error = null;
     notifyListeners();
     try {
-      final session = await _session();
-      final response = await api.get('/capsules', sessionToken: session.token);
+      await _ensureLoggedIn();
+      final response = await api.get('/capsules');
       final data = _data(response) as List;
-      if (generation != _generation || !await session.isCurrent) return;
+      if (generation != _generation) return;
       capsules = data
           .map((item) => Map<String, dynamic>.from(item as Map))
           .toList();
@@ -81,18 +84,16 @@ class CapsuleStore extends ChangeNotifier {
     entriesError = null;
     notifyListeners();
     try {
-      final session = await _session(), id = _id;
+      await _ensureLoggedIn();
+      final id = _id;
       final data =
           _data(
                 await api.get(
                   '/capsules/$id/entries',
-                  sessionToken: session.token,
                 ),
               )
               as List;
-      if (generation != _generation ||
-          selection != _selection ||
-          !await session.isCurrent) {
+      if (generation != _generation || selection != _selection) {
         return;
       }
       entries = data
@@ -111,17 +112,16 @@ class CapsuleStore extends ChangeNotifier {
   }
 
   Future<void> _mutate(
-    Future<http.Response> Function(String id, String token) request,
+    Future<http.Response> Function(String id) request,
   ) async {
     final generation = _generation, selection = _selection;
-    final session = await _session(), id = _id;
-    final response = await request(id, session.token);
+    await _ensureLoggedIn();
+    final id = _id;
+    final response = await request(id);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       _data(response);
     }
-    if (generation != _generation ||
-        selection != _selection ||
-        !await session.isCurrent) {
+    if (generation != _generation || selection != _selection) {
       throw StateError('Your account changed. Please reopen this screen.');
     }
     await load();
@@ -129,38 +129,35 @@ class CapsuleStore extends ChangeNotifier {
   }
 
   Future<void> update(Map<String, dynamic> fields) => _mutate(
-    (id, token) => api.put('/capsules/$id', body: fields, sessionToken: token),
+    (id) => api.put('/capsules/$id', body: fields),
   );
 
   Future<void> seal() => _mutate(
-    (id, token) => api.post('/capsules/$id/seal', sessionToken: token),
+    (id) => api.post('/capsules/$id/seal'),
   );
 
   Future<void> saveEntry(Map<String, dynamic> fields, {String? entryId}) =>
       _mutate(
-        (id, token) => entryId == null
+        (id) => entryId == null
             ? api.post(
                 '/capsules/$id/entries',
                 body: fields,
-                sessionToken: token,
               )
             : api.put(
                 '/capsules/$id/entries/$entryId',
                 body: fields,
-                sessionToken: token,
               ),
       );
 
   Future<void> deleteEntry(String entryId) => _mutate(
-    (id, token) =>
-        api.delete('/capsules/$id/entries/$entryId', sessionToken: token),
+    (id) =>
+        api.delete('/capsules/$id/entries/$entryId'),
   );
 
   Future<void> invite(String contributorId) => _mutate(
-    (id, token) => api.post(
+    (id) => api.post(
       '/capsules/$id/invite',
       body: {'contributorId': contributorId.trim()},
-      sessionToken: token,
     ),
   );
 
@@ -168,11 +165,10 @@ class CapsuleStore extends ChangeNotifier {
     final parent = selected;
     if (parent == null) throw StateError('Select a capsule first.');
     final generation = _generation;
-    final session = await _session();
+    await _ensureLoggedIn();
     final data = _data(
       await api.post(
         '/capsules',
-        sessionToken: session.token,
         body: {
           'title': 'Response to ${parent['title'] ?? 'your capsule'}',
           'description': '',
@@ -182,7 +178,7 @@ class CapsuleStore extends ChangeNotifier {
         },
       ),
     );
-    if (generation != _generation || !await session.isCurrent) {
+    if (generation != _generation) {
       throw StateError('Your account changed.');
     }
     select(Map<String, dynamic>.from(data as Map));
@@ -191,15 +187,15 @@ class CapsuleStore extends ChangeNotifier {
 
   Future<void> delete() async {
     final generation = _generation;
-    final session = await _session(), id = _id;
+    await _ensureLoggedIn();
+    final id = _id;
     final response = await api.delete(
       '/capsules/$id',
-      sessionToken: session.token,
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       _data(response);
     }
-    if (generation != _generation || !await session.isCurrent) return;
+    if (generation != _generation) return;
     _selection++;
     selected = null;
     entries = [];

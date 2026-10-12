@@ -1,6 +1,4 @@
-import 'dart:io';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../../../core/services/api_service.dart';
 import '../domain/user_post.dart';
 
