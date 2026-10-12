@@ -201,10 +201,12 @@ class _FamilyReceiptScreenState extends State<FamilyReceiptScreen>
       orElse: () => memories.isNotEmpty ? memories[0] : CapsuleMemory(
         id: 'mock_vid',
         type: MemoryType.video,
-        content: 'assets/images/gal_vihara.png',
+        content: 'assets/videos/family_temple_video.mp4',
         title: 'Watch Family Video',
+        caption: 'Family trip to Gal Vihara & Polonnaruwa ruins',
         addedBy: 'Uncle',
         createdAt: DateTime.now(),
+        durationSeconds: 30,
       ),
     );
     final memLetter = memories.firstWhere(
@@ -1106,17 +1108,17 @@ class _AnimatedVideoCardState extends State<_AnimatedVideoCard>
   }
 
   void _openVideoPlayer(BuildContext context) {
-    Navigator.of(context).push(
-      PageRouteBuilder<void>(
-        opaque: false,
-        barrierColor: Colors.black87,
-        barrierDismissible: true,
-        pageBuilder: (ctx, anim, _) => FadeTransition(
-          opacity: anim,
-          child: _VideoPlayerPage(image: widget.image),
-        ),
-        transitionDuration: const Duration(milliseconds: 320),
-        reverseTransitionDuration: const Duration(milliseconds: 200),
+    MemoryViewer.show(
+      context,
+      CapsuleMemory(
+        id: 'vid_preview',
+        type: MemoryType.video,
+        content: 'assets/videos/family_temple_video.mp4',
+        title: 'Watch Family Video',
+        caption: 'Family trip to Gal Vihara & Polonnaruwa ruins',
+        addedBy: 'Uncle',
+        createdAt: DateTime.now(),
+        durationSeconds: 30,
       ),
     );
   }

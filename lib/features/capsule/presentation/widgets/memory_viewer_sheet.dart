@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:video_player/video_player.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../domain/capsule_memory.dart';
 
 const _kBrown = Color(0xFF84321F);
@@ -170,6 +172,9 @@ class MemoryViewer {
   }
 
   static Widget _buildImageWidget(String path) {
+    if (path.toLowerCase().endsWith('.mp4')) {
+      return Image.asset('assets/images/gal_vihara.png', height: 260, width: double.infinity, fit: BoxFit.cover);
+    }
     if (path.startsWith('http://') || path.startsWith('https://')) {
       return Image.network(path, height: 260, width: double.infinity, fit: BoxFit.cover);
     } else if (path.startsWith('assets/')) {
@@ -179,7 +184,7 @@ class MemoryViewer {
       if (file.existsSync()) {
         return Image.file(file, height: 260, width: double.infinity, fit: BoxFit.cover);
       }
-      return Image.asset('assets/images/login_image.jpg', height: 260, width: double.infinity, fit: BoxFit.cover);
+      return Image.asset('assets/images/gal_vihara.png', height: 260, width: double.infinity, fit: BoxFit.cover);
     }
   }
 
@@ -304,11 +309,194 @@ class _VideoPlayerModal extends StatefulWidget {
 }
 
 class _VideoPlayerModalState extends State<_VideoPlayerModal> {
+  VideoPlayerController? _controller;
   bool _isPlaying = false;
-  double _progress = 0.0;
+  bool _isMuted = false;
+  bool _isLoading = true;
+  Duration _position = Duration.zero;
+  Duration _duration = const Duration(seconds: 30);
+  String _currentSource = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _currentSource = widget.memory.content.isNotEmpty
+        ? widget.memory.content
+        : 'assets/videos/family_temple_video.mp4';
+    _setupController(_currentSource);
+  }
+
+  Future<void> _setupController(String source) async {
+    setState(() {
+      _isLoading = true;
+      _currentSource = source;
+    });
+
+    final prev = _controller;
+    _controller = null;
+    await prev?.dispose();
+
+    try {
+      VideoPlayerController c;
+      if (source.startsWith('http://') || source.startsWith('https://')) {
+        c = VideoPlayerController.networkUrl(Uri.parse(source));
+      } else if (source.startsWith('assets/')) {
+        c = VideoPlayerController.asset(source);
+      } else {
+        final f = File(source);
+        if (await f.exists()) {
+          c = VideoPlayerController.file(f);
+        } else {
+          c = VideoPlayerController.asset('assets/videos/family_temple_video.mp4');
+        }
+      }
+
+      await c.initialize();
+      c.setLooping(false);
+      c.addListener(_onVideoUpdate);
+      if (mounted) {
+        setState(() {
+          _controller = c;
+          _isLoading = false;
+          _duration = c.value.duration;
+        });
+      }
+    } catch (_) {
+      // If primary source failed and wasn't default asset, try default asset
+      if (source != 'assets/videos/family_temple_video.mp4') {
+        _setupController('assets/videos/family_temple_video.mp4');
+      } else {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
+      }
+    }
+  }
+
+  void _onVideoUpdate() {
+    if (!mounted || _controller == null) return;
+    final val = _controller!.value;
+    setState(() {
+      _isPlaying = val.isPlaying;
+      _position = val.position;
+      if (val.duration.inSeconds > 0) {
+        _duration = val.duration;
+      }
+    });
+  }
+
+  void _togglePlayPause() {
+    if (_controller == null || !_controller!.value.isInitialized) return;
+    if (_controller!.value.isPlaying) {
+      _controller!.pause();
+    } else {
+      if (_controller!.value.position >= _controller!.value.duration) {
+        _controller!.seekTo(Duration.zero);
+      }
+      _controller!.play();
+    }
+  }
+
+  void _toggleMute() {
+    if (_controller == null) return;
+    setState(() {
+      _isMuted = !_isMuted;
+      _controller!.setVolume(_isMuted ? 0.0 : 1.0);
+    });
+  }
+
+  Future<void> _pickNewVideo(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickVideo(source: source);
+      if (picked != null) {
+        await _setupController(picked.path);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: _kBrownDeep,
+              content: const Row(
+                children: [
+                  Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                  SizedBox(width: 8),
+                  Text('Video posted successfully! ✦', style: TextStyle(color: Colors.white)),
+                ],
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            content: Text('Could not load video: $e'),
+          ),
+        );
+      }
+    }
+  }
+
+  void _showEnterUrlDialog() {
+    final textCtrl = TextEditingController();
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFFFFF8F2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Post Video from URL', style: TextStyle(color: _kBrownDeep, fontSize: 16)),
+        content: TextField(
+          controller: textCtrl,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'https://example.com/video.mp4',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: _kMuted)),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: _kBrown),
+            onPressed: () {
+              final url = textCtrl.text.trim();
+              Navigator.pop(ctx);
+              if (url.isNotEmpty) {
+                _setupController(url);
+              }
+            },
+            child: const Text('Post Video'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDuration(Duration d) {
+    final minutes = d.inMinutes;
+    final seconds = d.inSeconds % 60;
+    return '$minutes:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  void dispose() {
+    _controller?.removeListener(_onVideoUpdate);
+    _controller?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final isInitialized = _controller?.value.isInitialized ?? false;
+    final progressVal = _duration.inMilliseconds > 0
+        ? (_position.inMilliseconds / _duration.inMilliseconds).clamp(0.0, 1.0)
+        : 0.0;
+    final isEnded = isInitialized && _position >= _duration && _duration > Duration.zero;
+
     return Dialog(
       backgroundColor: Colors.black,
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 30),
@@ -316,68 +504,206 @@ class _VideoPlayerModalState extends State<_VideoPlayerModal> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // AppBar
           AppBar(
             backgroundColor: Colors.transparent,
             foregroundColor: Colors.white,
             elevation: 0,
-            title: Text(widget.memory.title ?? 'Video Memory', style: const TextStyle(fontSize: 15)),
+            title: Text(widget.memory.title ?? 'Watch Family Video', style: const TextStyle(fontSize: 15)),
             leading: IconButton(
               icon: const Icon(Icons.close_rounded),
               onPressed: () => Navigator.pop(context),
             ),
-          ),
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: MemoryViewer._buildImageWidget(
-                  widget.memory.content.isNotEmpty ? widget.memory.content : 'assets/images/gal_vihara.png',
+            actions: [
+              IconButton(
+                tooltip: _isMuted ? 'Unmute' : 'Mute',
+                icon: Icon(
+                  _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                  color: Colors.white70,
                 ),
+                onPressed: _toggleMute,
               ),
-              GestureDetector(
-                onTap: () => setState(() => _isPlaying = !_isPlaying),
-                child: Container(
-                  width: 54,
-                  height: 54,
-                  decoration: BoxDecoration(
-                    color: Colors.black54,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert_rounded, color: Colors.white70),
+                tooltip: 'Post Video Options',
+                onSelected: (val) {
+                  if (val == 'gallery') {
+                    _pickNewVideo(ImageSource.gallery);
+                  } else if (val == 'camera') {
+                    _pickNewVideo(ImageSource.camera);
+                  } else if (val == 'url') {
+                    _showEnterUrlDialog();
+                  } else if (val == 'default') {
+                    _setupController('assets/videos/family_temple_video.mp4');
+                  }
+                },
+                itemBuilder: (ctx) => [
+                  const PopupMenuItem(
+                    value: 'gallery',
+                    child: Row(
+                      children: [
+                        Icon(Icons.video_library_outlined, size: 18),
+                        SizedBox(width: 8),
+                        Text('Post from Gallery'),
+                      ],
+                    ),
                   ),
-                  child: Icon(
-                    _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                    color: Colors.white,
-                    size: 34,
+                  const PopupMenuItem(
+                    value: 'camera',
+                    child: Row(
+                      children: [
+                        Icon(Icons.videocam_outlined, size: 18),
+                        SizedBox(width: 8),
+                        Text('Record New Video'),
+                      ],
+                    ),
                   ),
-                ),
+                  const PopupMenuItem(
+                    value: 'url',
+                    child: Row(
+                      children: [
+                        Icon(Icons.link_rounded, size: 18),
+                        SizedBox(width: 8),
+                        Text('Post from Video URL'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'default',
+                    child: Row(
+                      children: [
+                        Icon(Icons.refresh_rounded, size: 18),
+                        SizedBox(width: 8),
+                        Text('Gal Vihara Heritage Video'),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
+
+          // Video View Area
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: AspectRatio(
+              aspectRatio: isInitialized && _controller!.value.aspectRatio > 0
+                  ? _controller!.value.aspectRatio
+                  : 16 / 9,
+              child: GestureDetector(
+                onTap: _togglePlayPause,
+                child: Stack(
+                  alignment: Alignment.center,
+                  fit: StackFit.expand,
+                  children: [
+                    if (isInitialized)
+                      VideoPlayer(_controller!)
+                    else
+                      MemoryViewer._buildImageWidget(
+                        'assets/images/gal_vihara.png',
+                      ),
+
+                    // Loading indicator
+                    if (_isLoading)
+                      Container(
+                        color: Colors.black45,
+                        child: const Center(
+                          child: CircularProgressIndicator(color: Colors.white),
+                        ),
+                      ),
+
+                    // Center Play/Pause/Replay overlay
+                    if (!_isLoading)
+                      Center(
+                        child: AnimatedOpacity(
+                          duration: const Duration(milliseconds: 200),
+                          opacity: !_isPlaying || isEnded ? 1.0 : 0.0,
+                          child: Container(
+                            width: 56,
+                            height: 56,
+                            decoration: BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                            child: Icon(
+                              isEnded
+                                  ? Icons.replay_rounded
+                                  : _isPlaying
+                                      ? Icons.pause_rounded
+                                      : Icons.play_arrow_rounded,
+                              color: Colors.white,
+                              size: 34,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Timeline scrubber & caption controls
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             child: Column(
               children: [
-                Slider(
-                  value: _progress,
-                  activeColor: _kBrown,
-                  inactiveColor: Colors.white24,
-                  onChanged: (v) => setState(() => _progress = v),
+                SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                    trackHeight: 3,
+                  ),
+                  child: Slider(
+                    value: progressVal,
+                    activeColor: _kBrown,
+                    inactiveColor: Colors.white24,
+                    onChanged: (v) {
+                      if (_controller != null && isInitialized) {
+                        final targetMs = (v * _duration.inMilliseconds).toInt();
+                        _controller!.seekTo(Duration(milliseconds: targetMs));
+                      }
+                    },
+                  ),
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('0:${(_progress * 45).toInt().toString().padLeft(2, '0')}',
-                        style: const TextStyle(color: Colors.white70, fontSize: 11)),
                     Text(
-                      'Added by ${widget.memory.addedBy}',
+                      _formatDuration(_position),
                       style: const TextStyle(color: Colors.white70, fontSize: 11),
                     ),
                     Text(
-                      '0:${(widget.memory.durationSeconds ?? 45).toString().padLeft(2, '0')}',
+                      widget.memory.caption != null && widget.memory.caption!.isNotEmpty
+                          ? widget.memory.caption!
+                          : 'Added by ${widget.memory.addedBy}',
+                      style: const TextStyle(color: Colors.white70, fontSize: 11),
+                    ),
+                    Text(
+                      _formatDuration(_duration),
                       style: const TextStyle(color: Colors.white70, fontSize: 11),
                     ),
                   ],
+                ),
+                const SizedBox(height: 8),
+                // Quick Post/Change Video Button
+                InkWell(
+                  onTap: () => _pickNewVideo(ImageSource.gallery),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.add_photo_alternate_outlined, color: Colors.white60, size: 14),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Post or change video',
+                          style: TextStyle(color: Colors.white.withAlpha(180), fontSize: 11),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),

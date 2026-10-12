@@ -555,6 +555,9 @@ class _PolaroidTile extends StatelessWidget {
   }
 
   Widget _buildPhotoWidget(String path) {
+    if (path.toLowerCase().endsWith('.mp4')) {
+      return Image.asset('assets/images/gal_vihara.png', fit: BoxFit.cover);
+    }
     if (path.startsWith('http://') || path.startsWith('https://')) {
       return Image.network(path, fit: BoxFit.cover);
     } else if (path.startsWith('assets/')) {

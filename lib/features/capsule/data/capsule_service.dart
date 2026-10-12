@@ -47,12 +47,12 @@ class CapsuleService {
       CapsuleMemory(
         id: 'mem_4',
         type: MemoryType.video,
-        content: 'assets/images/gal_vihara.png',
+        content: 'assets/videos/family_temple_video.mp4',
         title: 'Watch Family Video',
-        caption: 'Singing festive carols and blessing the house',
+        caption: 'Family trip to Gal Vihara & Polonnaruwa ruins',
         addedBy: 'Uncle',
         createdAt: DateTime.now().subtract(const Duration(days: 5)),
-        durationSeconds: 45,
+        durationSeconds: 30,
       ),
       CapsuleMemory(
         id: 'mem_5',
