@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../core/navigation/primary_navigation.dart';
+import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../explorer/presentation/widgets/explorer_footer.dart';
 import '../data/quiz_service.dart';
@@ -146,6 +147,11 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
       await Future<void>.delayed(const Duration(milliseconds: 550));
       if (!mounted) return;
       if (result.completed) {
+        NotificationService().showNotification(
+          title: 'Daily Quiz Completed! 🏆',
+          body: 'Congratulations! You completed today\'s quiz with ${result.session.totalScore} points.',
+          icon: Icons.emoji_events_outlined,
+        );
         Navigator.pop(context, result.session.totalScore);
       } else {
         _applySession(result.session);

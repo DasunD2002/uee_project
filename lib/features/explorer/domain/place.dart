@@ -36,6 +36,8 @@ class Place {
       category: _requiredString(json, 'category'),
       categoryId: _requiredString(json, 'categoryId'),
       location: LatLng(latitude.toDouble(), longitude.toDouble()),
+      photoReference: _optionalString(json['photoReference']),
+      rating: (json['rating'] as num?)?.toDouble(),
       description: _optionalString(json['description']),
       imageUrl: _optionalString(json['imageUrl']),
       imageSourceUrl: _optionalString(json['imageSourceUrl']),
@@ -43,6 +45,25 @@ class Place {
       wikipediaUrl: _optionalString(json['wikipediaUrl']),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'subtitle': subtitle,
+    'category': category,
+    'categoryId': categoryId,
+    'location': {
+      'latitude': location.latitude,
+      'longitude': location.longitude,
+    },
+    'description': description,
+    'imageUrl': imageUrl,
+    'imageSourceUrl': imageSourceUrl,
+    'sourceUrl': sourceUrl,
+    'wikipediaUrl': wikipediaUrl,
+    'photoReference': photoReference,
+    'rating': rating,
+  };
 
   final String id;
   final String name;

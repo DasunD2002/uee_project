@@ -6,6 +6,7 @@ import '../domain/place.dart';
 import '../../home/presentation/widgets/home_drawer.dart';
 import 'redesigned_explorer_screen.dart';
 import 'widgets/explorer_footer.dart';
+import 'widgets/place_image.dart';
 
 const _brown = Color(0xFF713021);
 
@@ -31,7 +32,9 @@ class _ExplorerShellState extends State<ExplorerShell> {
   @override
   Widget build(BuildContext context) => Scaffold(
     key: scaffoldKey,
-    drawer: HomeDrawer(selectedSection: index < 2 ? 'Explore Places' : 'Q&A Forum'),
+    drawer: HomeDrawer(
+      selectedSection: index < 2 ? 'Explore Places' : 'Q&A Forum',
+    ),
     body: IndexedStack(
       index: index,
       children: [
@@ -214,29 +217,39 @@ class _ExplorerScreenState extends State<ExplorerScreen> {
                 FutureBuilder<List<String>>(
                   future: history,
                   builder: (context, snapshot) => Column(
-                    children: (snapshot.data ?? const <String>[])
-                        .map(
-                          (query) => Card(
-                            margin: const EdgeInsets.only(bottom: 7),
-                            child: ListTile(
-                              leading: const Icon(Icons.history, color: _brown),
-                              title: Text(
-                                query,
-                                style: const TextStyle(
-                                  fontFamily: 'serif',
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              subtitle: const Text('Previous search'),
-                              trailing: const Icon(Icons.chevron_right),
-                              onTap: () {
-                                search.text = query;
-                                _submit(query);
-                              },
+                    children: [
+                      if (snapshot.hasError)
+                        ListTile(
+                          title: Text(snapshot.error.toString()),
+                          trailing: TextButton(
+                            onPressed: () => setState(
+                              () => history = widget.repository.history(),
                             ),
+                            child: const Text('Retry'),
                           ),
-                        )
-                        .toList(),
+                        ),
+                      ...(snapshot.data ?? const <String>[]).map(
+                        (query) => Card(
+                          margin: const EdgeInsets.only(bottom: 7),
+                          child: ListTile(
+                            leading: const Icon(Icons.history, color: _brown),
+                            title: Text(
+                              query,
+                              style: const TextStyle(
+                                fontFamily: 'serif',
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            subtitle: const Text('Previous search'),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: () {
+                              search.text = query;
+                              _submit(query);
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const Padding(
@@ -394,13 +407,15 @@ class _HeroPlaceCard extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             _PlaceImage(url: imageUrl),
-            const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Colors.transparent, Color(0xD9000000)],
-                  stops: [.45, 1],
+            const IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Color(0xD9000000)],
+                    stops: [.45, 1],
+                  ),
                 ),
               ),
             ),
@@ -452,11 +467,12 @@ class _MapPlaceCard extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          height: 108,
-          width: double.infinity,
-          child: _PlaceImage(url: imageUrl),
-        ),
+        if (imageUrl?.isNotEmpty == true)
+          SizedBox(
+            height: 108,
+            width: double.infinity,
+            child: _PlaceImage(url: imageUrl),
+          ),
         Padding(
           padding: const EdgeInsets.all(9),
           child: Column(
@@ -498,25 +514,7 @@ class _PlaceImage extends StatelessWidget {
   const _PlaceImage({required this.url});
   final String? url;
   @override
-  Widget build(BuildContext context) => url == null
-      ? const DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFFD7B99E), Color(0xFF657B6D)],
-            ),
-          ),
-          child: Center(
-            child: Icon(Icons.account_balance, color: Colors.white70, size: 46),
-          ),
-        )
-      : Image.network(
-          url!,
-          fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => const ColoredBox(
-            color: Color(0xFFD7B99E),
-            child: Icon(Icons.account_balance, color: Colors.white),
-          ),
-        );
+  Widget build(BuildContext context) => PlaceImage(url: url);
 }
 
 class _Heading extends StatelessWidget {

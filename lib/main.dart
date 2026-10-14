@@ -3,9 +3,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/constants/api_constants.dart';
 import 'core/theme/app_colors.dart';
 import 'features/auth/presentation/login_screen.dart';
-import 'features/auth/presentation/change_password_screen.dart';
 import 'features/auth/presentation/signup_screen.dart';
 import 'features/auth/presentation/otp_screen.dart';
+import 'features/auth/presentation/change_password_screen.dart';
 import 'features/settings/presentation/settings_screen.dart';
 import 'features/capsules/presentation/create_capsule_screen.dart';
 import 'features/capsule/presentation/capsule_screen.dart';
@@ -32,15 +32,18 @@ import 'core/localization/app_localizations.dart';
 import 'features/quizzes/presentation/daily_quiz_screen.dart';
 import 'features/quizzes/presentation/quiz_home_screen.dart';
 
+import 'core/services/notification_service.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Supabase.initialize(
     url: ApiConstants.supabaseUrl,
-    anonKey: ApiConstants.supabaseAnonKey,
+    publishableKey: ApiConstants.supabaseAnonKey,
   );
 
   await AppLanguageProvider.instance.init();
+  await NotificationService().init();
 
   runApp(const RootlyApp());
 }

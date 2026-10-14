@@ -1,24 +1,21 @@
-import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../explorer/presentation/widgets/explorer_footer.dart';
+import '../../../core/services/notification_service.dart';
 
 // ── Palette — matches the rest of the app ────────────────────────────────────
 const _kBg       = Color(0xFFFDF8F5);   // warm off-white page background
 const _kCard     = Color(0xFFFFFFFF);   // card surface
 const _kBrown    = Color(0xFF84321F);   // primary brown (AppColors.brown)
 const _kBrownDp  = Color(0xFF5A1E0E);   // deep headings
-const _kTerra    = Color(0xFFB85C3A);   // terracotta accent
 const _kGold     = Color(0xFFD4A24C);   // gold accent
 const _kBorder   = Color(0xFFEEDFD9);   // card border
 const _kMuted    = Color(0xFFA07060);   // secondary text
 const _kPeach    = Color(0xFFFFF3E8);   // button background tint
 const _kPeachBd  = Color(0xFFD9B49E);   // button border
-const _kRose     = Color(0xFFE8B4A8);   // light rose
-const _kRoseMid  = Color(0xFFF5DDD8);   // soft rose
 
 /// "Add a Memory" screen – warm earthy theme consistent with the rest of the app.
 class AddMemoryScreen extends StatefulWidget {
@@ -57,6 +54,11 @@ class _AddMemoryScreenState extends State<AddMemoryScreen>
 
   void _finish() {
     HapticFeedback.mediumImpact();
+    NotificationService().showNotification(
+      title: 'Memory Sealed ✦',
+      body: 'A new memory has been safely sealed into your time capsule.',
+      icon: Icons.lock_rounded,
+    );
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
@@ -763,7 +765,7 @@ class _VoiceRecorderState extends State<_VoiceRecorder>
                   children: List.generate(_waveCtrls.length, (i) {
                     return AnimatedBuilder(
                       animation: _waveCtrls[i],
-                      builder: (_, __) {
+                      builder: (_, child) {
                         final h = widget.recording
                             ? 6 + _waveCtrls[i].value * 30
                             : 6 + math.sin(i * .7) * 14;

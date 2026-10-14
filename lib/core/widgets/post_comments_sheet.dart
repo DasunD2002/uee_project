@@ -13,7 +13,7 @@ class PostCommentsSheet extends StatefulWidget {
   });
   final List<UserComment> backendComments;
   final List<String> comments;
-  final ValueChanged<String> onSend;
+  final Future<void> Function(String) onSend;
   @override
   State<PostCommentsSheet> createState() => _PostCommentsSheetState();
 }
@@ -31,10 +31,24 @@ class _PostCommentsSheetState extends State<PostCommentsSheet> {
     super.dispose();
   }
 
-  void send() {
+  bool sending = false;
+  Future<void> send() async {
     final text = composer.text.trim();
-    if (text.isEmpty) return;
-    widget.onSend(replyTo == null ? text : '@$replyTo $text');
+    if (text.isEmpty || sending) return;
+    sending = true;
+    try {
+      await widget.onSend(replyTo == null ? text : '@$replyTo $text');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
+      return;
+    } finally {
+      sending = false;
+    }
+    if (!mounted) return;
     setState(() {
       composer.clear();
       replyTo = null;
@@ -72,7 +86,9 @@ class _PostCommentsSheetState extends State<PostCommentsSheet> {
                   _Comment(
                     name: comment.authorName,
                     text: comment.text,
-                    time: comment.createdAt != null ? '${DateTime.now().difference(comment.createdAt!).inHours}h' : 'now',
+                    time: comment.createdAt != null
+                        ? '${DateTime.now().difference(comment.createdAt!).inHours}h'
+                        : 'now',
                     avatar: comment.authorPhoto,
                     onReply: () {
                       setState(() => replyTo = comment.authorName);
@@ -131,10 +147,14 @@ class _PostCommentsSheetState extends State<PostCommentsSheet> {
               children: [
                 CircleAvatar(
                   radius: 18,
-                  backgroundImage: UserService.cachedPhotoUrl != null && UserService.cachedPhotoUrl!.startsWith('http')
+                  backgroundImage:
+                      UserService.cachedPhotoUrl != null &&
+                          UserService.cachedPhotoUrl!.startsWith('http')
                       ? NetworkImage(UserService.cachedPhotoUrl!)
                       : null,
-                  child: UserService.cachedPhotoUrl != null && UserService.cachedPhotoUrl!.startsWith('http')
+                  child:
+                      UserService.cachedPhotoUrl != null &&
+                          UserService.cachedPhotoUrl!.startsWith('http')
                       ? null
                       : const Icon(Icons.person, size: 24, color: Colors.grey),
                 ),

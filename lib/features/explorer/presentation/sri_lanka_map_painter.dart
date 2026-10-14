@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'sri_lanka_map_geometry.dart';
+import 'sri_lanka_map_colors.dart';
 
 // Every province shares the same resting height. Only selection adds relief.
 const _baseDepth = 8.0;
@@ -78,7 +79,7 @@ class ProvinceMapPainter extends CustomPainter {
       canvas.drawPath(
         silhouette.shift(Offset(10 * scale, 18 * scale)),
         Paint()
-          ..color = const Color(0xB8000000)
+          ..color = ProvinceMapColors.depth.withValues(alpha: .22)
           ..maskFilter = MaskFilter.blur(BlurStyle.normal, 16 * scale),
       );
 
@@ -117,7 +118,7 @@ class ProvinceMapPainter extends CustomPainter {
       canvas.drawPath(
         paths[active]!.shift(Offset(7 * scale, 10 * scale)),
         Paint()
-          ..color = const Color(0x80000000)
+          ..color = ProvinceMapColors.depth.withValues(alpha: .28)
           ..maskFilter = MaskFilter.blur(BlurStyle.normal, 12 * scale),
       );
       // Draw the selected piece last so it rises above every neighbor.
@@ -144,12 +145,16 @@ class ProvinceMapPainter extends CustomPainter {
         ..shader = const RadialGradient(
           center: Alignment(-.65, -.45),
           radius: 1.3,
-          colors: [Color(0xFF1B2B32), Color(0xFF06141B), Color(0xFF030D13)],
+          colors: [
+            ProvinceMapColors.backgroundLight,
+            ProvinceMapColors.background,
+            ProvinceMapColors.backgroundShade,
+          ],
           stops: [0, .65, 1],
         ).createShader(bounds),
     );
 
-    // A fine woven surface echoes the dark material in the reference.
+    // A subtle warm texture keeps the map consistent with the app surfaces.
     final texture = Path();
     const spacing = 9.0;
     for (var x = -size.height; x < size.width; x += spacing) {
@@ -166,7 +171,7 @@ class ProvinceMapPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeWidth = .45
         ..shader = const LinearGradient(
-          colors: [Color(0x0E93A7AE), Color(0x0093A7AE)],
+          colors: [Color(0x1484321F), Color(0x0084321F)],
         ).createShader(bounds),
     );
     canvas.restore();
@@ -184,7 +189,8 @@ class ProvinceMapPainter extends CustomPainter {
     final extrusion = Offset(depth * .14 * scale, depth * scale);
     canvas.drawPath(
       surface.shift(extrusion),
-      Paint()..color = Color.lerp(province.color, Colors.black, .40)!,
+      Paint()
+        ..color = Color.lerp(province.color, ProvinceMapColors.depth, .40)!,
     );
 
     for (final ring in [
@@ -226,7 +232,12 @@ class ProvinceMapPainter extends CustomPainter {
           ..close();
         canvas.drawPath(
           face,
-          Paint()..color = Color.lerp(province.color, Colors.black, darkness)!,
+          Paint()
+            ..color = Color.lerp(
+              province.color,
+              ProvinceMapColors.depth,
+              darkness,
+            )!,
         );
       }
       canvas.restore();
@@ -241,7 +252,7 @@ class ProvinceMapPainter extends CustomPainter {
     required bool highlight,
   }) {
     final color = highlight
-        ? Color.lerp(province.color, Colors.white, .15)!
+        ? Color.lerp(province.color, ProvinceMapColors.surface, .15)!
         : province.color;
     canvas.drawPath(
       path,
@@ -250,14 +261,14 @@ class ProvinceMapPainter extends CustomPainter {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color.lerp(color, Colors.white, is3D ? .10 : 0)!,
+            Color.lerp(color, ProvinceMapColors.surface, is3D ? .10 : 0)!,
             color,
-            Color.lerp(color, Colors.black, is3D ? .12 : 0)!,
+            Color.lerp(color, ProvinceMapColors.depth, is3D ? .12 : 0)!,
           ],
           stops: const [0, .5, 1],
         ).createShader(path.getBounds()),
     );
-    // Keep the borders subtle: the reference has joined colored faces.
+    // Warm outlines separate neighboring provinces without flattening the relief.
     canvas.drawPath(
       path,
       Paint()
@@ -265,8 +276,8 @@ class ProvinceMapPainter extends CustomPainter {
         ..strokeJoin = StrokeJoin.round
         ..strokeWidth = highlight ? 2 : math.max(.35, .9 * scale)
         ..color = highlight
-            ? const Color(0xFFFFF3CE)
-            : Color.lerp(color, Colors.white, .22)!.withValues(alpha: .55),
+            ? ProvinceMapColors.surface
+            : ProvinceMapColors.outline.withValues(alpha: .35),
     );
   }
 
@@ -278,14 +289,27 @@ class ProvinceMapPainter extends CustomPainter {
     Offset surfaceOffset = Offset.zero,
   }) {
     final labelPoint = provinceMapPoint(province.label, rect) + surfaceOffset;
+    final faceColor = selected == province
+        ? Color.lerp(province.color, ProvinceMapColors.surface, .15)!
+        : province.color;
+    final luminance = faceColor.computeLuminance();
+    final darkContrast =
+        (luminance + .05) /
+        (ProvinceMapColors.labelDark.computeLuminance() + .05);
+    final lightContrast =
+        (ProvinceMapColors.surface.computeLuminance() + .05) /
+        (luminance + .05);
+    final labelColor = darkContrast >= lightContrast
+        ? ProvinceMapColors.labelDark
+        : ProvinceMapColors.surface;
     final textPainter = TextPainter(
       text: TextSpan(
         text: province.shortName,
         style: TextStyle(
           fontFamily: 'Arial',
           fontSize: 26 * scale,
-          color: const Color(0xFF20211D),
-          fontWeight: FontWeight.w400,
+          color: labelColor,
+          fontWeight: FontWeight.w500,
           height: 1.1,
         ),
       ),

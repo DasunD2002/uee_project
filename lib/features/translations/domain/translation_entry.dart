@@ -38,6 +38,22 @@ class TranslationEntry {
   final List<String> relatedWords;
   final String category;
 
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'english': english,
+    'sinhala': sinhala,
+    'transliteration': transliteration,
+    'pronunciation': pronunciation,
+    'meanings': meanings
+        .map(
+          (value) => {'partOfSpeech': value.partOfSpeech, 'text': value.text},
+        )
+        .toList(),
+    'exampleSentence': sentence,
+    'relatedWords': relatedWords,
+    'category': category,
+  };
+
   factory TranslationEntry.fromJson(Map<String, dynamic> json) =>
       TranslationEntry(
         id: json['id']?.toString() ?? '',

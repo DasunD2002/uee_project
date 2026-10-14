@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/navigation/primary_navigation.dart';
+import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../explorer/presentation/widgets/explorer_footer.dart';
 import '../data/question_service.dart';
@@ -90,6 +91,13 @@ class _AskQuestionScreenState extends State<AskQuestionScreen> {
           category: _categorySlug(_topic),
         );
       }
+      NotificationService().showNotification(
+        title: _editing ? 'Question Updated 💬' : 'Question Published 💬',
+        body: _editing
+            ? 'Your question "${_questionController.text.trim()}" has been updated.'
+            : 'Your question "${_questionController.text.trim()}" is now live for the community.',
+        icon: Icons.chat_bubble_outline_rounded,
+      );
       if (!mounted) return;
       FocusManager.instance.primaryFocus?.unfocus();
       await WidgetsBinding.instance.endOfFrame;

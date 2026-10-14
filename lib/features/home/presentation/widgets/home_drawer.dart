@@ -3,6 +3,7 @@ import '../../../../core/localization/app_language_provider.dart';
 import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../Profile/data/user_service.dart';
+import '../../../auth/data/auth_service.dart';
 
 class HomeDrawer extends StatefulWidget {
   const HomeDrawer({super.key, this.selectedSection});
@@ -196,6 +197,7 @@ class _HomeDrawerState extends State<HomeDrawer> {
                       onTap: () {
                         Navigator.pop(context);
                         if (i == 0) Navigator.pushNamed(context, '/saved-posts');
+                        if (i == 2) Navigator.pushNamed(context, '/capsules');
                         if (i == 3) Navigator.pushNamed(context, '/province-map');
                       },
                     ),
@@ -227,11 +229,15 @@ class _HomeDrawerState extends State<HomeDrawer> {
                   _DrawerItem(
                     icon: Icons.logout,
                     label: l10n.drawerLogOut,
-                    onTap: () => Navigator.pushNamedAndRemoveUntil(
-                      context,
-                      '/login',
-                      (_) => false,
-                    ),
+                    onTap: () async {
+                      await AuthService().logout();
+                      if (!context.mounted) return;
+                      Navigator.pushNamedAndRemoveUntil(
+                        context,
+                        '/login',
+                        (_) => false,
+                      );
+                    },
                   ),
                   const SizedBox(height: 4),
                   Text(

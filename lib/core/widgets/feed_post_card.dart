@@ -62,12 +62,13 @@ class _FeedPostCardState extends State<FeedPostCard> {
   final comment = TextEditingController();
   String get postId => widget.postId;
   late bool initiallyLiked;
-  
+
   @override
   void initState() {
     super.initState();
     initiallyLiked = SocialStore.instance.likedPosts.contains(postId);
   }
+
   bool get liked => SocialStore.instance.likedPosts.contains(postId);
   bool get saved => SocialStore.instance.isSaved(postId);
   List<String> get addedComments =>
@@ -78,46 +79,77 @@ class _FeedPostCardState extends State<FeedPostCard> {
     super.dispose();
   }
 
-  void toggleLike() {
+  bool interacting = false;
+
+  void _interactionError(Object error) {
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
+
+  Future<void> toggleLike() async {
+    if (interacting) return;
+    interacting = true;
+    final wasLiked = liked;
     setState(() {
-      if (liked) {
+      if (wasLiked) {
         SocialStore.instance.likedPosts.remove(postId);
       } else {
         SocialStore.instance.likedPosts.add(postId);
-        PostService().likePost(widget.postId);
       }
     });
+    try {
+      await PostService().likePost(postId);
+    } catch (e) {
+      if (wasLiked) {
+        SocialStore.instance.likedPosts.add(postId);
+      } else {
+        SocialStore.instance.likedPosts.remove(postId);
+      }
+      _interactionError(e);
+      if (mounted) setState(() {});
+    } finally {
+      interacting = false;
+    }
   }
 
   Future<void> doubleLike() async {
-    setState(() {
-      if (!liked) {
-        SocialStore.instance.likedPosts.add(postId);
-        PostService().likePost(widget.postId);
-      }
-      showHeart = true;
-    });
+    if (!liked) await toggleLike();
+    if (!mounted) return;
+    setState(() => showHeart = true);
     await Future<void>.delayed(const Duration(milliseconds: 650));
     if (mounted) setState(() => showHeart = false);
   }
 
   Future<void> saveCollections() async {
-    if (widget.authorId.isNotEmpty && widget.authorId == UserService.cachedUserId) {
+    if (widget.authorId.isNotEmpty &&
+        widget.authorId == UserService.cachedUserId) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You dont need to save your own posts')),
+        const SnackBar(
+          content: Text('Your own posts are already in your profile'),
+        ),
       );
       return;
     }
-
-    await PostService().savePost(widget.postId);
-
-    setState(() {
-      if (saved) {
-        SocialStore.instance.savedPosts.remove(postId);
-      } else {
-        SocialStore.instance.savedPosts.add(postId);
-      }
-    });
+    if (interacting) return;
+    interacting = true;
+    try {
+      await PostService().savePost(postId);
+      if (!mounted) return;
+      setState(() {
+        if (saved) {
+          SocialStore.instance.savedPosts.remove(postId);
+        } else {
+          SocialStore.instance.savedPosts.add(postId);
+        }
+      });
+    } catch (e) {
+      _interactionError(e);
+    } finally {
+      interacting = false;
+    }
   }
 
   String count(String value, int extra) {
@@ -129,12 +161,22 @@ class _FeedPostCardState extends State<FeedPostCard> {
     );
   }
 
-  void submitComment() {
-    if (comment.text.trim().isEmpty) return;
-    setState(() {
-      addedComments.add(comment.text.trim());
-      comment.clear();
-    });
+  Future<void> submitComment() async {
+    final text = comment.text.trim();
+    if (text.isEmpty || interacting) return;
+    interacting = true;
+    try {
+      await PostService().commentPost(postId, text);
+      if (!mounted) return;
+      setState(() {
+        addedComments.add(text);
+        comment.clear();
+      });
+    } catch (e) {
+      _interactionError(e);
+    } finally {
+      interacting = false;
+    }
   }
 
   Future<void> openComments() async {
@@ -147,9 +189,9 @@ class _FeedPostCardState extends State<FeedPostCard> {
       builder: (_) => PostCommentsSheet(
         backendComments: widget.postComments,
         comments: addedComments,
-        onSend: (text) {
-          setState(() => addedComments.add(text));
-          PostService().commentPost(widget.postId, text);
+        onSend: (text) async {
+          await PostService().commentPost(widget.postId, text);
+          if (mounted) setState(() => addedComments.add(text));
         },
       ),
     );
@@ -416,7 +458,11 @@ class _FeedPostCardState extends State<FeedPostCard> {
                   ],
                 ),
                 Text(
-                  '${count(widget.likes, (initiallyLiked && !liked) ? -1 : (!initiallyLiked && liked) ? 1 : 0)} Likes · ${widget.commentsDisabled ? 'Comments off' : '${count(widget.comments, addedComments.length)} Comments'}',
+                  '${count(widget.likes, (initiallyLiked && !liked)
+                      ? -1
+                      : (!initiallyLiked && liked)
+                      ? 1
+                      : 0)} Likes · ${widget.commentsDisabled ? 'Comments off' : '${count(widget.comments, addedComments.length)} Comments'}',
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
@@ -517,12 +563,20 @@ class _FeedPostCardState extends State<FeedPostCard> {
                     children: [
                       CircleAvatar(
                         radius: 16,
-                        backgroundImage: UserService.cachedPhotoUrl != null && UserService.cachedPhotoUrl!.startsWith('http')
+                        backgroundImage:
+                            UserService.cachedPhotoUrl != null &&
+                                UserService.cachedPhotoUrl!.startsWith('http')
                             ? NetworkImage(UserService.cachedPhotoUrl!)
                             : null,
-                        child: UserService.cachedPhotoUrl != null && UserService.cachedPhotoUrl!.startsWith('http')
+                        child:
+                            UserService.cachedPhotoUrl != null &&
+                                UserService.cachedPhotoUrl!.startsWith('http')
                             ? null
-                            : const Icon(Icons.person, size: 20, color: Colors.grey),
+                            : const Icon(
+                                Icons.person,
+                                size: 20,
+                                color: Colors.grey,
+                              ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(

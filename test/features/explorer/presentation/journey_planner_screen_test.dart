@@ -80,7 +80,7 @@ void main() {
   );
 
   testWidgets(
-    'selected API place supplies itinerary metadata and missing image fallback',
+    'selected API place supplies itinerary metadata without a decorative image',
     (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -93,7 +93,7 @@ void main() {
       await scrollTo(tester, find.text(museum.description!));
       expect(find.text(museum.category), findsOneWidget);
       expect(find.text(museum.subtitle), findsOneWidget);
-      expect(find.byIcon(Icons.account_balance), findsOneWidget);
+      expect(find.byIcon(Icons.account_balance), findsNothing);
       expect(find.byType(Image), findsNothing);
       await tester.tap(find.byTooltip('Remove ${museum.name}'));
       await tester.pumpAndSettle();
