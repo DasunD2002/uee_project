@@ -208,20 +208,17 @@ class _LoginScreenState extends State<LoginScreen> {
                           onPressed: () async {
                             setState(() => _isLoading = true);
                             final error = await _authService.loginWithGoogle();
+                            if (!context.mounted) return;
                             setState(() => _isLoading = false);
                             if (error == null) {
-                              if (mounted) {
-                                Navigator.pushReplacementNamed(context, '/home');
-                              }
+                              Navigator.pushReplacementNamed(context, '/home');
                             } else {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(error),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
-                              }
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(error),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
                             }
                           },
                         ),

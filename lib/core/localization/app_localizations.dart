@@ -484,6 +484,468 @@ class AppLocalizations {
     AppLanguage.tamil => 'அனைத்து அறிவிப்புகளும் படித்ததாகக் குறிக்கப்பட்டன',
     AppLanguage.english => 'All notifications marked as read',
   };
+
+  // ---------------------------------------------------------------------------
+  // Explore Section
+  // ---------------------------------------------------------------------------
+  String get exploreTitle => switch (language) {
+    AppLanguage.sinhala => 'ස්ථාන ගවේෂණය',
+    AppLanguage.tamil => 'இடங்களை ஆராய்க',
+    AppLanguage.english => 'Explore Places',
+  };
+
+  String get exploreSearchHint => switch (language) {
+    AppLanguage.sinhala => 'යුගය, කලාපය හෝ මූල පද අනුව සොයන්න...',
+    AppLanguage.tamil => 'காலம், பிராந்தியம் அல்லது முக்கிய சொல் மூலம் தேடுக...',
+    AppLanguage.english => 'Search places by era, region, or keyword...',
+  };
+
+  String get exploreRecommended => switch (language) {
+    AppLanguage.sinhala => 'ඔබ වෙනුවෙන් නිර්දේශිතයි',
+    AppLanguage.tamil => 'உங்களுக்காகப் பரிந்துரைக்கப்பட்டவை',
+    AppLanguage.english => 'Recommended for You',
+  };
+
+  String get exploreSearchResults => switch (language) {
+    AppLanguage.sinhala => 'සෙවුම් ප්‍රතිඵල',
+    AppLanguage.tamil => 'தேடல் முடிவுகள்',
+    AppLanguage.english => 'Search Results',
+  };
+
+  String get exploreJourneyBuilder => switch (language) {
+    AppLanguage.sinhala => 'සංචාර සැලසුම්කරු',
+    AppLanguage.tamil => 'பயணத் திட்டம்',
+    AppLanguage.english => 'Journey Builder',
+  };
+
+  String get categoryAll => switch (language) {
+    AppLanguage.sinhala => 'සියල්ල',
+    AppLanguage.tamil => 'அனைத்தும்',
+    AppLanguage.english => 'All',
+  };
+
+  String get categoryAncientRuins => switch (language) {
+    AppLanguage.sinhala => 'පුරාණ නටබුන්',
+    AppLanguage.tamil => 'பண்டைய இடிபாடுகள்',
+    AppLanguage.english => 'Ancient Ruins',
+  };
+
+  String get categorySacredSites => switch (language) {
+    AppLanguage.sinhala => 'පූජනීය ස්ථාන',
+    AppLanguage.tamil => 'புனித தலங்கள்',
+    AppLanguage.english => 'Sacred Sites',
+  };
+
+  String get categoryMuseums => switch (language) {
+    AppLanguage.sinhala => 'කෞතුකාගාර',
+    AppLanguage.tamil => 'அருங்காட்சியகங்கள்',
+    AppLanguage.english => 'Museums',
+  };
+
+  String get categoryHeritageSites => switch (language) {
+    AppLanguage.sinhala => 'උරුම ස්ථාන',
+    AppLanguage.tamil => 'பாரம்பரிய தளங்கள்',
+    AppLanguage.english => 'Heritage Sites',
+  };
+
+  String explorePlacesCount(int count) => switch (language) {
+    AppLanguage.sinhala => 'ස්ථාන $count ක් ඇත',
+    AppLanguage.tamil => '$count இடங்கள் உள்ளன',
+    AppLanguage.english => '$count place${count == 1 ? '' : 's'}',
+  };
+
+  String get cachedData => switch (language) {
+    AppLanguage.sinhala => 'හැඹිලි දත්ත',
+    AppLanguage.tamil => 'தற்காலிக நினைவகத் தரவு',
+    AppLanguage.english => 'Cached data',
+  };
+
+  String get partialResults => switch (language) {
+    AppLanguage.sinhala => 'අසම්පූර්ණ ප්‍රතිඵල',
+    AppLanguage.tamil => 'பகுதி முடிவுகள்',
+    AppLanguage.english => 'Partial results',
+  };
+
+  String get planJourney => switch (language) {
+    AppLanguage.sinhala => 'ගමන සැලසුම් කරන්න',
+    AppLanguage.tamil => 'பயணத்தைத் திட்டமிடுங்கள்',
+    AppLanguage.english => 'Plan Journey',
+  };
+
+  String get overview => switch (language) {
+    AppLanguage.sinhala => 'දළ විශ්ලේෂණය',
+    AppLanguage.tamil => 'கண்ணோட்டம்',
+    AppLanguage.english => 'Overview',
+  };
+
+  String get historicalEra => switch (language) {
+    AppLanguage.sinhala => 'ඓතිහාසික යුගය',
+    AppLanguage.tamil => 'வரலாற்று காலம்',
+    AppLanguage.english => 'Historical Era',
+  };
+
+  String get location => switch (language) {
+    AppLanguage.sinhala => 'ස්ථානය',
+    AppLanguage.tamil => 'அமைவிடம்',
+    AppLanguage.english => 'Location',
+  };
+
+  // ---------------------------------------------------------------------------
+  // 3D Map Section
+  // ---------------------------------------------------------------------------
+  String get mapSectionTitle => switch (language) {
+    AppLanguage.sinhala => 'ත්‍රිමාණ සිතියමෙන් ගවේෂණය',
+    AppLanguage.tamil => '3D வரைபடத்துடன் ஆராய்க',
+    AppLanguage.english => 'Explore Things With 3D Map',
+  };
+
+  String get mapMode3D => switch (language) {
+    AppLanguage.sinhala => 'ත්‍රිමාණ දසුන',
+    AppLanguage.tamil => '3D பார்வை',
+    AppLanguage.english => '3D View',
+  };
+
+  String get mapMode2D => switch (language) {
+    AppLanguage.sinhala => 'ද්විමාණ සමතලා',
+    AppLanguage.tamil => '2D தட்டையான',
+    AppLanguage.english => '2D Flat',
+  };
+
+  String get mapDragHint => switch (language) {
+    AppLanguage.sinhala => 'භ්‍රමණය කිරීමට අදින්න • පළාතක් පරීක්ෂා කිරීමට තට්ටු කරන්න',
+    AppLanguage.tamil => 'சுழற்ற இழுக்கவும் • மாகாணத்தைத் தட்டவும்',
+    AppLanguage.english => 'Drag to rotate & tilt • Tap province to inspect',
+  };
+
+  String get mapResetView => switch (language) {
+    AppLanguage.sinhala => 'දසුන යළි පිහිටුවන්න',
+    AppLanguage.tamil => 'பார்வையை மீட்டமைக்க',
+    AppLanguage.english => 'Reset View',
+  };
+
+  String get mapExploreProvince => switch (language) {
+    AppLanguage.sinhala => 'පළාත ගවේෂණය කරන්න',
+    AppLanguage.tamil => 'மாகாணத்தை ஆராய்க',
+    AppLanguage.english => 'Explore Province',
+  };
+
+  String get tapProvinceToExplore => switch (language) {
+    AppLanguage.sinhala => 'ගවේෂණය කිරීමට පළාතක් තට්ටු කරන්න',
+    AppLanguage.tamil => 'ஆராய மாகாணத்தைத் தட்டவும்',
+    AppLanguage.english => 'Tap a province to explore',
+  };
+
+  String get historicalSites => switch (language) {
+    AppLanguage.sinhala => 'ඓතිහාසික ස්ථාන',
+    AppLanguage.tamil => 'வரலாற்று தளங்கள்',
+    AppLanguage.english => 'Historical Sites',
+  };
+
+  // ---------------------------------------------------------------------------
+  // Questions Section
+  // ---------------------------------------------------------------------------
+  String get questionsTitle => switch (language) {
+    AppLanguage.sinhala => 'ප්‍රශ්න සහ පිළිතුරු',
+    AppLanguage.tamil => 'கேள்வி பதில் மன்றம்',
+    AppLanguage.english => 'Q&A Forum',
+  };
+
+  String get askQuestionButton => switch (language) {
+    AppLanguage.sinhala => 'ප්‍රශ්නයක් අසන්න',
+    AppLanguage.tamil => 'கேள்வி கேளுங்கள்',
+    AppLanguage.english => 'Ask Question',
+  };
+
+  String get searchQuestionsHint => switch (language) {
+    AppLanguage.sinhala => 'ප්‍රශ්න හෝ මාතෘකා සොයන්න...',
+    AppLanguage.tamil => 'கேள்விகள் அல்லது தலைப்புகளைத் தேடுக...',
+    AppLanguage.english => 'Search questions or topics...',
+  };
+
+  String get tabAllQuestions => switch (language) {
+    AppLanguage.sinhala => 'සියල්ල',
+    AppLanguage.tamil => 'அனைத்தும்',
+    AppLanguage.english => 'All',
+  };
+
+  String get tabTopQuestions => switch (language) {
+    AppLanguage.sinhala => 'ප්‍රමුඛ',
+    AppLanguage.tamil => 'முதன்மை',
+    AppLanguage.english => 'Top',
+  };
+
+  String get tabUnanswered => switch (language) {
+    AppLanguage.sinhala => 'පිළිතුරු නැති',
+    AppLanguage.tamil => 'பதிலளிக்கப்படாதவை',
+    AppLanguage.english => 'Unanswered',
+  };
+
+  String get tabRecent => switch (language) {
+    AppLanguage.sinhala => 'නවතම',
+    AppLanguage.tamil => 'சமீபத்தியவை',
+    AppLanguage.english => 'Recent',
+  };
+
+  String answersCount(int count) => switch (language) {
+    AppLanguage.sinhala => 'පිළිතුරු $count',
+    AppLanguage.tamil => '$count பதில்கள்',
+    AppLanguage.english => '$count answer${count == 1 ? '' : 's'}',
+  };
+
+  String viewsCount(int count) => switch (language) {
+    AppLanguage.sinhala => 'නැරඹුම් $count',
+    AppLanguage.tamil => '$count பார்வைகள்',
+    AppLanguage.english => '$count view${count == 1 ? '' : 's'}',
+  };
+
+  String get writeYourAnswer => switch (language) {
+    AppLanguage.sinhala => 'ඔබේ පිළිතුර ලියන්න...',
+    AppLanguage.tamil => 'உங்கள் பதிலை எழுதுங்கள்...',
+    AppLanguage.english => 'Write your answer...',
+  };
+
+  String get submitAnswer => switch (language) {
+    AppLanguage.sinhala => 'පිළිතුර යොමු කරන්න',
+    AppLanguage.tamil => 'பதிலைச் சமர்ப்பிக்க',
+    AppLanguage.english => 'Submit Answer',
+  };
+
+  String get questionTitleLabel => switch (language) {
+    AppLanguage.sinhala => 'ප්‍රශ්නයේ මාතෘකාව',
+    AppLanguage.tamil => 'கேள்வியின் தலைப்பு',
+    AppLanguage.english => 'Question Title',
+  };
+
+  String get questionDetailsLabel => switch (language) {
+    AppLanguage.sinhala => 'විස්තරය',
+    AppLanguage.tamil => 'விவரங்கள்',
+    AppLanguage.english => 'Details / Description',
+  };
+
+  String get questionCategoryLabel => switch (language) {
+    AppLanguage.sinhala => 'ප්‍රවර්ගය',
+    AppLanguage.tamil => 'வகை',
+    AppLanguage.english => 'Category',
+  };
+
+  String get postQuestionButton => switch (language) {
+    AppLanguage.sinhala => 'ප්‍රශ්නය පළ කරන්න',
+    AppLanguage.tamil => 'கேள்வியைப் பதிவிடுக',
+    AppLanguage.english => 'Post Question',
+  };
+
+  String get noQuestionsFound => switch (language) {
+    AppLanguage.sinhala => 'ප්‍රශ්න කිසිවක් හමු නොවීය',
+    AppLanguage.tamil => 'கேள்விகள் எதுவும் கிடைக்கவில்லை',
+    AppLanguage.english => 'No questions found',
+  };
+
+  String get noQuestionsSubtitle => switch (language) {
+    AppLanguage.sinhala => 'වෙනත් සෙවුමක් උත්සාහ කරන්න හෝ නව ප්‍රශ්නයක් අසන්න.',
+    AppLanguage.tamil => 'வேறொரு தேடலை முயற்சிக்கவும் அல்லது புதிய கேள்வியைத் தொடங்கவும்.',
+    AppLanguage.english => 'Try another search or start a new thread.',
+  };
+
+  String get askCommunitySubtitle => switch (language) {
+    AppLanguage.sinhala => 'මෙම ස්ථාන හොඳින් දන්නා අයගෙන් අසන්න',
+    AppLanguage.tamil => 'இந்த இடங்களை அறிந்தவர்களிடம் கேளுங்கள்',
+    AppLanguage.english => 'Ask the people who know these places',
+  };
+
+  String get categoryRituals => switch (language) {
+    AppLanguage.sinhala => 'චාරිත්‍ර හා ආචාරධර්ම',
+    AppLanguage.tamil => 'சடங்குகள் & நடத்தை',
+    AppLanguage.english => 'Rituals & Etiquette',
+  };
+
+  String get categoryArchitecture => switch (language) {
+    AppLanguage.sinhala => 'ගෘහ නිර්මාණ ශිල්පය',
+    AppLanguage.tamil => 'கட்டிடக்கலை',
+    AppLanguage.english => 'Architecture',
+  };
+
+  String get categoryLanguage => switch (language) {
+    AppLanguage.sinhala => 'භාෂාව',
+    AppLanguage.tamil => 'மொழி',
+    AppLanguage.english => 'Language',
+  };
+
+  String get categoryHistory => switch (language) {
+    AppLanguage.sinhala => 'ඉතිහාසය',
+    AppLanguage.tamil => 'வரலாறு',
+    AppLanguage.english => 'History',
+  };
+
+  String get categoryCrafts => switch (language) {
+    AppLanguage.sinhala => 'අත්කම්',
+    AppLanguage.tamil => 'கைவினைப்பொருட்கள்',
+    AppLanguage.english => 'Crafts',
+  };
+
+  String get categoryGettingThere => switch (language) {
+    AppLanguage.sinhala => 'ළඟාවීම',
+    AppLanguage.tamil => 'சென்றடைவது எப்படி',
+    AppLanguage.english => 'Getting There',
+  };
+
+  String get categoryFolklore => switch (language) {
+    AppLanguage.sinhala => 'ජනප්‍රවාද',
+    AppLanguage.tamil => 'நாட்டுப்புறக் கதைகள்',
+    AppLanguage.english => 'Folklore',
+  };
+
+  String get verifiedBadge => switch (language) {
+    AppLanguage.sinhala => 'තහවුරු කළ',
+    AppLanguage.tamil => 'சரிபார்க்கப்பட்டது',
+    AppLanguage.english => 'Verified',
+  };
+
+  String threadsCount(int count) => switch (language) {
+    AppLanguage.sinhala => 'මාතෘකා $count',
+    AppLanguage.tamil => '$count தலைப்புகள்',
+    AppLanguage.english => '$count thread${count == 1 ? '' : 's'}',
+  };
+
+  // ---------------------------------------------------------------------------
+  // Time Capsule Section
+  // ---------------------------------------------------------------------------
+  String get capsuleSectionTitle => switch (language) {
+    AppLanguage.sinhala => 'කාල කරලිය',
+    AppLanguage.tamil => 'நேர காப்ஸ்யூல்',
+    AppLanguage.english => 'Time Capsule',
+  };
+
+  String get capsuleHeroTitle => switch (language) {
+    AppLanguage.sinhala => 'ඔබේ කථාන්දර,\nසුරැකිව තබා ඇත.',
+    AppLanguage.tamil => 'உங்கள் கதைகள்,\nஅழகாகப் பாதுகாக்கப்படுகின்றன.',
+    AppLanguage.english => 'Your stories,\nbeautifully kept.',
+  };
+
+  String get capsuleHeroSubtitle => switch (language) {
+    AppLanguage.sinhala => 'ආයුබෝවන් · ඔබේ උරුම සුරක්ෂිතාගාරය',
+    AppLanguage.tamil => 'வணக்கம் · உங்கள் பாரம்பரிய பெட்டகம்',
+    AppLanguage.english => 'Ayubowan · your legacy vault',
+  };
+
+  String get statCapsules => switch (language) {
+    AppLanguage.sinhala => 'කරල්',
+    AppLanguage.tamil => 'காப்ஸ்யூல்கள்',
+    AppLanguage.english => 'Capsules',
+  };
+
+  String get statMemories => switch (language) {
+    AppLanguage.sinhala => 'මතකයන්',
+    AppLanguage.tamil => 'நினைவுகள்',
+    AppLanguage.english => 'Memories',
+  };
+
+  String get statContributors => switch (language) {
+    AppLanguage.sinhala => 'දායකයන්',
+    AppLanguage.tamil => 'பங்களிப்பாளர்கள்',
+    AppLanguage.english => 'Contributors',
+  };
+
+  String get statProtected => switch (language) {
+    AppLanguage.sinhala => 'ආරක්ෂිතයි',
+    AppLanguage.tamil => 'பாதுகாக்கப்பட்டது',
+    AppLanguage.english => 'Protected',
+  };
+
+  String get plantCapsulePrompt => switch (language) {
+    AppLanguage.sinhala => 'නව කරලක් තැන්පත් කරන්න',
+    AppLanguage.tamil => 'புதிய காப்ஸ்யூலை நடவும்',
+    AppLanguage.english => 'Plant a new capsule',
+  };
+
+  String get plantCapsuleSubtitle => switch (language) {
+    AppLanguage.sinhala => 'අනාගතය සඳහා වටිනා ඡායාරූප, ශ්‍රව්‍ය සහ මතකයන් සුරක්ෂිත කරන්න.',
+    AppLanguage.tamil => 'எதிர்காலத்திற்காக புகைப்படங்கள், ஆடியோ மற்றும் நினைவுகளைப் பாதுகாக்கவும்.',
+    AppLanguage.english => 'Seal precious photos, audio, and memories for the future.',
+  };
+
+  String get yourTimeCapsules => switch (language) {
+    AppLanguage.sinhala => 'ඔබගේ කාල කරල්',
+    AppLanguage.tamil => 'உங்கள் நேர காப்ஸ்யூல்கள்',
+    AppLanguage.english => 'YOUR TIME CAPSULES',
+  };
+
+  String get createCapsuleTitle => switch (language) {
+    AppLanguage.sinhala => 'කාල කරලක් සාදන්න',
+    AppLanguage.tamil => 'நேர காப்ஸ்யூலை உருவாக்கவும்',
+    AppLanguage.english => 'Create Time Capsule',
+  };
+
+  String get capsuleNameLabel => switch (language) {
+    AppLanguage.sinhala => 'කරලෙහි මාතෘකාව',
+    AppLanguage.tamil => 'காப்ஸ்யூல் தலைப்பு',
+    AppLanguage.english => 'Capsule Title',
+  };
+
+  String get capsuleDescLabel => switch (language) {
+    AppLanguage.sinhala => 'විස්තරය',
+    AppLanguage.tamil => 'விவரம்',
+    AppLanguage.english => 'Description',
+  };
+
+  String get unlockDateLabel => switch (language) {
+    AppLanguage.sinhala => 'විවෘත කරන දිනය',
+    AppLanguage.tamil => 'திறக்கும் தேதி',
+    AppLanguage.english => 'Unlock Date',
+  };
+
+  String get beneficiaryLabel => switch (language) {
+    AppLanguage.sinhala => 'ප්‍රතිලාභියා / ලබන්නා',
+    AppLanguage.tamil => 'பயனாளி / பெறுநர்',
+    AppLanguage.english => 'Beneficiary / Recipient',
+  };
+
+  String get createCapsuleButton => switch (language) {
+    AppLanguage.sinhala => 'මුද්‍රා තබා සාදන්න',
+    AppLanguage.tamil => 'முத்திரையிட்டு உருவாக்கு',
+    AppLanguage.english => 'Seal & Create Capsule',
+  };
+
+  String get addMemory => switch (language) {
+    AppLanguage.sinhala => 'මතකයක් එක් කරන්න',
+    AppLanguage.tamil => 'நினைவைச் சேர்க்க',
+    AppLanguage.english => 'Add Memory',
+  };
+
+  String get familyReceiptTitle => switch (language) {
+    AppLanguage.sinhala => 'පවුලේ සුරක්ෂිතාගාර රිසිට්පත',
+    AppLanguage.tamil => 'குடும்ப பெட்டக ரசீது',
+    AppLanguage.english => 'Family Vault Receipt',
+  };
+
+  String get familyMemoriesTitle => switch (language) {
+    AppLanguage.sinhala => 'පවුලේ මතකයන්',
+    AppLanguage.tamil => 'குடும்ப நினைவுகள்',
+    AppLanguage.english => 'Family Memories',
+  };
+
+  String get mediaPhotos => switch (language) {
+    AppLanguage.sinhala => 'ඡායාරූප',
+    AppLanguage.tamil => 'புகைப்படங்கள்',
+    AppLanguage.english => 'Photos',
+  };
+
+  String get mediaAudio => switch (language) {
+    AppLanguage.sinhala => 'හඬ සටහන්',
+    AppLanguage.tamil => 'குரல் குறிப்புகள்',
+    AppLanguage.english => 'Voice Notes',
+  };
+
+  String get mediaLetters => switch (language) {
+    AppLanguage.sinhala => 'ලිපි',
+    AppLanguage.tamil => 'கடிதங்கள்',
+    AppLanguage.english => 'Letters',
+  };
+
+  String get mediaVideos => switch (language) {
+    AppLanguage.sinhala => 'වීඩියෝ',
+    AppLanguage.tamil => 'வீடியோக்கள்',
+    AppLanguage.english => 'Videos',
+  };
 }
 
 class _AppLocalizationsScope extends InheritedWidget {
@@ -516,4 +978,8 @@ class AppLocalizationsProvider extends StatelessWidget {
       child: child,
     );
   }
+}
+
+extension AppLocalizationsX on BuildContext {
+  AppLocalizations get l10n => AppLocalizations.of(this);
 }

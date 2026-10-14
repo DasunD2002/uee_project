@@ -131,6 +131,76 @@ void main() {
       expect(si.followingLabel, 'අනුගමනය කරන');
       expect(ta.followingLabel, 'பின்தொடர்பவை');
     });
+
+    test('Explore and 3D Map translations for English, Sinhala, and Tamil', () {
+      final en = AppLocalizations.current(AppLanguage.english);
+      final si = AppLocalizations.current(AppLanguage.sinhala);
+      final ta = AppLocalizations.current(AppLanguage.tamil);
+
+      expect(en.exploreTitle, 'Explore Places');
+      expect(si.exploreTitle, 'ස්ථාන ගවේෂණය');
+      expect(ta.exploreTitle, 'இடங்களை ஆராய்க');
+
+      expect(en.mapMode3D, '3D View');
+      expect(si.mapMode3D, 'ත්‍රිමාණ දසුන');
+      expect(ta.mapMode3D, '3D பார்வை');
+
+      expect(en.mapMode2D, '2D Flat');
+      expect(si.mapMode2D, 'ද්විමාණ සමතලා');
+      expect(ta.mapMode2D, '2D தட்டையான');
+
+      expect(en.mapExploreProvince, 'Explore Province');
+      expect(si.mapExploreProvince, 'පළාත ගවේෂණය කරන්න');
+      expect(ta.mapExploreProvince, 'மாகாணத்தை ஆராய்க');
+    });
+
+    test('Questions section translations for English, Sinhala, and Tamil', () {
+      final en = AppLocalizations.current(AppLanguage.english);
+      final si = AppLocalizations.current(AppLanguage.sinhala);
+      final ta = AppLocalizations.current(AppLanguage.tamil);
+
+      expect(en.questionsTitle, 'Q&A Forum');
+      expect(si.questionsTitle, 'ප්‍රශ්න සහ පිළිතුරු');
+      expect(ta.questionsTitle, 'கேள்வி பதில் மன்றம்');
+
+      expect(en.askQuestionButton, 'Ask Question');
+      expect(si.askQuestionButton, 'ප්‍රශ්නයක් අසන්න');
+      expect(ta.askQuestionButton, 'கேள்வி கேளுங்கள்');
+
+      expect(en.tabAllQuestions, 'All');
+      expect(si.tabAllQuestions, 'සියල්ල');
+      expect(ta.tabAllQuestions, 'அனைத்தும்');
+
+      expect(en.tabTopQuestions, 'Top');
+      expect(si.tabTopQuestions, 'ප්‍රමුඛ');
+      expect(ta.tabTopQuestions, 'முதன்மை');
+
+      expect(en.tabUnanswered, 'Unanswered');
+      expect(si.tabUnanswered, 'පිළිතුරු නැති');
+      expect(ta.tabUnanswered, 'பதிலளிக்கப்படாதவை');
+    });
+
+    test('Capsule section translations for English, Sinhala, and Tamil', () {
+      final en = AppLocalizations.current(AppLanguage.english);
+      final si = AppLocalizations.current(AppLanguage.sinhala);
+      final ta = AppLocalizations.current(AppLanguage.tamil);
+
+      expect(en.capsuleSectionTitle, 'Time Capsule');
+      expect(si.capsuleSectionTitle, 'කාල කරලිය');
+      expect(ta.capsuleSectionTitle, 'நேர காப்ஸ்யூல்');
+
+      expect(en.statCapsules, 'Capsules');
+      expect(si.statCapsules, 'කරල්');
+      expect(ta.statCapsules, 'காப்ஸ்யூல்கள்');
+
+      expect(en.createCapsuleTitle, 'Create Time Capsule');
+      expect(si.createCapsuleTitle, 'කාල කරලක් සාදන්න');
+      expect(ta.createCapsuleTitle, 'நேர காப்ஸ்யூலை உருவாக்கவும்');
+
+      expect(en.addMemory, 'Add Memory');
+      expect(si.addMemory, 'මතකයක් එක් කරන්න');
+      expect(ta.addMemory, 'நினைவைச் சேர்க்க');
+    });
   });
 
   group('Widget Tests for Language Switching', () {

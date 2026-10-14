@@ -76,7 +76,6 @@ class _CapsuleScreenState extends State<CapsuleScreen> {
         title: const Text(
           'Rootly',
           style: TextStyle(
-            fontFamily: 'serif',
             fontSize: 26,
             fontWeight: FontWeight.w700,
             color: _kBrown,
@@ -117,9 +116,9 @@ class _CapsuleScreenState extends State<CapsuleScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ── Hero greeting ─────────────────────────────────────────────
-            const Text(
-              'Your stories,\nbeautifully kept.',
-              style: TextStyle(
+            Text(
+              l10n.capsuleHeroTitle,
+              style: const TextStyle(
                 color: _kDeep,
                 fontSize: 31,
                 height: .97,
@@ -128,11 +127,10 @@ class _CapsuleScreenState extends State<CapsuleScreen> {
               ),
             ),
             const SizedBox(height: 6),
-            const Text(
-              'Ayubowan, Kumari  ·  your legacy vault',
-              style: TextStyle(
+            Text(
+              l10n.capsuleHeroSubtitle,
+              style: const TextStyle(
                 color: _kMuted,
-                fontFamily: 'serif',
                 fontSize: 12.5,
               ),
             ),
@@ -152,9 +150,9 @@ class _CapsuleScreenState extends State<CapsuleScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'YOUR TIME CAPSULES',
-                  style: TextStyle(
+                Text(
+                  l10n.yourTimeCapsules,
+                  style: const TextStyle(
                     color: Color(0xFF574640),
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
@@ -173,9 +171,9 @@ class _CapsuleScreenState extends State<CapsuleScreen> {
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: const Color(0xFFDDB69E)),
                     ),
-                    child: const Text(
-                      '1 protected',
-                      style: TextStyle(
+                    child: Text(
+                      '1 ${l10n.statProtected.toLowerCase()}',
+                      style: const TextStyle(
                         color: _kBrown,
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
@@ -211,30 +209,33 @@ class _StatRow extends StatelessWidget {
   final int capsuleCount;
 
   @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      _StatChip(
-        icon: Icons.lock_clock_outlined,
-        value: capsuleCount.toString().padLeft(2, '0'),
-        label: 'Capsules',
-        bg: const Color(0xFFFFECDE),
-      ),
-      const SizedBox(width: 10),
-      _StatChip(
-        icon: Icons.favorite_border_rounded,
-        value: '12',
-        label: 'Memories',
-        bg: const Color(0xFFE4EFEA),
-      ),
-      const SizedBox(width: 10),
-      _StatChip(
-        icon: Icons.calendar_month_outlined,
-        value: '24',
-        label: 'Months left',
-        bg: const Color(0xFFF0EBF8),
-      ),
-    ],
-  );
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Row(
+      children: [
+        _StatChip(
+          icon: Icons.lock_clock_outlined,
+          value: capsuleCount.toString().padLeft(2, '0'),
+          label: l10n.statCapsules,
+          bg: const Color(0xFFFFECDE),
+        ),
+        const SizedBox(width: 10),
+        _StatChip(
+          icon: Icons.favorite_border_rounded,
+          value: '12',
+          label: l10n.statMemories,
+          bg: const Color(0xFFE4EFEA),
+        ),
+        const SizedBox(width: 10),
+        _StatChip(
+          icon: Icons.people_outline_rounded,
+          value: '04',
+          label: l10n.statContributors,
+          bg: const Color(0xFFF0EBF8),
+        ),
+      ],
+    );
+  }
 }
 
 class _StatChip extends StatelessWidget {
@@ -292,6 +293,7 @@ class _EmptyStateHint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -313,22 +315,24 @@ class _EmptyStateHint extends StatelessWidget {
               child: const Icon(Icons.add_rounded, color: _kBrown, size: 20),
             ),
             const SizedBox(width: 13),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Start another capsule',
-                    style: TextStyle(
+                    l10n.plantCapsulePrompt,
+                    style: const TextStyle(
                       color: _kDeep,
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  SizedBox(height: 2),
+                  const SizedBox(height: 2),
                   Text(
-                    'Preserve a new story for the future',
-                    style: TextStyle(color: _kMuted, fontSize: 11),
+                    l10n.plantCapsuleSubtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: _kMuted, fontSize: 11),
                   ),
                 ],
               ),

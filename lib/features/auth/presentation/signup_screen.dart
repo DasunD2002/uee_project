@@ -197,21 +197,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       final error = await _authService.loginWithGoogle(
                         languages: language != null ? [language!] : null,
                       );
+                      if (!context.mounted) return;
                       setState(() => _isLoading = false);
                       if (error == null) {
-                        if (mounted) {
-                          // Google users skip OTP — email already verified by Google
-                          Navigator.pushReplacementNamed(context, '/home');
-                        }
+                        // Google users skip OTP — email already verified by Google
+                        Navigator.pushReplacementNamed(context, '/home');
                       } else {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(error),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(error),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
                       }
                     },
                   ),

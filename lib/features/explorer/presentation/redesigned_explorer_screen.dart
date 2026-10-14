@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/localization/app_language_provider.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../data/places_repository.dart';
 import '../domain/explore_category.dart';
@@ -153,111 +155,120 @@ class _RedesignedExplorerScreenState extends State<RedesignedExplorerScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => SafeArea(
-    child: RefreshIndicator(
-      onRefresh: () => _loadPlaces(),
-      child: CustomScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        slivers: [
-          SliverAppBar(
-            pinned: true,
-            backgroundColor: const Color(0xFFFFEAEA),
-            foregroundColor: AppColors.brown,
-            centerTitle: true,
-            leading: IconButton(
-              onPressed: widget.onOpenDrawer,
-              icon: const Icon(Icons.menu, size: 20),
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return SafeArea(
+      child: RefreshIndicator(
+        onRefresh: () => _loadPlaces(),
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverAppBar(
+              pinned: true,
+              backgroundColor: const Color(0xFFFFEAEA),
+              foregroundColor: AppColors.brown,
+              centerTitle: true,
+              leading: IconButton(
+                tooltip: l10n.openMenuTooltip,
+                onPressed: widget.onOpenDrawer,
+                icon: const Icon(Icons.menu, size: 20),
+              ),
+              title: const Text(
+                'Rootly',
+                style: TextStyle(
+                  fontFamily: 'serif',
+                  fontWeight: FontWeight.bold,
+                  fontSize: 24,
+                ),
+              ),
+              actions: [
+                IconButton(
+                  tooltip: l10n.switchLanguageTooltip,
+                  onPressed: () => AppLanguageProvider.instance.showLanguageDialog(context),
+                  icon: const Icon(Icons.language, size: 20),
+                ),
+                IconButton(
+                  tooltip: l10n.exploreJourneyBuilder,
+                  onPressed: () => Navigator.pushNamed(context, '/journey'),
+                  icon: const Icon(Icons.route_outlined, size: 20),
+                ),
+                IconButton(
+                  tooltip: l10n.notificationsTooltip,
+                  onPressed: () => Navigator.pushNamed(context, '/notifications'),
+                  icon: const Icon(Icons.notifications_none, size: 20),
+                ),
+              ],
             ),
-            title: const Text(
-              'Rootly',
-              style: TextStyle(
-                fontFamily: 'serif',
-                fontWeight: FontWeight.bold,
-                fontSize: 24,
-              ),
-            ),
-            actions: [
-              IconButton(
-                tooltip: 'Journey Builder',
-                onPressed: () => Navigator.pushNamed(context, '/journey'),
-                icon: const Icon(Icons.route_outlined, size: 20),
-              ),
-              IconButton(
-                tooltip: 'Notifications',
-                onPressed: () => Navigator.pushNamed(context, '/notifications'),
-                icon: const Icon(Icons.notifications_none, size: 20),
-              ),
-            ],
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 20),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate.fixed([
-                _ExplorerSearch(
-                  controller: _searchController,
-                  onSubmitted: _submit,
-                ),
-                const SizedBox(height: 10),
-                _CategoryRow(
-                  categories: _categories,
-                  selectedId: _selectedCategory,
-                  loading: _loadingCategories,
-                  onSelected: _selectCategory,
-                ),
-                const SizedBox(height: 18),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _searchController.text.trim().isEmpty
-                            ? 'Recommended for You'
-                            : 'Search Results',
-                        style: const TextStyle(
-                          color: AppColors.brown,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    if (!_loading && _errorMessage == null)
-                      Text(
-                        '$_total place${_total == 1 ? '' : 's'}',
-                        style: const TextStyle(
-                          color: Colors.black54,
-                          fontSize: 10,
-                        ),
-                      ),
-                  ],
-                ),
-                if (_source.isNotEmpty && !_loading) ...[
-                  const SizedBox(height: 4),
-                  Wrap(
-                    spacing: 6,
-                    crossAxisAlignment: WrapCrossAlignment.center,
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 20),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate.fixed([
+                  _ExplorerSearch(
+                    controller: _searchController,
+                    onSubmitted: _submit,
+                  ),
+                  const SizedBox(height: 10),
+                  _CategoryRow(
+                    categories: _categories,
+                    selectedId: _selectedCategory,
+                    loading: _loadingCategories,
+                    onSelected: _selectCategory,
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(
-                        'Source: $_source',
-                        style: const TextStyle(
-                          color: Colors.black54,
-                          fontSize: 10,
+                      Expanded(
+                        child: Text(
+                          _searchController.text.trim().isEmpty
+                              ? l10n.exploreRecommended
+                              : l10n.exploreSearchResults,
+                          style: const TextStyle(
+                            color: AppColors.brown,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
-                      if (_stale) const _StatusChip(label: 'Cached data'),
-                      if (_truncated)
-                        const _StatusChip(label: 'Partial results'),
+                      if (!_loading && _errorMessage == null)
+                        Text(
+                          l10n.explorePlacesCount(_total),
+                          style: const TextStyle(
+                            color: Colors.black54,
+                            fontSize: 10,
+                          ),
+                        ),
                     ],
                   ),
-                ],
-                const SizedBox(height: 10),
-                _buildResults(),
-              ]),
+                  if (_source.isNotEmpty && !_loading) ...[
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          'Source: $_source',
+                          style: const TextStyle(
+                            color: Colors.black54,
+                            fontSize: 10,
+                          ),
+                        ),
+                        if (_stale) _StatusChip(label: l10n.cachedData),
+                        if (_truncated)
+                          _StatusChip(label: l10n.partialResults),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 10),
+                  _buildResults(),
+                ]),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   Widget _buildResults() {
     if (_loading && _places.isEmpty) {
@@ -319,61 +330,64 @@ class _ExplorerSearch extends StatelessWidget {
   final ValueChanged<String> onSubmitted;
 
   @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      Expanded(
-        child: SizedBox(
-          height: 42,
-          child: TextField(
-            controller: controller,
-            onSubmitted: onSubmitted,
-            textInputAction: TextInputAction.search,
-            maxLength: 120,
-            decoration: InputDecoration(
-              counterText: '',
-              hintText: 'Search places...',
-              hintStyle: const TextStyle(fontSize: 11),
-              prefixIcon: const Icon(Icons.search, size: 17),
-              suffixIcon: IconButton(
-                onPressed: () => onSubmitted(controller.text),
-                icon: const Icon(Icons.arrow_forward, size: 17),
-                tooltip: 'Search',
-              ),
-              filled: true,
-              fillColor: const Color(0xFFF0EEEE),
-              contentPadding: EdgeInsets.zero,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(20),
-                borderSide: BorderSide.none,
-              ),
-            ),
-          ),
-        ),
-      ),
-      const SizedBox(width: 7),
-      Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(7),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(7),
-          onTap: () => onSubmitted(controller.text),
-          child: Container(
-            width: 40,
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Row(
+      children: [
+        Expanded(
+          child: SizedBox(
             height: 40,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(7),
-              border: Border.all(color: const Color(0xFFE8E1DE)),
-            ),
-            child: const Icon(
-              Icons.filter_alt_outlined,
-              size: 18,
-              color: AppColors.brown,
+            child: TextField(
+              controller: controller,
+              onSubmitted: onSubmitted,
+              textInputAction: TextInputAction.search,
+              maxLength: 120,
+              decoration: InputDecoration(
+                counterText: '',
+                hintText: l10n.exploreSearchHint,
+                hintStyle: const TextStyle(fontSize: 11),
+                prefixIcon: const Icon(Icons.search, size: 17),
+                suffixIcon: IconButton(
+                  onPressed: () => onSubmitted(controller.text),
+                  icon: const Icon(Icons.arrow_forward, size: 17),
+                  tooltip: 'Search',
+                ),
+                filled: true,
+                fillColor: const Color(0xFFF0EEEE),
+                contentPadding: EdgeInsets.zero,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  borderSide: BorderSide.none,
+                ),
+              ),
             ),
           ),
         ),
-      ),
-    ],
-  );
+        const SizedBox(width: 7),
+        Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(7),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(7),
+            onTap: () => onSubmitted(controller.text),
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(7),
+                border: Border.all(color: const Color(0xFFE8E1DE)),
+              ),
+              child: const Icon(
+                Icons.filter_alt_outlined,
+                size: 18,
+                color: AppColors.brown,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _CategoryRow extends StatelessWidget {
@@ -389,8 +403,20 @@ class _CategoryRow extends StatelessWidget {
   final bool loading;
   final ValueChanged<String> onSelected;
 
+  String _labelFor(AppLocalizations l10n, String id, String fallback) {
+    return switch (id) {
+      'all' => l10n.categoryAll,
+      'ancient-ruins' => l10n.categoryAncientRuins,
+      'sacred-sites' => l10n.categorySacredSites,
+      'museums' => l10n.categoryMuseums,
+      'heritage-sites' => l10n.categoryHeritageSites,
+      _ => fallback,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final items = [
       const ExploreCategory(id: 'all', label: 'All'),
       ...categories.where((category) => category.id != 'all'),
@@ -406,7 +432,7 @@ class _CategoryRow extends StatelessWidget {
               child: ChoiceChip(
                 selected: selectedId == category.id,
                 label: Text(
-                  category.label,
+                  _labelFor(l10n, category.id, category.label),
                   style: const TextStyle(fontSize: 9),
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 4),

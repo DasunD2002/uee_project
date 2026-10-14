@@ -45,7 +45,6 @@ class QuestionAppBar extends StatelessWidget implements PreferredSizeWidget {
       title: const Text(
         'Rootly',
         style: TextStyle(
-          fontFamily: 'serif',
           fontSize: 27,
           fontWeight: FontWeight.w700,
         ),

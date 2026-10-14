@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
+import '../../../core/localization/app_language_provider.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../core/navigation/primary_navigation.dart';
 import '../data/places_repository.dart';
 import '../domain/place.dart';
@@ -120,12 +122,16 @@ class _ExplorerScreenState extends State<ExplorerScreen> {
           title: const Text(
             'Rootly',
             style: TextStyle(
-              fontFamily: 'serif',
               fontWeight: FontWeight.bold,
               fontSize: 24,
             ),
           ),
           actions: [
+            IconButton(
+              tooltip: context.l10n.selectLanguageTitle,
+              onPressed: () => AppLanguageProvider.instance.showLanguageDialog(context),
+              icon: const Icon(Icons.language, size: 20),
+            ),
             IconButton(
               onPressed: () => FocusScope.of(context).requestFocus(FocusNode()),
               icon: const Icon(Icons.search, size: 20),

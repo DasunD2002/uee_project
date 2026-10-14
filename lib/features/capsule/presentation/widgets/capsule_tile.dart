@@ -122,7 +122,6 @@ class _CapsuleTileState extends State<CapsuleTile>
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: _kDeep,
-                          fontFamily: 'serif',
                           fontSize: 14.5,
                           fontWeight: FontWeight.w700,
                         ),
