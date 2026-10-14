@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/app_colors.dart';
+import '../../../core/localization/app_language_provider.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../core/navigation/primary_navigation.dart';
 import '../../explorer/presentation/widgets/explorer_footer.dart';
 import '../../home/presentation/widgets/home_drawer.dart';
@@ -24,7 +25,10 @@ class CapsuleScreen extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
+    return Scaffold(
         backgroundColor: _kBg,
         drawer: const HomeDrawer(selectedSection: 'Time capsule'),
         appBar: AppBar(
@@ -46,14 +50,19 @@ class CapsuleScreen extends StatelessWidget {
           ),
           leading: Builder(
             builder: (context) => IconButton(
-              tooltip: 'Open menu',
+              tooltip: l10n.openMenuTooltip,
               icon: const Icon(Icons.menu_rounded, size: 21),
               onPressed: () => Scaffold.of(context).openDrawer(),
             ),
           ),
           actions: [
             IconButton(
-              tooltip: 'Notifications',
+              tooltip: l10n.switchLanguageTooltip,
+              onPressed: () => AppLanguageProvider.instance.showLanguageDialog(context),
+              icon: const Icon(Icons.language, size: 21),
+            ),
+            IconButton(
+              tooltip: l10n.notificationsTooltip,
               onPressed: () => Navigator.pushNamed(context, '/notifications'),
               icon: const Icon(Icons.notifications_none_rounded, size: 21),
             ),
@@ -156,6 +165,7 @@ class CapsuleScreen extends StatelessWidget {
           onSelected: (index) => _onNavSelected(context, index),
         ),
       );
+  }
 }
 
 // ── Stat chips ────────────────────────────────────────────────────────────────
