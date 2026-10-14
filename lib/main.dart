@@ -25,6 +25,10 @@ import 'features/questions/presentation/question_detail_screen.dart';
 import 'features/questions/presentation/questions_screen.dart';
 import 'features/notifications/presentation/notifications_screen.dart';
 import 'features/translations/presentation/translation_screen.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'core/localization/app_language.dart';
+import 'core/localization/app_language_provider.dart';
+import 'core/localization/app_localizations.dart';
 import 'features/quizzes/presentation/daily_quiz_screen.dart';
 import 'features/quizzes/presentation/quiz_home_screen.dart';
 
@@ -38,6 +42,7 @@ void main() async {
     publishableKey: ApiConstants.supabaseAnonKey,
   );
 
+  await AppLanguageProvider.instance.init();
   await NotificationService().init();
 
   runApp(const RootlyApp());
@@ -46,17 +51,32 @@ void main() async {
 class RootlyApp extends StatelessWidget {
   const RootlyApp({super.key});
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    title: 'Rootly',
-    debugShowCheckedModeBanner: false,
-    theme: ThemeData(
-      useMaterial3: true,
-      fontFamily: 'Arial',
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: AppColors.brown,
-        primary: AppColors.brown,
-      ),
-    ),
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: AppLanguageProvider.instance,
+    builder: (context, _) {
+      final languageProvider = AppLanguageProvider.instance;
+      return MaterialApp(
+        title: 'Rootly',
+        debugShowCheckedModeBanner: false,
+        locale: languageProvider.currentLocale,
+        supportedLocales: AppLanguage.values.map((l) => l.locale).toList(),
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        builder: (context, child) => AppLocalizationsProvider(
+          language: languageProvider.currentLanguage,
+          child: child!,
+        ),
+        theme: ThemeData(
+          useMaterial3: true,
+          fontFamily: 'Arial',
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: AppColors.brown,
+            primary: AppColors.brown,
+          ),
+        ),
     routes: {
       '/': (_) => const SplashScreen(),
       '/login': (_) => const LoginScreen(),
@@ -91,6 +111,8 @@ class RootlyApp extends StatelessWidget {
       '/translations': (_) => const TranslationScreen(),
       '/quizzes': (_) => const QuizHomeScreen(),
       '/daily-quiz': (_) => const DailyQuizScreen(),
+    },
+  );
     },
   );
 }

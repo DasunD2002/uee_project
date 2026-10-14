@@ -5,6 +5,7 @@ import '../../domain/profile_photo_service.dart';
 import '../../data/user_service.dart';
 
 import 'package:flutter/material.dart';
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/services/account_data_store.dart';
 import '../../../../core/theme/app_colors.dart';
 
@@ -138,206 +139,199 @@ class _ProfileHeaderState extends State<ProfileHeader> {
   }
 
   @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      Stack(
-        children: [
-          Positioned.fill(
-            child: coverUrl == null
-                ? Image.asset(
-                    'assets/images/login_image.jpg',
-                    key: const ValueKey('profile-cover-placeholder'),
-                    fit: BoxFit.cover,
-                  )
-                : Image(
-                    image: imageProvider(coverUrl)!,
-                    key: const ValueKey('profile-cover'),
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) =>
-                        const ColoredBox(color: Color(0xFFFFF7E8)),
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
+    return Column(
+      children: [
+        Stack(
+          children: [
+            Positioned.fill(
+              child: coverUrl == null
+                  ? Image.asset(
+                      'assets/images/login_image.jpg',
+                      key: const ValueKey('profile-cover-placeholder'),
+                      fit: BoxFit.cover,
+                    )
+                  : Image(
+                      image: imageProvider(coverUrl)!,
+                      key: const ValueKey('profile-cover'),
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) =>
+                          const ColoredBox(color: Color(0xFFFFF7E8)),
+                    ),
+            ),
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.white.withValues(alpha: .1),
+                      const Color(0xFFFFF7E8).withValues(alpha: .96),
+                    ],
                   ),
-          ),
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.white.withValues(alpha: .1),
-                    const Color(0xFFFFF7E8).withValues(alpha: .96),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 62, 24, 20),
+              child: SizedBox(
+                width: double.infinity,
+                child: Column(
+                  children: [
+                    Stack(
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 4),
+                          ),
+                          child: CircleAvatar(
+                            radius: 52,
+                            backgroundImage: imageProvider(avatarUrl),
+                            onBackgroundImageError:
+                                imageProvider(avatarUrl) == null
+                                ? null
+                                : (_, _) {},
+                            child: avatarUrl == null
+                                ? const Icon(
+                                    Icons.person,
+                                    size: 52,
+                                    color: Colors.grey,
+                                  )
+                                : null,
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: IconButton.filled(
+                            tooltip: l10n.changeProfilePhotoTooltip,
+                            onPressed: loading || picking
+                                ? null
+                                : () => changePhoto(isCover: false),
+                            style: IconButton.styleFrom(
+                              backgroundColor: AppColors.brown,
+                            ),
+                            icon: const Icon(
+                              Icons.add_a_photo_outlined,
+                              color: Colors.white,
+                              size: 19,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      details['name'] ?? '',
+                      style: const TextStyle(
+                        fontSize: 23,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      details['handle'] ?? '',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      details['bio'] ?? '',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 14, height: 1.6),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.location_on_outlined,
+                          color: AppColors.brown,
+                          size: 17,
+                        ),
+                        Text(
+                          details['location'] ?? '',
+                          style: const TextStyle(
+                            color: AppColors.brown,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 62, 24, 20),
-            child: SizedBox(
-              width: double.infinity,
-              child: Column(
-                children: [
-                  Stack(
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 4),
-                        ),
-                        child: CircleAvatar(
-                          radius: 52,
-                          backgroundImage: imageProvider(avatarUrl),
-                          onBackgroundImageError:
-                              imageProvider(avatarUrl) == null
-                              ? null
-                              : (_, _) {},
-                          child: avatarUrl == null
-                              ? const Icon(
-                                  Icons.person,
-                                  size: 52,
-                                  color: Colors.grey,
-                                )
-                              : null,
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: IconButton.filled(
-                          tooltip: 'Change profile photo',
-                          onPressed: loading || picking
-                              ? null
-                              : () => changePhoto(isCover: false),
-                          style: IconButton.styleFrom(
-                            backgroundColor: AppColors.brown,
-                          ),
-                          icon: const Icon(
-                            Icons.add_a_photo_outlined,
-                            color: Colors.white,
-                            size: 19,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    details['name'] ?? '',
-                    style: const TextStyle(
-                      fontSize: 23,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    details['handle'] ?? '',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    details['bio'] ?? '',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 14, height: 1.6),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.location_on_outlined,
-                        color: AppColors.brown,
-                        size: 17,
-                      ),
-                      Text(
-                        details['location'] ?? '',
-                        style: const TextStyle(
-                          color: AppColors.brown,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+            Positioned(
+              right: 12,
+              top: 56,
+              child: IconButton.filledTonal(
+                tooltip: l10n.changeCoverPhotoTooltip,
+                onPressed: loading || picking
+                    ? null
+                    : () => changePhoto(isCover: true),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: AppColors.brown,
+                ),
+                icon: const Icon(Icons.edit_outlined, size: 21),
               ),
             ),
-          ),
-          Positioned(
-            right: 12,
-            top: 56,
-            child: IconButton.filledTonal(
-              tooltip: 'Change cover photo',
-              onPressed: loading || picking
-                  ? null
-                  : () => changePhoto(isCover: true),
-              style: IconButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: AppColors.brown,
+            Positioned(
+              left: 12,
+              top: 8,
+              child: FilledButton.tonalIcon(
+                onPressed: loading ? null : editDetails,
+                icon: const Icon(Icons.manage_accounts_outlined, size: 18),
+                label: Text(l10n.editProfileData),
               ),
-              icon: const Icon(Icons.edit_outlined, size: 21),
             ),
-          ),
-          Positioned(
-            left: 12,
-            top: 8,
-            child: FilledButton.tonalIcon(
-              onPressed: loading ? null : editDetails,
-              icon: const Icon(Icons.manage_accounts_outlined, size: 18),
-              label: const Text('Edit Profile Data'),
+            Positioned(
+              right: 12,
+              top: 8,
+              child: IconButton.filledTonal(
+                tooltip: l10n.profileSettingsTooltip,
+                onPressed: () => Navigator.pushNamed(context, '/settings'),
+                icon: const Icon(Icons.settings_outlined),
+              ),
             ),
-          ),
-          Positioned(
-            right: 12,
-            top: 8,
-            child: IconButton.filledTonal(
-              tooltip: 'Profile settings',
-              onPressed: () => Navigator.pushNamed(context, '/settings'),
-              icon: const Icon(Icons.settings_outlined),
-            ),
-          ),
-          if (picking)
-            const Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: LinearProgressIndicator(),
-            ),
-        ],
-      ),
-      Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: Color(0xFFF3E8E2))),
+            if (picking)
+              const Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: LinearProgressIndicator(),
+              ),
+          ],
         ),
-        child: IntrinsicHeight(
-          child: Row(
-            children: [
-              _Stat('${widget.postCount}', 'Posts'),
-              const VerticalDivider(width: 1, color: Color(0xFFF3E8E2)),
-              _Stat('$followers', 'Followers'),
-              const VerticalDivider(width: 1, color: Color(0xFFF3E8E2)),
-              _Stat('$following', 'Following'),
-            ],
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: Color(0xFFF3E8E2))),
+          ),
+          child: IntrinsicHeight(
+            child: Row(
+              children: [
+                _Stat('${widget.postCount}', l10n.postsLabel),
+                const VerticalDivider(width: 1, color: Color(0xFFF3E8E2)),
+                _Stat('$followers', l10n.followersLabel),
+                const VerticalDivider(width: 1, color: Color(0xFFF3E8E2)),
+                _Stat('$following', l10n.followingLabel),
+              ],
+            ),
           ),
         ),
-      ),
-    ],
-  );
+      ],
+    );
+  }
 }
 
 class _Stat extends StatelessWidget {
   const _Stat(this.value, this.label);
   final String value, label;
-  ImageProvider? imageProvider(String? source) {
-    if (source == null || source.isEmpty) return null;
-    if (source.startsWith('data:image/')) {
-      try {
-        return MemoryImage(base64Decode(source.split(',').last));
-      } catch (_) {
-        return null;
-      }
-    }
-    return NetworkImage(source);
-  }
 
   @override
   Widget build(BuildContext context) => Expanded(

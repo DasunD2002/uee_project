@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/localization/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../explorer/presentation/widgets/explorer_footer.dart';
 import '../../home/presentation/widgets/home_drawer.dart';
@@ -270,7 +271,7 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
         foregroundColor: Colors.white,
         elevation: 3,
         icon: const Icon(Icons.edit_outlined, size: 20),
-        label: const Text('Ask', style: TextStyle(fontWeight: FontWeight.w700)),
+        label: Text(context.l10n.askQuestionButton, style: const TextStyle(fontWeight: FontWeight.w700)),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: ExplorerFooter(
@@ -304,6 +305,25 @@ class _QuestionFilters extends StatelessWidget {
   final ValueChanged<String> onCategorySelected;
   final ValueChanged<String> onSortSelected;
 
+  String _categoryLabel(BuildContext context, String cat) => switch (cat) {
+    'All' => context.l10n.tabAllQuestions,
+    'Rituals & Etiquette' => context.l10n.categoryRituals,
+    'Architecture' => context.l10n.categoryArchitecture,
+    'Language' => context.l10n.categoryLanguage,
+    'History' => context.l10n.categoryHistory,
+    'Crafts' => context.l10n.categoryCrafts,
+    'Getting There' => context.l10n.categoryGettingThere,
+    'Folklore' => context.l10n.categoryFolklore,
+    _ => cat,
+  };
+
+  String _sortLabel(BuildContext context, String sort) => switch (sort.toLowerCase()) {
+    'top' => context.l10n.tabTopQuestions,
+    'new' => context.l10n.tabRecent,
+    'unanswered' => context.l10n.tabUnanswered,
+    _ => sort,
+  };
+
   @override
   Widget build(BuildContext context) => Container(
     decoration: const BoxDecoration(
@@ -313,13 +333,12 @@ class _QuestionFilters extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 6, 16, 11),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 11),
           child: Text(
-            'Ask the people who know these places',
-            style: TextStyle(
+            context.l10n.askCommunitySubtitle,
+            style: const TextStyle(
               color: Color(0xFF8B776E),
-              fontFamily: 'serif',
               fontStyle: FontStyle.italic,
               fontSize: 12,
             ),
@@ -336,7 +355,7 @@ class _QuestionFilters extends StatelessWidget {
               textInputAction: TextInputAction.search,
               style: const TextStyle(fontSize: 13),
               decoration: InputDecoration(
-                hintText: 'Search questions, places, customs',
+                hintText: context.l10n.searchQuestionsHint,
                 hintStyle: const TextStyle(
                   color: Color(0xFFA8A8B6),
                   fontSize: 12,
@@ -384,7 +403,7 @@ class _QuestionFilters extends StatelessWidget {
               final category = categories[index];
               final selected = category == selectedCategory;
               return ChoiceChip(
-                label: Text(category),
+                label: Text(_categoryLabel(context, category)),
                 selected: selected,
                 showCheckmark: false,
                 onSelected: (_) => onCategorySelected(category),
@@ -421,7 +440,7 @@ class _QuestionFilters extends StatelessWidget {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 5),
                       child: Text(
-                        sort,
+                        _sortLabel(context, sort),
                         style: TextStyle(
                           color: sort == selectedSort
                               ? AppColors.brown
@@ -437,7 +456,7 @@ class _QuestionFilters extends StatelessWidget {
                 ),
               const Spacer(),
               Text(
-                '$threadCount ${threadCount == 1 ? 'thread' : 'threads'}',
+                context.l10n.threadsCount(threadCount),
                 style: const TextStyle(color: Color(0xFFA69389), fontSize: 10),
               ),
             ],
@@ -511,7 +530,6 @@ class QuestionCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: Color(0xFF37231C),
-                fontFamily: 'serif',
                 fontSize: 19,
                 height: 1.18,
                 fontWeight: FontWeight.w600,
@@ -550,7 +568,7 @@ class QuestionCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 5),
                     Text(
-                      '${question.commentCount} ${question.commentCount == 1 ? 'answer' : 'answers'}',
+                      context.l10n.answersCount(question.commentCount),
                       style: const TextStyle(
                         color: Color(0xFF6E5B52),
                         fontSize: 11,
@@ -559,18 +577,18 @@ class QuestionCard extends StatelessWidget {
                   ],
                 ),
                 if (question.isVerified)
-                  const Row(
+                  Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.check_circle_outline_rounded,
                         size: 17,
                         color: AppColors.brown,
                       ),
-                      SizedBox(width: 4),
+                      const SizedBox(width: 4),
                       Text(
-                        'Verified',
-                        style: TextStyle(
+                        context.l10n.verifiedBadge,
+                        style: const TextStyle(
                           color: AppColors.brown,
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
@@ -642,28 +660,27 @@ class _EmptyQuestions extends StatelessWidget {
   const _EmptyQuestions();
 
   @override
-  Widget build(BuildContext context) => const Center(
+  Widget build(BuildContext context) => Center(
     child: Padding(
-      padding: EdgeInsets.all(32),
+      padding: const EdgeInsets.all(32),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.forum_outlined, color: Color(0xFFB79F92), size: 38),
-          SizedBox(height: 10),
+          const Icon(Icons.forum_outlined, color: Color(0xFFB79F92), size: 38),
+          const SizedBox(height: 10),
           Text(
-            'No questions found',
-            style: TextStyle(
+            context.l10n.noQuestionsFound,
+            style: const TextStyle(
               color: Color(0xFF4B332A),
-              fontFamily: 'serif',
               fontSize: 19,
               fontWeight: FontWeight.w700,
             ),
           ),
-          SizedBox(height: 4),
+          const SizedBox(height: 4),
           Text(
-            'Try another search or start a new thread.',
+            context.l10n.noQuestionsSubtitle,
             textAlign: TextAlign.center,
-            style: TextStyle(color: Color(0xFF88766D), fontSize: 12),
+            style: const TextStyle(color: Color(0xFF88766D), fontSize: 12),
           ),
         ],
       ),

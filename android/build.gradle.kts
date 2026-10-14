@@ -1,3 +1,14 @@
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        // Google Services plugin — required for google_sign_in on Android
+        classpath("com.google.gms:google-services:4.4.2")
+    }
+}
+
 allprojects {
     repositories {
         google()
@@ -21,4 +32,14 @@ subprojects {
 
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
+}
+
+tasks.register<Exec>("startApi") {
+    workingDir = rootProject.projectDir
+    val os = org.gradle.internal.os.OperatingSystem.current()
+    if (os.isWindows) {
+        commandLine("powershell", "-Command", "Start-Process node -ArgumentList 'service' -WindowStyle Hidden")
+    } else {
+        commandLine("sh", "-c", "nohup node service >/dev/null 2>&1 &")
+    }
 }

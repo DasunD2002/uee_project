@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../core/localization/app_language_provider.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/navigation/primary_navigation.dart';
 import '../../explorer/presentation/widgets/explorer_footer.dart';
@@ -83,61 +85,76 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFFF8F6F4),
-    drawer: const HomeDrawer(selectedSection: 'Home'),
-    appBar: AppBar(
-      backgroundColor: const Color(0xFFFFEAEA),
-      foregroundColor: AppColors.brown,
-      centerTitle: true,
-      elevation: 0,
-      title: const Text(
-        'Rootly',
-        style: TextStyle(
-          fontFamily: 'serif',
-          fontSize: 25,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      leading: Builder(
-        builder: (context) => IconButton(
-          icon: const Icon(Icons.menu, size: 21),
-          onPressed: () => Scaffold.of(context).openDrawer(),
-        ),
-      ),
-      actions: [
-        ListenableBuilder(
-          listenable: SocialStore.instance,
-          builder: (context, _) {
-            final count = SocialStore.instance.unreadNotificationCount;
-            final icon = const Icon(Icons.notifications_none, size: 22);
-            return IconButton(
-              tooltip: 'Notifications',
-              onPressed: () => Navigator.pushNamed(context, '/notifications'),
-              icon: count > 0
-                  ? Badge(label: Text(count.toString()), child: icon)
-                  : icon,
-            );
-          },
-        ),
-      ],
-    ),
-    body: CustomScrollView(
-      slivers: [
-        SliverToBoxAdapter(
-          child: _SearchBar(
-            controller: searchController,
-            onFilterPressed: _applySearch,
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F6F4),
+      drawer: const HomeDrawer(selectedSection: 'Home'),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFFFEAEA),
+        foregroundColor: AppColors.brown,
+        centerTitle: true,
+        elevation: 0,
+        title: const Text(
+          'Rootly',
+          style: TextStyle(
+            fontFamily: 'serif',
+            fontSize: 25,
+            fontWeight: FontWeight.bold,
           ),
         ),
-        if (_posts == null)
-          const SliverFillRemaining(
-            child: Center(child: CircularProgressIndicator()),
-          )
-        else if (_posts!.isEmpty)
-          const SliverFillRemaining(child: Center(child: Text('No posts yet.')))
-        else
-          SliverPadding(
+        leading: Builder(
+          builder: (context) => IconButton(
+            tooltip: l10n.openMenuTooltip,
+            icon: const Icon(Icons.menu, size: 21),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
+        actions: [
+          IconButton(
+            tooltip: l10n.switchLanguageTooltip,
+            onPressed: () => AppLanguageProvider.instance.showLanguageDialog(context),
+            icon: const Icon(Icons.language, size: 21),
+          ),
+          ListenableBuilder(
+            listenable: SocialStore.instance,
+            builder: (context, _) {
+              final count = SocialStore.instance.unreadNotificationCount;
+              final icon = const Icon(Icons.notifications_none, size: 22);
+              return IconButton(
+                tooltip: l10n.notificationsTooltip,
+                onPressed: () => Navigator.pushNamed(context, '/notifications'),
+                icon: count > 0
+                    ? Badge(
+                        label: Text(count.toString()),
+                        child: icon,
+                      )
+                    : icon,
+              );
+            },
+          ),
+        ],
+      ),
+      body: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: _SearchBar(
+              controller: searchController,
+              hintText: l10n.searchHint,
+              onFilterPressed: _applySearch,
+            ),
+          ),
+          if (_posts == null)
+            const SliverFillRemaining(
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_posts!.isEmpty)
+            SliverFillRemaining(
+              child: Center(child: Text(l10n.noPostsYet)),
+            )
+          else
+            SliverPadding(
             padding: const EdgeInsets.fromLTRB(8, 2, 8, 12),
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate((context, index) {
@@ -179,12 +196,18 @@ class _HomeScreenState extends State<HomeScreen> {
       onSelected: selectTab,
     ),
   );
+  }
 }
 
 class _SearchBar extends StatelessWidget {
-  const _SearchBar({required this.controller, required this.onFilterPressed});
+  const _SearchBar({
+    required this.controller,
+    required this.onFilterPressed,
+    this.hintText = 'Search...',
+  });
   final TextEditingController controller;
   final VoidCallback onFilterPressed;
+  final String hintText;
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.fromLTRB(10, 8, 10, 7),
@@ -197,7 +220,7 @@ class _SearchBar extends StatelessWidget {
               controller: controller,
               onSubmitted: (_) => onFilterPressed(),
               decoration: InputDecoration(
-                hintText: 'Search...',
+                hintText: hintText,
                 hintStyle: const TextStyle(fontSize: 12),
                 prefixIcon: const Icon(Icons.search, size: 18),
                 filled: true,

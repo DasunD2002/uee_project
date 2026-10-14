@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../core/services/notification_service.dart';
 import '../../Profile/domain/social_store.dart';
 import '../../explorer/presentation/widgets/explorer_footer.dart';
@@ -115,6 +116,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   Future<void> _markAllAsRead() async {
     await NotificationService().markAllAsRead();
+    SocialStore.instance.markAllNotificationsAsRead();
     setState(() {
       todayNotifications = todayNotifications
           .map((item) => item.copyWith(isUnread: false))
@@ -125,10 +127,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     });
 
     if (mounted) {
+      final l10n = AppLocalizations.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('All notifications marked as read'),
-          duration: Duration(seconds: 2),
+        SnackBar(
+          content: Text(l10n.allNotificationsMarkedAsRead),
+          duration: const Duration(seconds: 2),
         ),
       );
     }
@@ -167,6 +170,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
     return Scaffold(
       backgroundColor: const Color(0xFFFAF7F2),
       appBar: AppBar(
@@ -182,9 +187,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         titleSpacing: 0,
-        title: const Text(
-          'Notifications',
-          style: TextStyle(
+        title: Text(
+          l10n.notificationsTitle,
+          style: const TextStyle(
             fontFamily: 'serif',
             color: Color(0xFF2C1E1A),
             fontSize: 24,
@@ -198,11 +203,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               child: InkWell(
                 borderRadius: BorderRadius.circular(4),
                 onTap: _markAllAsRead,
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                   child: Text(
-                    'Mark all as read',
-                    style: TextStyle(
+                    l10n.markAllAsRead,
+                    style: const TextStyle(
                       color: Color(0xFF5E4B43),
                       fontSize: 13,
                       fontWeight: FontWeight.w600,

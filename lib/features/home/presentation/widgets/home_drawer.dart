@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../../core/localization/app_language_provider.dart';
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../Profile/data/user_service.dart';
 import '../../../auth/data/auth_service.dart';
@@ -47,201 +49,210 @@ class _HomeDrawerState extends State<HomeDrawer> {
         '/quizzes': 'Quizzes',
         '/daily-quiz': 'Quizzes',
       }[ModalRoute.of(context)?.settings.name];
-  static const mainItems = <({IconData icon, String label})>[
-    (icon: Icons.home_outlined, label: 'Home'),
-    (icon: Icons.explore_outlined, label: 'Explore Places'),
-    (icon: Icons.forum_outlined, label: 'Q&A Forum'),
-    (icon: Icons.inventory_2_outlined, label: 'Time capsule'),
-    (icon: Icons.event_outlined, label: 'Latest Events'),
-    (icon: Icons.search, label: 'Translation'),
-    (icon: Icons.quiz_outlined, label: 'Quizzes'),
-  ];
-  static const savedItems = <({IconData icon, String label})>[
-    (icon: Icons.bookmark_border, label: 'Saved posts'),
-    (icon: Icons.favorite_border, label: 'Favourite places'),
-    (icon: Icons.public, label: 'Created Time Capsules'),
-    (icon: Icons.view_in_ar_outlined, label: 'Explore Things With 3D Map'),
-  ];
+
   @override
-  Widget build(BuildContext context) => Drawer(
-    width: MediaQuery.sizeOf(context).width * .78,
-    backgroundColor: Colors.white,
-    shape: const RoundedRectangleBorder(),
-    child: SafeArea(
-      child: Column(
-        children: [
-          Container(
-            color: AppColors.brown,
-            padding: const EdgeInsets.fromLTRB(16, 12, 10, 12),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 25,
-                  backgroundColor: const Color(0xFFFFD8BD),
-                  backgroundImage: _userProfile?['photoUrl'] != null
-                      ? NetworkImage(_userProfile!['photoUrl'])
-                      : null,
-                  child: _userProfile?['photoUrl'] == null
-                      ? const Icon(
-                          Icons.person,
-                          size: 31,
-                          color: AppColors.brown,
-                        )
-                      : null,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: InkWell(
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final currentSection = activeSection(context);
+
+    final mainItems = <({IconData icon, String key, String label})>[
+      (icon: Icons.home_outlined, key: 'Home', label: l10n.drawerHome),
+      (icon: Icons.explore_outlined, key: 'Explore Places', label: l10n.drawerExplorePlaces),
+      (icon: Icons.forum_outlined, key: 'Q&A Forum', label: l10n.drawerQaForum),
+      (icon: Icons.inventory_2_outlined, key: 'Time capsule', label: l10n.drawerTimeCapsule),
+      (icon: Icons.event_outlined, key: 'Latest Events', label: l10n.drawerLatestEvents),
+      (icon: Icons.search, key: 'Translation', label: l10n.drawerTranslation),
+      (icon: Icons.quiz_outlined, key: 'Quizzes', label: l10n.drawerQuizzes),
+    ];
+
+    final savedItems = <({IconData icon, String key, String label})>[
+      (icon: Icons.bookmark_border, key: 'Saved posts', label: l10n.drawerSavedPosts),
+      (icon: Icons.favorite_border, key: 'Favourite places', label: l10n.drawerFavouritePlaces),
+      (icon: Icons.public, key: 'Created Time Capsules', label: l10n.drawerCreatedTimeCapsules),
+      (icon: Icons.view_in_ar_outlined, key: 'Explore Things With 3D Map', label: l10n.drawerExplore3dMap),
+    ];
+
+    return Drawer(
+      width: MediaQuery.sizeOf(context).width * .78,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(),
+      child: SafeArea(
+        child: Column(
+          children: [
+            Container(
+              color: AppColors.brown,
+              padding: const EdgeInsets.fromLTRB(16, 12, 10, 12),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 25,
+                    backgroundColor: const Color(0xFFFFD8BD),
+                    backgroundImage: _userProfile?['photoUrl'] != null
+                        ? NetworkImage(_userProfile!['photoUrl'])
+                        : null,
+                    child: _userProfile?['photoUrl'] == null
+                        ? const Icon(Icons.person, size: 31, color: AppColors.brown)
+                        : null,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.pushNamed(context, '/profile');
+                      },
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _userProfile?['name'] ?? l10n.loading,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                          ),
+                          Text(
+                            _userProfile?['district'] ?? '',
+                            style: const TextStyle(color: Colors.white70, fontSize: 9),
+                          ),
+                          Text(
+                            l10n.drawerViewProfile,
+                            style: const TextStyle(color: Colors.white70, fontSize: 9),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(
+                      Icons.close,
+                      size: 18,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+                children: [
+                  _SectionLabel(l10n.sectionMain),
+                  _DrawerItem(
+                    icon: Icons.person_outline,
+                    label: l10n.drawerProfile,
+                    selected: currentSection == 'Profile' || currentSection == l10n.drawerProfile,
                     onTap: () {
                       Navigator.pop(context);
                       Navigator.pushNamed(context, '/profile');
                     },
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _userProfile?['name'] ?? 'Loading...',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                          ),
-                        ),
-                        Text(
-                          _userProfile?['district'] ?? '',
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 9,
-                          ),
-                        ),
-                        const Text(
-                          'View Profile',
-                          style: TextStyle(color: Colors.white70, fontSize: 9),
-                        ),
-                      ],
+                  ),
+                  for (var i = 0; i < mainItems.length; i++)
+                    _DrawerItem(
+                      icon: mainItems[i].icon,
+                      label: mainItems[i].label,
+                      selected: currentSection == mainItems[i].key || currentSection == mainItems[i].label,
+                      onTap: () {
+                        Navigator.pop(context);
+                        if (i == 0) {
+                          Navigator.pushNamedAndRemoveUntil(
+                            context,
+                            '/home',
+                            (_) => false,
+                          );
+                        } else if (i == 1) {
+                          Navigator.pushReplacementNamed(context, '/explorer');
+                        } else if (i == 2) {
+                          Navigator.pushNamedAndRemoveUntil(
+                            context,
+                            '/questions',
+                            (_) => false,
+                          );
+                        } else if (i == 3) {
+                          Navigator.pushNamed(context, '/capsules');
+                        } else if (i == 5) {
+                          Navigator.pushNamedAndRemoveUntil(
+                            context,
+                            '/translations',
+                            (_) => false,
+                          );
+                        } else if (i == 6) {
+                          Navigator.pushNamedAndRemoveUntil(
+                            context,
+                            '/quizzes',
+                            (_) => false,
+                          );
+                        }
+                      },
                     ),
-                  ),
-                ),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(
-                    Icons.close,
-                    size: 18,
-                    color: Colors.white70,
-                  ),
-                ),
-              ],
+                  const SizedBox(height: 8),
+                  _SectionLabel(l10n.sectionSaved),
+                  for (var i = 0; i < savedItems.length; i++)
+                    _DrawerItem(
+                      icon: savedItems[i].icon,
+                      label: savedItems[i].label,
+                      selected: currentSection == savedItems[i].key || currentSection == savedItems[i].label,
+                      onTap: () {
+                        Navigator.pop(context);
+                        if (i == 0) Navigator.pushNamed(context, '/saved-posts');
+                        if (i == 2) Navigator.pushNamed(context, '/capsules');
+                        if (i == 3) Navigator.pushNamed(context, '/province-map');
+                      },
+                    ),
+                ],
+              ),
             ),
-          ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
-              children: [
-                const _SectionLabel('Main'),
-                _DrawerItem(
-                  icon: Icons.person_outline,
-                  label: 'Profile',
-                  selected: activeSection(context) == 'Profile',
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.pushNamed(context, '/profile');
-                  },
-                ),
-                for (var i = 0; i < mainItems.length; i++)
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Column(
+                children: [
                   _DrawerItem(
-                    icon: mainItems[i].icon,
-                    label: mainItems[i].label,
-                    selected: activeSection(context) == mainItems[i].label,
+                    icon: Icons.language,
+                    label: '${l10n.drawerLanguage} (${AppLanguageProvider.instance.currentLanguage.nativeName})',
                     onTap: () {
                       Navigator.pop(context);
-                      if (i == 0) {
-                        Navigator.pushNamedAndRemoveUntil(
-                          context,
-                          '/home',
-                          (_) => false,
-                        );
-                      } else if (i == 1) {
-                        Navigator.pushReplacementNamed(context, '/explorer');
-                      } else if (i == 2) {
-                        Navigator.pushNamedAndRemoveUntil(
-                          context,
-                          '/questions',
-                          (_) => false,
-                        );
-                      } else if (i == 3) {
-                        Navigator.pushNamed(context, '/capsules');
-                      } else if (i == 5) {
-                        Navigator.pushNamedAndRemoveUntil(
-                          context,
-                          '/translations',
-                          (_) => false,
-                        );
-                      } else if (i == 6) {
-                        Navigator.pushNamedAndRemoveUntil(
-                          context,
-                          '/quizzes',
-                          (_) => false,
-                        );
-                      }
+                      AppLanguageProvider.instance.showLanguageDialog(context);
                     },
                   ),
-                const SizedBox(height: 8),
-                const _SectionLabel('Saved'),
-                for (var i = 0; i < savedItems.length; i++)
                   _DrawerItem(
-                    icon: savedItems[i].icon,
-                    label: savedItems[i].label,
-                    selected: activeSection(context) == savedItems[i].label,
+                    icon: Icons.settings_outlined,
+                    label: l10n.drawerSettings,
+                    selected: currentSection == 'Settings' || currentSection == l10n.drawerSettings,
                     onTap: () {
                       Navigator.pop(context);
-                      if (i == 0) Navigator.pushNamed(context, '/saved-posts');
-                      if (i == 2) Navigator.pushNamed(context, '/capsules');
-                      if (i == 3) Navigator.pushNamed(context, '/province-map');
+                      Navigator.pushNamed(context, '/settings');
                     },
                   ),
-              ],
+                  _DrawerItem(
+                    icon: Icons.logout,
+                    label: l10n.drawerLogOut,
+                    onTap: () async {
+                      await AuthService().logout();
+                      if (!context.mounted) return;
+                      Navigator.pushNamedAndRemoveUntil(
+                        context,
+                        '/login',
+                        (_) => false,
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    l10n.copyrightNotice,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 7, color: Colors.grey),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Column(
-              children: [
-                _DrawerItem(
-                  icon: Icons.settings_outlined,
-                  label: 'Settings',
-                  selected: activeSection(context) == 'Settings',
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.pushNamed(context, '/settings');
-                  },
-                ),
-                _DrawerItem(
-                  icon: Icons.logout,
-                  label: 'Log Out',
-                  onTap: () async {
-                    await AuthService().logout();
-                    if (!context.mounted) return;
-                    Navigator.pushNamedAndRemoveUntil(
-                      context,
-                      '/login',
-                      (_) => false,
-                    );
-                  },
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  '2026 All Right Received\nV.2.1.1',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 7, color: Colors.grey),
-                ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _SectionLabel extends StatelessWidget {

@@ -921,7 +921,6 @@ class _LetterEditor extends StatelessWidget {
                     color: _kGold,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    fontFamily: 'serif',
                   ),
                 ),
                 const Spacer(),
@@ -939,7 +938,6 @@ class _LetterEditor extends StatelessWidget {
               maxLines: 7,
               style: const TextStyle(
                 color: _kBrownDp,
-                fontFamily: 'serif',
                 fontSize: 14,
                 height: 1.7,
               ),
@@ -1238,7 +1236,6 @@ class _StepReview extends StatelessWidget {
                     '"$caption"',
                     style: const TextStyle(
                       color: _kBrownDp,
-                      fontFamily: 'serif',
                       fontSize: 13,
                       fontStyle: FontStyle.italic,
                       height: 1.5,
