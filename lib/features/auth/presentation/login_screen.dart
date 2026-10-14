@@ -1,0 +1,263 @@
+import 'package:flutter/material.dart';
+import '../../../core/widgets/auth_widgets.dart';
+import '../data/auth_service.dart';
+
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final key = GlobalKey<FormState>();
+  final email = TextEditingController();
+  final password = TextEditingController();
+  final _authService = AuthService();
+  bool hidden = true;
+  bool _isLoading = false;
+  @override
+  void dispose() {
+    email.dispose();
+    password.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    resizeToAvoidBottomInset: true,
+    body: LayoutBuilder(
+      builder: (context, box) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: box.maxHeight),
+          child: Column(
+            children: [
+              SizedBox(
+                height: box.maxHeight * .53,
+                width: double.infinity,
+                child: Image.asset(
+                  'assets/images/login_image.jpg',
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => const DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Color(0xFF69B5B6),
+                          Color(0xFFBEDAD0),
+                          Color(0xFF405738),
+                        ],
+                      ),
+                    ),
+                    child: Center(
+                      child: Icon(
+                        Icons.landscape,
+                        size: 90,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Transform.translate(
+                offset: const Offset(0, -72),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(30, 20, 30, 22),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(70),
+                    ),
+                  ),
+                  child: Form(
+                    key: key,
+                    child: Column(
+                      children: [
+                        const Text(
+                          'Login',
+                          style: TextStyle(
+                            fontSize: 31,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        const Text(
+                          'Welcome Back...',
+                          style: TextStyle(fontSize: 17),
+                        ),
+                        const SizedBox(height: 22),
+                        AuthField(
+                          label: 'Email',
+                          hint: 'e.g:- john@gmail.com',
+                          controller: email,
+                          keyboardType: TextInputType.emailAddress,
+                          suffixIcon: IconButton(
+                            icon: const Icon(Icons.cancel_outlined, size: 18),
+                            onPressed: email.clear,
+                          ),
+                          validator: (v) =>
+                              v == null ||
+                                  !RegExp(r'^\S+@\S+\.\S+$').hasMatch(v)
+                              ? 'Enter a valid email'
+                              : null,
+                        ),
+                        const SizedBox(height: 13),
+                        AuthField(
+                          label: 'Password',
+                          controller: password,
+                          obscureText: hidden,
+                          suffixIcon: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: Icon(
+                                  hidden
+                                      ? Icons.visibility_off_outlined
+                                      : Icons.visibility_outlined,
+                                  size: 19,
+                                ),
+                                onPressed: () => setState(() => hidden = !hidden),
+                              ),
+                            ],
+                          ),
+                          validator: (v) => (v?.length ?? 0) < 6
+                              ? 'Password must have at least 6 characters'
+                              : null,
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            TextButton.icon(
+                              onPressed: () {
+                                email.text = 'sandundeshapriya206@gmail.com';
+                                password.text = '123456789';
+                                setState(() {});
+                              },
+                              icon: const Icon(Icons.bolt, size: 15, color: Color(0xFF84321F)),
+                              label: const Text(
+                                'Fill Account (Sandun)',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF84321F),
+                                ),
+                              ),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                minimumSize: Size.zero,
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pushNamed(
+                                context,
+                                '/forgot-password',
+                              ),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                minimumSize: Size.zero,
+                              ),
+                              child: const Text(
+                                'Forgot password?',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF5574E8),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        _isLoading
+                            ? const CircularProgressIndicator()
+                            : PrimaryButton(
+                                text: 'Login',
+                                onPressed: () async {
+                                  if (key.currentState!.validate()) {
+                                    setState(() => _isLoading = true);
+                                    final error = await _authService.login(
+                                      email.text.trim(),
+                                      password.text,
+                                    );
+                                    if (!mounted || !context.mounted) return;
+                                    setState(() => _isLoading = false);
+
+                                    if (error == null) {
+                                      if (mounted) {
+                                        Navigator.pushReplacementNamed(
+                                          context,
+                                          '/home',
+                                        );
+                                      }
+                                    } else {
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(error),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  }
+                                },
+                              ),
+                        const SizedBox(height: 9),
+                        GoogleButton(
+                          onPressed: () async {
+                            setState(() => _isLoading = true);
+                            final error = await _authService.loginWithGoogle();
+                            if (!context.mounted) return;
+                            setState(() => _isLoading = false);
+                            if (error == null) {
+                              Navigator.pushReplacementNamed(context, '/home');
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(error),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 9),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text(
+                              "Still don't have account? ",
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF5574E8),
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () => Navigator.pushReplacementNamed(
+                                context,
+                                '/signup',
+                              ),
+                              child: const Text(
+                                'Sign up',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF5574E8),
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}

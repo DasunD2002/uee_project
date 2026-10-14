@@ -27,11 +27,34 @@ migrate_working_dir/
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
+.flutter-plugins
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
 /build/
 /coverage/
+
+# Platform generated files (Android/iOS/Windows/Linux/macOS)
+**/android/local.properties
+**/android/key.properties
+**/android/.gradle/
+**/ios/Flutter/ephemeral/
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/app.fltparams
+**/ios/Pods/
+**/linux/flutter/ephemeral/
+**/macos/Flutter/ephemeral/
+**/windows/flutter/ephemeral/
+
+# Desktop plugin registrant generated files
+**/linux/flutter/generated_plugin_registrant.cc
+**/linux/flutter/generated_plugins.cmake
+**/windows/flutter/generated_plugin_registrant.cc
+**/windows/flutter/generated_plugins.cmake
+**/macos/Flutter/GeneratedPluginRegistrant.swift
+
+# Environment files
+*.env
 
 # Symbolication related
 app.*.symbols
