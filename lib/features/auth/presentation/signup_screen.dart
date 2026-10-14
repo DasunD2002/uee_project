@@ -182,8 +182,28 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         ),
                   const SizedBox(height: 10),
                   GoogleButton(
-                    onPressed: () =>
-                        showMessage(context, 'Google sign-up selected.'),
+                    onPressed: () async {
+                      setState(() => _isLoading = true);
+                      final error = await _authService.loginWithGoogle(
+                        languages: language != null ? [language!] : null,
+                      );
+                      setState(() => _isLoading = false);
+                      if (error == null) {
+                        if (mounted) {
+                          // Google users skip OTP — email already verified by Google
+                          Navigator.pushReplacementNamed(context, '/home');
+                        }
+                      } else {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(error),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    },
                   ),
                   const SizedBox(height: 10),
                   Row(

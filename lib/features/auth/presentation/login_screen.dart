@@ -166,8 +166,25 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                         const SizedBox(height: 9),
                         GoogleButton(
-                          onPressed: () =>
-                              showMessage(context, 'Google sign-in selected.'),
+                          onPressed: () async {
+                            setState(() => _isLoading = true);
+                            final error = await _authService.loginWithGoogle();
+                            setState(() => _isLoading = false);
+                            if (error == null) {
+                              if (mounted) {
+                                Navigator.pushReplacementNamed(context, '/home');
+                              }
+                            } else {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(error),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          },
                         ),
                         const SizedBox(height: 9),
                         Row(
