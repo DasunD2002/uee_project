@@ -1,5 +1,7 @@
 plugins {
     id("com.android.application")
+    // Required for google_sign_in — apply AFTER the Android plugin
+    id("com.google.gms.google-services")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }

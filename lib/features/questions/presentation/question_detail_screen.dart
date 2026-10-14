@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/localization/app_language_provider.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../data/question_service.dart';
 import '../domain/question.dart';
@@ -328,12 +330,16 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
         title: const Text(
           'Thread',
           style: TextStyle(
-            fontFamily: 'serif',
             fontSize: 23,
             fontWeight: FontWeight.w600,
           ),
         ),
         actions: [
+          IconButton(
+            tooltip: context.l10n.selectLanguageTitle,
+            onPressed: () => AppLanguageProvider.instance.showLanguageDialog(context),
+            icon: const Icon(Icons.language, size: 21),
+          ),
           IconButton(
             tooltip: question.bookmarked
                 ? 'Remove bookmark'
@@ -391,7 +397,6 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
                   question.title,
                   style: const TextStyle(
                     color: Color(0xFF302019),
-                    fontFamily: 'serif',
                     fontSize: 24,
                     height: 1.18,
                     fontWeight: FontWeight.w600,
@@ -461,10 +466,9 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
             child: Row(
               children: [
                 Text(
-                  '${question.answers.length} ${question.answers.length == 1 ? 'answer' : 'answers'}',
+                  context.l10n.answersCount(question.answers.length),
                   style: const TextStyle(
                     color: Color(0xFF38251E),
-                    fontFamily: 'serif',
                     fontSize: 15,
                   ),
                 ),
@@ -811,7 +815,7 @@ class _ThreadComposer extends StatelessWidget {
                     onChanged: onChanged,
                     decoration: InputDecoration(
                       hintText: replyingTo == null
-                          ? 'Share what you know...'
+                          ? context.l10n.writeYourAnswer
                           : 'Write a reply...',
                       hintStyle: const TextStyle(
                         color: Color(0xFFA5ADBD),

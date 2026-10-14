@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 
+import '../../../core/localization/app_language_provider.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../data/capsule_service.dart';
 import '../domain/capsule_memory.dart';
@@ -115,12 +117,16 @@ class _FamilyMemoriesScreenState extends State<FamilyMemoriesScreen>
           'Rootly',
           style: TextStyle(
             color: AppColors.brown,
-            fontFamily: 'serif',
-            fontSize: 30,
+            fontSize: 28,
             fontWeight: FontWeight.w700,
           ),
         ),
         actions: [
+          IconButton(
+            tooltip: context.l10n.selectLanguageTitle,
+            onPressed: () => AppLanguageProvider.instance.showLanguageDialog(context),
+            icon: const Icon(Icons.language, size: 22),
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 10),
             child: IconButton(
@@ -155,7 +161,6 @@ class _FamilyMemoriesScreenState extends State<FamilyMemoriesScreen>
                                     capsule?.title ?? 'Family Recipe',
                                     style: const TextStyle(
                                       color: AppColors.brown,
-                                      fontFamily: 'serif',
                                       fontSize: 18,
                                       fontWeight: FontWeight.w700,
                                     ),
@@ -303,7 +308,6 @@ class _FamilyMemoriesScreenState extends State<FamilyMemoriesScreen>
                               'Capsule Unlocked! ✦',
                               style: TextStyle(
                                 color: _kBrownDeep,
-                                fontFamily: 'serif',
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -365,7 +369,7 @@ class _FamilyMemoriesScreenState extends State<FamilyMemoriesScreen>
           const SizedBox(height: 14),
           const Text(
             'No Memories Added Yet',
-            style: TextStyle(color: _kBrownDeep, fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'serif'),
+            style: TextStyle(color: _kBrownDeep, fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 6),
           const Text(
@@ -526,7 +530,7 @@ class _PolaroidTile extends StatelessWidget {
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: _kBrown, fontSize: 10.5, fontFamily: 'serif', fontWeight: FontWeight.bold),
+                style: const TextStyle(color: _kBrown, fontSize: 10.5, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -628,7 +632,6 @@ class _PolaroidTile extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: AppColors.brown,
-                      fontFamily: 'serif',
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),

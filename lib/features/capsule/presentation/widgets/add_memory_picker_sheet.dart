@@ -49,7 +49,6 @@ class AddMemoryPickerSheet extends StatelessWidget {
               color: _kBrownDeep,
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              fontFamily: 'serif',
             ),
           ),
           const SizedBox(height: 4),
@@ -296,7 +295,6 @@ class _PreviewAndCaptionDialogState extends State<_PreviewAndCaptionDialog> {
                   widget.isVideo ? 'Video Preview' : 'Photo Preview',
                   style: const TextStyle(
                     color: _kBrownDeep,
-                    fontFamily: 'serif',
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
@@ -440,7 +438,6 @@ class _LetterEditorDialogState extends State<_LetterEditorDialog> {
                       'Write a Letter',
                       style: TextStyle(
                         color: _kBrownDeep,
-                        fontFamily: 'serif',
                         fontSize: 17,
                         fontWeight: FontWeight.bold,
                       ),
