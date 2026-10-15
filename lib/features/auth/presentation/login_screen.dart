@@ -125,47 +125,25 @@ class _LoginScreenState extends State<LoginScreen> {
                               ? 'Password must have at least 6 characters'
                               : null,
                         ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            TextButton.icon(
-                              onPressed: () {
-                                email.text = 'sandundeshapriya206@gmail.com';
-                                password.text = '123456789';
-                                setState(() {});
-                              },
-                              icon: const Icon(Icons.bolt, size: 15, color: Color(0xFF84321F)),
-                              label: const Text(
-                                'Fill Account (Sandun)',
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF84321F),
-                                ),
-                              ),
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                                minimumSize: Size.zero,
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () => Navigator.pushNamed(
+                              context,
+                              '/forgot-password',
+                            ),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              minimumSize: Size.zero,
+                            ),
+                            child: const Text(
+                              'Forgot password?',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF5574E8),
                               ),
                             ),
-                            TextButton(
-                              onPressed: () => Navigator.pushNamed(
-                                context,
-                                '/forgot-password',
-                              ),
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                                minimumSize: Size.zero,
-                              ),
-                              child: const Text(
-                                'Forgot password?',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Color(0xFF5574E8),
-                                ),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                         _isLoading
                             ? const CircularProgressIndicator()
