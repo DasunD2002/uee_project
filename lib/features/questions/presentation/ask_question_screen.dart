@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/localization/app_language_provider.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../core/navigation/primary_navigation.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_colors.dart';
@@ -136,11 +138,18 @@ class _AskQuestionScreenState extends State<AskQuestionScreen> {
           onPressed: () => Navigator.maybePop(context),
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
         ),
+        actions: [
+          IconButton(
+            tooltip: context.l10n.selectLanguageTitle,
+            onPressed: () => AppLanguageProvider.instance.showLanguageDialog(context),
+            icon: const Icon(Icons.language, size: 21),
+          ),
+          const SizedBox(width: 4),
+        ],
         titleSpacing: 0,
         title: Text(
           _editing ? 'Edit question' : 'Ask the community',
           style: const TextStyle(
-            fontFamily: 'serif',
             fontSize: 22,
             fontWeight: FontWeight.w600,
           ),
@@ -180,7 +189,7 @@ class _AskQuestionScreenState extends State<AskQuestionScreen> {
             ),
           ),
           const SizedBox(height: 18),
-          const _FieldLabel('Your question'),
+          _FieldLabel(context.l10n.questionTitleLabel),
           const SizedBox(height: 8),
           TextField(
             key: const ValueKey('new-question-title'),
@@ -191,7 +200,6 @@ class _AskQuestionScreenState extends State<AskQuestionScreen> {
             textCapitalization: TextCapitalization.sentences,
             style: const TextStyle(
               color: Color(0xFF3E2C25),
-              fontFamily: 'serif',
               fontSize: 16,
             ),
             decoration: _fieldDecoration(
@@ -200,7 +208,7 @@ class _AskQuestionScreenState extends State<AskQuestionScreen> {
             ),
           ),
           const SizedBox(height: 17),
-          const _FieldLabel('Add context'),
+          _FieldLabel(context.l10n.questionDetailsLabel),
           const SizedBox(height: 8),
           TextField(
             key: const ValueKey('new-question-context'),
@@ -240,7 +248,7 @@ class _AskQuestionScreenState extends State<AskQuestionScreen> {
             ),
           ),
           const SizedBox(height: 13),
-          const _FieldLabel('Topic'),
+          _FieldLabel(context.l10n.questionCategoryLabel),
           const SizedBox(height: 7),
           Wrap(
             key: const ValueKey('question-topic-options'),
@@ -291,7 +299,7 @@ class _AskQuestionScreenState extends State<AskQuestionScreen> {
                             ),
                           )
                         : Text(
-                            _editing ? 'Save changes' : 'Post question',
+                            _editing ? 'Save changes' : context.l10n.postQuestionButton,
                             style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
                   ),
@@ -324,7 +332,6 @@ class _AskQuestionScreenState extends State<AskQuestionScreen> {
         hintText: hint,
         hintStyle: TextStyle(
           color: const Color(0xFFA5ADBD),
-          fontFamily: italicHint ? 'serif' : null,
           fontStyle: italicHint ? FontStyle.italic : FontStyle.normal,
           fontSize: italicHint ? 15 : 12,
         ),

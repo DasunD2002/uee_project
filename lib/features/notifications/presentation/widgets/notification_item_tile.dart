@@ -57,15 +57,34 @@ class NotificationItemData {
     timeAgo: json['timeAgo'] as String? ?? 'Just now',
     avatarAsset: json['avatarAsset'] as String?,
     avatarUrl: json['avatarUrl'] as String?,
-    icon: json['iconCode'] != null
-        // ignore: non_const_argument_for_const_parameter
-        ? IconData(json['iconCode'] as int, fontFamily: 'MaterialIcons')
-        : null,
+    icon: _iconFromCode(json['iconCode'] as int?),
     isUnread: json['isUnread'] as bool? ?? false,
     timestamp: json['timestamp'] != null
         ? DateTime.tryParse(json['timestamp'] as String)
         : null,
   );
+
+  static IconData? _iconFromCode(int? code) {
+    if (code == null) return null;
+    switch (code) {
+      case 0xe25b:
+      case 0xf07c:
+        return Icons.favorite_rounded;
+      case 0xe153:
+      case 0xf028:
+        return Icons.chat_bubble_outline_rounded;
+      case 0xe2a8:
+        return Icons.forum_outlined;
+      case 0xf62a:
+        return Icons.celebration_outlined;
+      case 0xe134:
+        return Icons.campaign_outlined;
+      case 0xf137:
+        return Icons.inventory_2_outlined;
+      default:
+        return Icons.notifications_outlined;
+    }
+  }
 }
 
 class NotificationItemTile extends StatelessWidget {

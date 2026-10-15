@@ -1,8 +1,10 @@
 import '../domain/social_store.dart';
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/navigation/primary_navigation.dart';
-import '../../../core/widgets/community_app_bar.dart';
+import '../../../../core/localization/app_language.dart';
+import '../../../../core/localization/app_localizations.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/navigation/primary_navigation.dart';
+import '../../../../core/widgets/community_app_bar.dart';
 import '../../Post Creation/data/post_service.dart';
 import '../../Post Creation/domain/user_post.dart';
 import '../../Post Creation/presentation/create_post_screen.dart';
@@ -61,6 +63,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> edit([UserPost? post]) async {
+    final l10n = AppLocalizations.of(context);
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     final result = await Navigator.push<PostEditorResult>(
       context,
@@ -77,38 +80,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
       SnackBar(
         content: Text(
           result.deleted
-              ? 'Post deleted.'
+              ? l10n.postDeleted
               : result.post!.isDraft
-              ? 'Draft saved. You can continue editing it from your profile.'
-              : 'Post saved.',
+              ? l10n.draftSaved
+              : l10n.postSaved,
         ),
       ),
     );
   }
 
   Future<void> createCollection() async {
+    final l10n = AppLocalizations.of(context);
     String name = '';
     final result = await showDialog<String>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, update) => AlertDialog(
-          title: const Text('Create Collection'),
+          title: Text(l10n.createCollection),
           content: TextField(
             autofocus: true,
             maxLength: 50,
-            decoration: const InputDecoration(labelText: 'Collection name'),
+            decoration: InputDecoration(labelText: l10n.collectionName),
             onChanged: (v) => update(() => name = v.trim()),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text(l10n.cancel),
             ),
             FilledButton(
               onPressed: name.isEmpty
                   ? null
                   : () => Navigator.pop(context, name),
-              child: const Text('Create'),
+              child: Text(l10n.create),
             ),
           ],
         ),
@@ -133,141 +137,154 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: Colors.white,
-    drawer: HomeDrawer(selectedSection: saved ? 'Saved posts' : 'Profile'),
-    appBar: const CommunityAppBar(),
-    bottomNavigationBar: ExplorerFooter(
-      selectedIndex: null,
-      onSelected: navigate,
-    ),
-    body: SafeArea(
-      top: false,
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 620),
-          child: ListView(
-            children: [
-              ProfileHeader(postCount: _posts.where((p) => !p.isDraft).length),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 78,
-                  vertical: 14,
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final chips = [
+      (key: 'Posts', label: l10n.postsLabel),
+      (key: 'Capsules', label: l10n.navCapsule),
+      (key: 'Saved posts', label: l10n.drawerSavedPosts),
+      (key: 'Quizzes', label: l10n.drawerQuizzes),
+    ];
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      drawer: HomeDrawer(selectedSection: saved ? 'Saved posts' : 'Profile'),
+      appBar: const CommunityAppBar(),
+      bottomNavigationBar: ExplorerFooter(
+        selectedIndex: null,
+        onSelected: navigate,
+      ),
+      body: SafeArea(
+        top: false,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 620),
+            child: ListView(
+              children: [
+                ProfileHeader(
+                  postCount: _posts.where((p) => !p.isDraft).length,
                 ),
-                child: PostAction(
-                  saved ? 'Create Collection' : 'Create Post',
-                  onPressed: saved ? createCollection : edit,
-                ),
-              ),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.fromLTRB(11, 6, 11, 18),
-                child: Row(
-                  children: [
-                    for (final label in [
-                      'Posts',
-                      'Capsules',
-                      'Saved posts',
-                      'Quizzes',
-                    ])
-                      Padding(
-                        padding: const EdgeInsets.only(right: 11),
-                        child: ChoiceChip(
-                          label: Text(label),
-                          selected: label == (saved ? 'Saved posts' : 'Posts'),
-                          showCheckmark: false,
-                          labelStyle: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: label == (saved ? 'Saved posts' : 'Posts')
-                                ? Colors.white
-                                : AppColors.brown,
-                          ),
-                          selectedColor: AppColors.brown,
-                          backgroundColor: Colors.white,
-                          shape: const StadiumBorder(
-                            side: BorderSide(color: AppColors.brown),
-                          ),
-                          onSelected: (_) {
-                            if (label == 'Capsules') {
-                              Navigator.pushNamed(context, '/capsule');
-                            } else if (label == 'Quizzes') {
-                              Navigator.pushNamed(context, '/quizzes');
-                            } else {
-                              setState(() => saved = label == 'Saved posts');
-                              _fetchPosts();
-                            }
-                          },
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              if (saved)
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 18),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 78,
+                    vertical: 14,
+                  ),
+                  child: PostAction(
+                    saved
+                        ? l10n.createCollection
+                        : (l10n.language == AppLanguage.sinhala
+                            ? 'සටහනක් සාදන්න'
+                            : (l10n.language == AppLanguage.tamil
+                                ? 'பதிவை உருவாக்கு'
+                                : 'Create Post')),
+                    onPressed: saved ? createCollection : edit,
+                  ),
+                ),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.fromLTRB(11, 6, 11, 18),
+                  child: Row(
                     children: [
-                      Text(
-                        '${SocialStore.instance.collections.length} collections · ${SocialStore.instance.collections.fold<int>(0, (sum, collection) => sum + collection.count)} saved stories',
-                      ),
-                      for (final collection in SocialStore.instance.collections)
-                        ExpansionTile(
-                          title: Text(collection.name),
-                          subtitle: Text('${collection.count} stories'),
-                          children: [
-                            for (final story in collection.stories.values)
-                              ListTile(
-                                title: Text(story.title),
-                                subtitle: Text(story.author),
-                              ),
-                            if (collection.stories.isEmpty)
-                              const ListTile(
-                                title: Text(
-                                  'No stories saved to this collection yet.',
-                                ),
-                              ),
-                          ],
+                      for (final chip in chips)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 11),
+                          child: ChoiceChip(
+                            label: Text(chip.label),
+                            selected: chip.key == (saved ? 'Saved posts' : 'Posts'),
+                            showCheckmark: false,
+                            labelStyle: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: chip.key == (saved ? 'Saved posts' : 'Posts')
+                                  ? Colors.white
+                                  : AppColors.brown,
+                            ),
+                            selectedColor: AppColors.brown,
+                            backgroundColor: Colors.white,
+                            shape: const StadiumBorder(
+                              side: BorderSide(color: AppColors.brown),
+                            ),
+                            onSelected: (_) {
+                              if (chip.key == 'Capsules') {
+                                Navigator.pushNamed(context, '/capsule');
+                              } else if (chip.key == 'Quizzes') {
+                                Navigator.pushNamed(context, '/quizzes');
+                              } else {
+                                setState(() => saved = chip.key == 'Saved posts');
+                                _fetchPosts();
+                              }
+                            },
+                          ),
                         ),
                     ],
                   ),
                 ),
-              if (_posts.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.all(30),
-                  child: Text(
-                    saved
-                        ? 'Your saved stories will appear here.'
-                        : 'Your stories will appear here. Create your first post.',
+                if (saved)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 18),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${SocialStore.instance.collections.length} collections · ${SocialStore.instance.collections.fold<int>(0, (sum, collection) => sum + collection.count)} saved stories',
+                        ),
+                        for (final collection in SocialStore.instance.collections)
+                          ExpansionTile(
+                            title: Text(collection.name),
+                            subtitle: Text('${collection.count} stories'),
+                            children: [
+                              for (final story in collection.stories.values)
+                                ListTile(
+                                  title: Text(story.title),
+                                  subtitle: Text(story.author),
+                                ),
+                              if (collection.stories.isEmpty)
+                                const ListTile(
+                                  title: Text(
+                                    'No stories saved to this collection yet.',
+                                  ),
+                                ),
+                            ],
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-              for (final post in _posts)
-                ProfilePostCard(
-                  key: ValueKey(post.id),
-                  post: post,
-                  onEdit: saved ? null : () => edit(post),
-                  onDelete: saved
-                      ? null
-                      : () async {
-                          final error = await PostService().deletePost(post.id);
-                          if (!context.mounted) return;
-                          if (error == null) {
-                            _fetchPosts();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Post deleted')),
-                            );
-                          } else {
-                            ScaffoldMessenger.of(
-                              context,
-                            ).showSnackBar(SnackBar(content: Text(error)));
-                          }
-                        },
-                ),
-            ],
+                if (_posts.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(30),
+                    child: Text(
+                      saved
+                          ? 'Your saved stories will appear here.'
+                          : 'Your stories will appear here. Create your first post.',
+                    ),
+                  ),
+                for (final post in _posts)
+                  ProfilePostCard(
+                    key: ValueKey(post.id),
+                    post: post,
+                    onEdit: saved ? null : () => edit(post),
+                    onDelete: saved
+                        ? null
+                        : () async {
+                            final error = await PostService().deletePost(post.id);
+                            if (!context.mounted) return;
+                            if (error == null) {
+                              _fetchPosts();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Post deleted')),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(
+                                context,
+                              ).showSnackBar(SnackBar(content: Text(error)));
+                            }
+                          },
+                  ),
+              ],
+            ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }

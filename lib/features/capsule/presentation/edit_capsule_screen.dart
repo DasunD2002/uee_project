@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/localization/app_language_provider.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../domain/capsule_model.dart';
@@ -335,6 +337,14 @@ class _EditCapsuleScreenState extends State<EditCapsuleScreen> {
         letterSpacing: -.2,
       ),
     ),
+    actions: [
+      IconButton(
+        tooltip: AppLocalizations.of(context).selectLanguageTitle,
+        onPressed: () => AppLanguageProvider.instance.showLanguageDialog(context),
+        icon: const Icon(Icons.language, size: 20),
+      ),
+      const SizedBox(width: 4),
+    ],
     bottom: const PreferredSize(
       preferredSize: Size.fromHeight(1),
       child: Divider(height: 1, color: _kBorder),

@@ -120,7 +120,6 @@ class _ContributorSheetState extends State<ContributorSheet> {
                     color: _kBrownDeep,
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
-                    fontFamily: 'serif',
                   ),
                 ),
                 Container(

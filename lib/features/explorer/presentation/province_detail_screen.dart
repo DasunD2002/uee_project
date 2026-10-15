@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../../core/localization/app_language_provider.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../core/navigation/primary_navigation.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/rootly_back_button.dart';
@@ -213,12 +215,16 @@ class _ProvinceDetailScreenState extends State<ProvinceDetailScreen> {
       title: const Text(
         'Rootly',
         style: TextStyle(
-          fontFamily: 'serif',
           fontSize: 25,
           fontWeight: FontWeight.bold,
         ),
       ),
       actions: [
+        IconButton(
+          tooltip: context.l10n.selectLanguageTitle,
+          onPressed: () => AppLanguageProvider.instance.showLanguageDialog(context),
+          icon: const Icon(Icons.language, size: 21),
+        ),
         IconButton(
           tooltip: 'Notifications',
           onPressed: () => Navigator.pushNamed(context, '/notifications'),
@@ -471,10 +477,10 @@ class _PageHeading extends StatelessWidget {
       color: const Color(0xFFFFEBDD),
       borderRadius: BorderRadius.circular(11),
     ),
-    child: const Center(
+    child: Center(
       child: Text(
-        'Explore Province',
-        style: TextStyle(
+        context.l10n.mapExploreProvince,
+        style: const TextStyle(
           color: AppColors.brown,
           fontSize: 16,
           fontWeight: FontWeight.w800,

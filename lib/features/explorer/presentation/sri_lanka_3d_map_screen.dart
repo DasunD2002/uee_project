@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import '../../../core/localization/app_language_provider.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../core/navigation/primary_navigation.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/rootly_back_button.dart';
@@ -76,12 +78,16 @@ class _SriLanka3DMapScreenState extends State<SriLanka3DMapScreen> {
       title: const Text(
         'Rootly',
         style: TextStyle(
-          fontFamily: 'serif',
           fontSize: 25,
           fontWeight: FontWeight.bold,
         ),
       ),
       actions: [
+        IconButton(
+          tooltip: context.l10n.selectLanguageTitle,
+          onPressed: () => AppLanguageProvider.instance.showLanguageDialog(context),
+          icon: const Icon(Icons.language, size: 21),
+        ),
         IconButton(
           tooltip: 'Notifications',
           onPressed: () => Navigator.pushNamed(context, '/notifications'),
@@ -166,8 +172,8 @@ class _SriLanka3DMapScreenState extends State<SriLanka3DMapScreen> {
                             ),
                             child: Text(
                               is3D
-                                  ? 'Drag to rotate • Tap a province'
-                                  : 'Tap a province to explore',
+                                  ? context.l10n.mapDragHint
+                                  : context.l10n.tapProvinceToExplore,
                               style: const TextStyle(
                                 fontSize: 10,
                                 color: AppColors.brown,
@@ -201,7 +207,7 @@ class _SriLanka3DMapScreenState extends State<SriLanka3DMapScreen> {
                 is3D ? Icons.layers_outlined : Icons.view_in_ar_outlined,
                 size: 17,
               ),
-              label: Text(is3D ? '2D Map' : '3D Map'),
+              label: Text(is3D ? context.l10n.mapMode2D : context.l10n.mapMode3D),
             ),
           ),
         ],
@@ -247,7 +253,6 @@ class _ProvinceCard extends StatelessWidget {
                 province.name,
                 style: const TextStyle(
                   color: AppColors.brown,
-                  fontFamily: 'serif',
                   fontWeight: FontWeight.bold,
                   fontSize: 17,
                 ),
@@ -297,14 +302,14 @@ class _ProvinceCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(6),
             ),
           ),
-          child: const Row(
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Flexible(
-                child: Text('Explore Region', style: TextStyle(fontSize: 10)),
+                child: Text(context.l10n.mapExploreProvince, style: const TextStyle(fontSize: 10)),
               ),
-              SizedBox(width: 5),
-              Icon(Icons.arrow_forward, size: 13),
+              const SizedBox(width: 5),
+              const Icon(Icons.arrow_forward, size: 13),
             ],
           ),
         ),
