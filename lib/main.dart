@@ -37,8 +37,6 @@ import 'core/services/notification_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await ApiConstants.init();
-
   await Supabase.initialize(
     url: ApiConstants.supabaseUrl,
     publishableKey: ApiConstants.supabaseAnonKey,
