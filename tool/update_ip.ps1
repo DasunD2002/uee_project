@@ -4,6 +4,16 @@ if (-not $ip) {
 }
 if (-not $ip) { $ip = '127.0.0.1' }
 
+$target = Join-Path $PSScriptRoot '..\lib\core\constants\host_ip.dart'
 $content = "const String hostIp = '$ip';"
-Set-Content -Path 'lib\core\constants\host_ip.dart' -Value $content
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+[System.IO.File]::WriteAllText((Resolve-Path $target).Path, "$content`n", $utf8NoBom)
 Write-Host "Updated host_ip.dart with IP: $ip"
+
+$adbPath = Join-Path $env:LOCALAPPDATA 'Android\Sdk\platform-tools\adb.exe'
+if (Test-Path -LiteralPath $adbPath) {
+    try {
+        & $adbPath reverse tcp:8080 tcp:8080 2>$null
+        Write-Host "Configured adb reverse tcp:8080 tcp:8080 for connected Android device."
+    } catch {}
+}

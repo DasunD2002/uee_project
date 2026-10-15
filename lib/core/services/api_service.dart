@@ -5,10 +5,14 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/api_constants.dart';
 
+import '../constants/host_ip.dart';
+
 bool isTestEnvironment =
     !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
 
 class ApiService {
+  static const Duration _requestTimeout = Duration(seconds: 10);
+
   @visibleForTesting
   static Future<http.Response> Function(
     String method,
@@ -21,9 +25,14 @@ class ApiService {
 
   static String _getFallbackUrl(String url) {
     if (url.contains('127.0.0.1')) {
+      if (hostIp.isNotEmpty && hostIp != '127.0.0.1' && !url.contains(hostIp)) {
+        return url.replaceAll('127.0.0.1', hostIp);
+      }
       return url.replaceAll('127.0.0.1', '10.0.2.2');
     } else if (url.contains('10.0.2.2')) {
       return url.replaceAll('10.0.2.2', '127.0.0.1');
+    } else if (hostIp.isNotEmpty && url.contains(hostIp)) {
+      return url.replaceAll(hostIp, '127.0.0.1');
     }
     return url;
   }
@@ -73,7 +82,7 @@ class ApiService {
       sessionToken,
       (uri, headers) => http
           .get(uri, headers: headers)
-          .timeout(const Duration(seconds: 30)),
+          .timeout(_requestTimeout),
     );
   }
 
@@ -92,7 +101,7 @@ class ApiService {
       sessionToken,
       (uri, headers) => http
           .post(uri, headers: headers, body: encoded)
-          .timeout(const Duration(seconds: 30)),
+          .timeout(_requestTimeout),
     );
   }
 
@@ -111,7 +120,7 @@ class ApiService {
       sessionToken,
       (uri, headers) => http
           .put(uri, headers: headers, body: encoded)
-          .timeout(const Duration(seconds: 30)),
+          .timeout(_requestTimeout),
     );
   }
 
@@ -127,7 +136,7 @@ class ApiService {
       sessionToken,
       (uri, headers) => http
           .delete(uri, headers: headers)
-          .timeout(const Duration(seconds: 30)),
+          .timeout(_requestTimeout),
     );
   }
 }
