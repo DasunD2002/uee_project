@@ -197,7 +197,6 @@ class _VoiceNoteRecorderSheetState extends State<VoiceNoteRecorderSheet> {
                 color: _kBrownDeep,
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                fontFamily: 'serif',
               ),
             ),
             const SizedBox(height: 4),

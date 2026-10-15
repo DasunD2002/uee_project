@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../explorer/presentation/widgets/explorer_footer.dart';
+import '../../../core/localization/app_language_provider.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../core/services/notification_service.dart';
 import '../data/capsule_service.dart';
 import '../domain/capsule_memory.dart';
@@ -244,6 +246,11 @@ class _FamilyReceiptScreenState extends State<FamilyReceiptScreen>
         centerTitle: true,
         actions: [
           IconButton(
+            tooltip: context.l10n.selectLanguageTitle,
+            onPressed: () => AppLanguageProvider.instance.showLanguageDialog(context),
+            icon: const Icon(Icons.language, size: 20),
+          ),
+          IconButton(
             tooltip: 'Edit capsule',
             onPressed: () async {
               final result = await Navigator.pushNamed(
@@ -282,7 +289,6 @@ class _FamilyReceiptScreenState extends State<FamilyReceiptScreen>
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: _kBrown,
-                  fontFamily: 'serif',
                   fontSize: 21,
                   fontWeight: FontWeight.w700,
                 ),
@@ -754,7 +760,6 @@ class _CountdownSheetState extends State<_CountdownSheet> {
               color: _kBrownDeep,
               fontSize: 17,
               fontWeight: FontWeight.w700,
-              fontFamily: 'serif',
             ),
           ),
           const SizedBox(height: 5),
@@ -1091,7 +1096,6 @@ class _AnimatedVideoCardState extends State<_AnimatedVideoCard>
                     'Watch Family Video',
                     style: TextStyle(
                       color: _kBrown,
-                      fontFamily: 'serif',
                       fontSize: 9.5,
                       fontStyle: FontStyle.italic,
                     ),
@@ -1560,7 +1564,6 @@ class _MemoryCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: _kBrown,
-                    fontFamily: 'serif',
                     fontSize: 10,
                     fontStyle: FontStyle.italic,
                   ),
@@ -1613,7 +1616,6 @@ class _LetterCard extends StatelessWidget {
                   'A letter for you',
                   style: TextStyle(
                     color: _kBrown,
-                    fontFamily: 'serif',
                     fontSize: 10,
                   ),
                 ),

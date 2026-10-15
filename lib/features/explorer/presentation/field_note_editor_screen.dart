@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../core/localization/app_language_provider.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../data/field_notes_store.dart';
 import '../../../core/navigation/primary_navigation.dart';
 import '../../../core/services/notification_service.dart';
@@ -129,12 +131,16 @@ class _FieldNoteEditorScreenState extends State<FieldNoteEditorScreen> {
       title: const Text(
         'Rootly',
         style: TextStyle(
-          fontFamily: 'serif',
           fontSize: 25,
           fontWeight: FontWeight.bold,
         ),
       ),
       actions: [
+        IconButton(
+          tooltip: context.l10n.selectLanguageTitle,
+          onPressed: () => AppLanguageProvider.instance.showLanguageDialog(context),
+          icon: const Icon(Icons.language, size: 20),
+        ),
         IconButton(
           tooltip: 'Notifications',
           onPressed: () => Navigator.pushNamed(context, '/notifications'),

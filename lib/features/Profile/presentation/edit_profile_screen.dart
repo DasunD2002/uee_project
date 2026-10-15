@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../core/widgets/auth_widgets.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -44,22 +45,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Edit Profile Data')),
-    body: Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 620),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: form,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text(
-                  'Profile information',
-                  style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold),
-                ),
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
+    return Scaffold(
+      appBar: AppBar(title: Text(l10n.editProfileData)),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 620),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Form(
+              key: form,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    l10n.profileInformation,
+                    style: const TextStyle(fontSize: 23, fontWeight: FontWeight.bold),
+                  ),
                 const SizedBox(height: 8),
                 const Text('Choose what people see on your profile.'),
                 const SizedBox(height: 24),
@@ -97,7 +101,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 const SizedBox(height: 28),
                 FilledButton(
                   onPressed: saving ? null : save,
-                  child: Text(saving ? 'Saving...' : 'Save Changes'),
+                  child: Text(saving ? l10n.loading : l10n.saveChanges),
                 ),
               ],
             ),
@@ -106,4 +110,5 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       ),
     ),
   );
+  }
 }
